@@ -1,0 +1,27 @@
+﻿Installation:
+Just extract the archive in the wanted directory and use 'python3 main.py' to lauch the gui.
+You also will need to modify the paths in edit/configuration menu.
+'Installation Dir' refers to where is the main.py script with the config file.
+'Scripts Dir' refers to the path of the python scripts used for the analysis
+'Data Dir' refers to the path of the data that is expended into the left file tree view.
+
+
+Description:
+nPdyn is a simple GUI designed to make the analysis of neutron scattering data easier. Just select your files in the left filetree, select the script you want to use on this file and launch it. 
+The application uses the sys.argv as argument to pass to the script and argParser.py. So in your script, just get the files paths list by typing : 
+arg, karg = argParser.argParser(sys.argv)  
+filesPaths = arg[1:] 
+
+Other options can be given to the script : 
+Bin step, q-range, ...
+These parameters can be get in your script using :
+myParameter = karg[optionName], which is a dictionnary :
+normFactor >>> number of low-temp bins used for normalization (MSD scripts).  
+binS >>> bin step, number of lines used for averaging  
+qMin >>> q-range min  
+qMax >>> q-range max 
+qDiscard >>> q value to discard in the analysis  
+
+Additional parameters can also be provided by the user.
+For this, just write the parameters names each followed by "=" and the value.
+The program automatically detect separators and line return and finally add the provided parameters to the console command just as the standard ones. All the print() calls in your scripts are saved in output.txt. This file is shown in the central text edit box after the run and you can save it using the save buttons/shortcut. 
