@@ -1,4 +1,4 @@
-﻿Installation:
+Installation:
 Just extract the archive in the wanted directory and use 'python3 main.py' to lauch the gui.
 You also will need to modify the paths in edit/configuration menu.
 'Installation Dir' refers to where is the main.py script with the config file.
@@ -15,12 +15,14 @@ filesPaths = arg[1:]
 Other options can be given to the script : 
 Bin step, q-range, ...
 These parameters can be get in your script using :
+
 myParameter = karg[optionName], which is a dictionnary :
-normFactor >>> number of low-temp bins used for normalization (MSD scripts).  
-binS >>> bin step, number of lines used for averaging  
-qMin >>> q-range min  
-qMax >>> q-range max 
-qDiscard >>> q value to discard in the analysis  
+
+normFactor  >>> number of low-temp bins used for normalization (MSD scripts).  
+binS        >>> bin step, number of lines used for averaging  
+qMin        >>> q-range min  
+qMax        >>> q-range max 
+qDiscard    >>> q value to discard in the analysis  
 
 Additional parameters can also be provided by the user.
 For this, just write the parameters names each followed by "=" and the value.
