@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QPushButton,
                              QLabel, QVBoxLayout, QHBoxLayout, QGridLayout,
                              QFileSystemModel, QTreeView, QLayout, QComboBox,
                              QFileDialog, QMessageBox, QGroupBox, QLineEdit,
-                             QAbstractItemView, QFrame, QSplitter, QFrame)
+                             QAbstractItemView, QFrame, QSplitter, QFrame, QCheckBox)
 from PyQt5.QtGui import QFont, QIcon, QMouseEvent, QCursor, QPixmap, QWindow
 from PyQt5.QtCore import (QCoreApplication, QDir, QVariant, QFile, QTextStream, 
                           QFileDevice, Qt, QFileInfo, QProcess, QByteArray)
@@ -36,13 +36,14 @@ class MainWindow(QMainWindow):
 
     #_Gui elements
         self.textEdit = QTextEdit()
+        self.textEdit.setCurrentFont(QFont('Lucida Console', 10))
         self.textEdit.setStatusTip('Print area for files')
 
         self.btnShowContent = QPushButton('Show Content')
         self.btnShowContent.setStatusTip('Show the content of the selected file')
 
         self.btnLauchScript = QPushButton('Run script')         
-        self.btnLauchScript.setToolTip('Launch the selected script')
+        self.btnLauchScript.setToolTip('Run the selected script')
 
         self.btnOutput = QPushButton('Output') 
         self.btnOutput.setStatusTip('Show the content of the output.txt file')
@@ -54,7 +55,7 @@ class MainWindow(QMainWindow):
 
         self.btnSelToConsole = QPushButton('Sel To Console')
         self.btnSelToConsole.setStatusTip('''Put the selected files and parameters 
-to the IPython console''')
+                                             to the IPython console''')
 
         self.pyTerm = JupyterWidget.QIPythonWidget()
 
@@ -92,8 +93,21 @@ to the IPython console''')
         self.qMaxText.setText('1.2')
         self.qMaxText.setStatusTip('Maximum of the q-range used for the fit')
 
-        self.qDiscardLabel = QLabel('q values to discard : ', parent=self.paramBox)
+        self.qDiscardLabel = QLabel('q val to discard : ', parent=self.paramBox)
         self.qDiscardText = QLineEdit(parent=self.paramBox)
+        
+        self.newFitLabel = QLabel('New fit  ', parent=self.paramBox)
+        self.new_fit_check = QCheckBox(parent=self.paramBox)
+        self.new_fit_check.setCheckState(Qt.Checked)
+        self.new_fit_check.setStatusTip('Use the fitting procedure on the data or load existing parameters')
+
+        self.elasticNormLabel = QLabel('Elastic norm factor ', parent=self.paramBox)
+        self.elasticNorm = QCheckBox(parent=self.paramBox)
+        self.elasticNorm.setStatusTip('Use the elastic data at low temperature for normalization')
+
+        self.vanaNormLabel = QLabel('Vanadium norm (elastic) ', parent=self.paramBox)
+        self.vanaNorm = QCheckBox(parent=self.paramBox)
+        self.vanaNorm.setStatusTip('Use the vanadium data for normalizing the elastic ones')
 
         #_Additional parameters widgets
         self.addParamLabel = QLabel('Additional parameters :')
@@ -207,6 +221,7 @@ to the IPython console''')
         centralVBox.addWidget(self.textEdit)
         centralPanel.setLayout(centralVBox)
     
+        #_Layout for the right panel
         rightVBox = QVBoxLayout() 
         rightVBox.addWidget(self.btnShowContent)
         rightVBox.addWidget(self.btnOutput)
@@ -229,11 +244,12 @@ to the IPython console''')
         hSplitter2.addWidget(hSplitter1)
         hSplitter2.addWidget(rightPanel)
         hSplitter2.setStretchFactor(0, 4)
+        hSplitter2.setStretchFactor(1, 1)
 
         vSplitter = QSplitter(Qt.Vertical)
         vSplitter.addWidget(hSplitter2)
         vSplitter.addWidget(self.pyTerm)
-        vSplitter.setStretchFactor(0, 4)
+        vSplitter.setStretchFactor(0, 3)
         vSplitter.setStretchFactor(1, 2)
 
         centralLayout.addWidget(vSplitter)
@@ -257,6 +273,14 @@ to the IPython console''')
         paramGrid.addWidget(self.qDiscardLabel, 4, 0)
         paramGrid.addWidget(self.qDiscardText, 4, 1)
 
+        paramGrid.addWidget(self.newFitLabel, 5, 0)
+        paramGrid.addWidget(self.new_fit_check, 5, 1)
+
+        paramGrid.addWidget(self.elasticNormLabel, 6, 0)
+        paramGrid.addWidget(self.elasticNorm, 6, 1)
+
+        paramGrid.addWidget(self.vanaNormLabel, 7, 0)
+        paramGrid.addWidget(self.vanaNorm, 7, 1)
 
     #_Miscellanous
         self.setWindowTitle('nPDyn')
@@ -305,10 +329,13 @@ to the IPython console''')
         addParamList = addParamPattern.split(self.addParamText.toPlainText())
         arg, karg = argParser.argParser(addParamList)
 
-        r = 'python3 ' + scriptToLaunch + ' ' + ' '.join(filesPath) + ' ' 
+        r = 'ipython3 ' + scriptToLaunch + ' ' + ' '.join(filesPath) + ' ' 
         if karg is not None:
             for item in karg.items():
-                r += item[0] + '=' + item[1] + ' '
+                r += item[0].strip() + '=' + item[1].strip() + ' '
+        r += 'new_fit=' + str(self.new_fit_check.isChecked()) + ' '
+        r += 'elasticNormF=' + str(self.elasticNorm.isChecked()) + ' '
+        r += 'vanaNorm=' + str(self.vanaNorm.isChecked()) + ' '
         r += 'normFactor=' + self.normFactText.text() + ' '
         r += 'qDiscard=' + self.qDiscardText.text() + ' '
         r += 'binS=' + self.binText.text() + ' '
@@ -322,7 +349,7 @@ to the IPython console''')
             oldFile.close()
 
         proc = subprocess.Popen(r, shell=True)
-        print('Using command : ' + r + '\n' + 'With pid ==> ' + str(proc.pid+1))
+        print('Using command : ' + r + '\n')
 
 
     def saveFile(self):
@@ -374,10 +401,13 @@ to the IPython console''')
         addParamList = addParamPattern.split(self.addParamText.toPlainText())
         arg, karg = argParser.argParser(addParamList)
 
-        r = '%run ' + scriptToLaunch + ' ' + ' '.join(filesPath) + ' ' 
+        r = ' '.join(filesPath) + ' ' 
         if karg is not None:
             for item in karg.items():
                 r += item[0].strip() + '=' + item[1].strip() + ' '
+        r += 'new_fit=' + str(self.new_fit_check.isChecked()) + ' '
+        r += 'elasticNormF=' + str(self.elasticNorm.isChecked()) + ' '
+        r += 'vanaNorm=' + str(self.vanaNorm.isChecked()) + ' '
         r += 'normFactor=' + self.normFactText.text() + ' '
         r += 'qDiscard=' + self.qDiscardText.text() + ' '
         r += 'binS=' + self.binText.text() + ' '
