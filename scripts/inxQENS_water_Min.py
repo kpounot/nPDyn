@@ -82,8 +82,21 @@ class Window(QDialog):
                                     if val.qVal not in qDiscardList] 
 
         
+        if karg['new_fit']=='True':
+            #_Get the file in which the fitted parameters are to be saved
+            message = QMessageBox.information(QWidget(), 'File selection',
+                    'Please select the file in which to save the fitted parameters...') 
+            self.paramsFile = QFileDialog().getSaveFileName()[0]
+            self.scatFit()
+            self.getProba()
+        else:
+            #_Get the file containing the fitted parameters
+            message = QMessageBox.information(QWidget(), 'File selection',
+                    'Please select the file containing the fitted parameters...') 
+            paramsFile = QFileDialog().getOpenFileName()[0]
+            with open(paramsFile, 'rb') as params:
+                self.scatFitList1 = pk.Unpickler(params).load()
 
-        self.scatFit()
 
 #_Construction of the GUI
 
@@ -224,6 +237,10 @@ class Window(QDialog):
 
             self.scatFitList1 = scatList1
 
+        with open(self.paramsFile, 'wb') as fittedParamsFile:
+            myFile = pk.Pickler(fittedParamsFile)
+            modelFitList = self.scatFitList1
+            myFile.dump(modelFitList)
 
     #_Function used to produce the plot of the fit
     def fittedFunc(self, data, shift, normFact, S, gauW, lorW, 
