@@ -12,7 +12,7 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from sympy.functions.special.delta_functions import DiracDelta
 from scipy import optimize
 from scipy.signal import fftconvolve
-from scipy.special import wofz, sph_jn
+from scipy.special import wofz, spherical_jn
 from scipy.stats import chisquare, bayes_mvs
 from scipy.misc import factorial
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas

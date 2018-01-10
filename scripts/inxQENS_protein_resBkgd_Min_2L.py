@@ -1,4 +1,5 @@
-import sys
+import sys, os
+import pickle as pk
 import numpy as np
 import inxBinQENS
 import argParser
@@ -146,20 +147,20 @@ class Window(QDialog):
 
         cost = 0
 
-        g0 = x[0] 
-        g1 = x[1]
-        s0 = x[2]
-        s1 = x[3]
-        s2 = x[4]
+        gList   = x[0:2] 
+        gList   = gList.reshape(gList.shape[0], 1)
+        s0      = x[2]
+        sList   = x[3:5]
+        sList   = sList.reshape(sList.shape[0], 1)
+        msd     = x[5]
         for j, data in enumerate(fileData):
 
-            resShift = self.resFitList[i][j][0][4]
-            normFact = self.resFitList[i][j][0][3]
-            lorS = self.resFitList[i][j][0][2]
-            GauR = self.resFitList[i][j][0][1]
-            lorR = self.resFitList[i][j][0][0]
-            bkgd = self.resFitList[i][j][0][5] 
-            sigma = GauR/np.sqrt(2*np.log(2))
+            shift = self.resFitList[i][j][0][4]
+            normF = self.resFitList[i][j][0][0]
+            S     = self.resFitList[i][j][0][1]
+            gauW  = self.resFitList[i][j][0][3]
+            lorW  = self.resFitList[i][j][0][2]
+            bkgd  = self.resFitList[i][j][0][5]
 
             
             X = data.energies
@@ -174,7 +175,7 @@ class Window(QDialog):
 
             convolutions = np.array([np.convolve(val, f_res, mode='same') for val in f_lor])
 
-            f = np.exp(-data.qVal**2*msd/3) * (s0 * f_res + np.sum(sList * convolutions, axis=0) + pBkgd)
+            f = np.exp(-data.qVal**2*msd/3) * (s0 * f_res + np.sum(sList * convolutions, axis=0))
 
             cost += np.sum((data.intensities / self.normF[i][j] - f)**2 / (data.errors / self.normF[i][j])**2)
 
@@ -193,8 +194,8 @@ class Window(QDialog):
             #_Minimization 
             scatList1.append(optimize.minimize(lambda x:
                     self.fitFunc(x, fileDatas, i),
-                    [1, 30, 0.5, 0.1, 0.4], 
-                    bounds = [(0., 5), (0., 4000), (0., 1), (0., 1), (0., 1)],
+                    [1, 30, 0.5, 0.1, 0.4, 2], 
+                    bounds = [(0., 5), (0., 4000), (0., 1), (0., 1), (0., 1), (0., 3.)],
                     options={'eps':1e-10, 'maxcor':250, 'maxls':50, 
                              'maxfun':100000, 'maxiter':100000},
                     callback=self.fitState))
@@ -218,24 +219,31 @@ class Window(QDialog):
         print('        {0:<50}= {1:.4f}'.format('s1', x[3]), flush=True)
         print('        {0:<50}= {1:.4f}'.format('s2', x[4]), flush=True)
 
-
     #_Function used to produce the plot of the fit
-    def fittedFunc(self, datas, resShift, normFact, lorS, GauR, lorR, sigma, 
-                                                g0, g1, s0, s1, s2, bkgd):
+    def fittedFunc(self, data, shift, normFact, S, gauW, lorW, bkgd, j, x):
 
+        s0 = x[0]
+        gList = x[1:3]
+        gList = gList.reshape(gList.shape[0], 1)
+        sList = x[3:4]
+        sList = sList.reshape(sList.shape[0], 1)
+        msd = x[5]
 
-        Model = [s0 * self.resFunc(val, lorR, GauR, lorS, 1, resShift, bkgd) + 
-                s1 * (lorS * (lorR + g0) / (np.pi * ((lorR + g0)**2 + val**2))
-                + (1-lorS) * np.real(wofz(val + 1j*g0/(sigma*np.sqrt(2)))) /
-                (sigma*np.sqrt(np.pi*2)) + bkgd) +
- 
-                s2 * (lorS * (lorR + g1) / (np.pi * ((lorR + g1)**2 + val**2))
-                + (1-lorS) * np.real(wofz(val + 1j*g1/(sigma*np.sqrt(2)))) / 
-                (sigma*np.sqrt(np.pi*2)) + bkgd)
-                for k, val in enumerate(datas.energies)] 
+        X = data.energies
+        
+        #_Resolution function
+        f_res = ((S * lorW / (lorW**2 + (X - shift)**2) / np.pi 
+                + (1-S) * np.exp(-(X - shift)**2 / (2*gauW**2)) / (gauW * np.sqrt(2*np.pi)) 
+                + bkgd))
 
-        return Model        
+        #_Lorentzians
+        f_lor = gList / (np.pi * (X**2 + gList**2))
 
+        convolutions = np.array([np.convolve(val, f_res, mode='same') for val in f_lor])
+
+        f = np.exp(-data.qVal**2*msd/3) * (s0 * f_res + np.sum(sList * convolutions, axis=0) + pBkgd)
+
+        return f
 
 
 #_Definitions of the slots for the plot window
@@ -392,12 +400,11 @@ class Window(QDialog):
             for j, qDatas in enumerate(fileDatas):
                 if qDatas.qVal == qValToShow:
                     resShift = self.resFitList[k][j][0][4]
-                    normFact = self.resFitList[k][j][0][3]
-                    lorS = self.resFitList[k][j][0][2]
-                    GauR = self.resFitList[k][j][0][1]
-                    lorR = self.resFitList[k][j][0][0]
+                    normFact = self.resFitList[k][j][0][0]
+                    lorS = self.resFitList[k][j][0][1]
+                    GauR = self.resFitList[k][j][0][3]
+                    lorR = self.resFitList[k][j][0][2]
                     bkgd = self.resFitList[k][j][0][5] 
-                    sigma = GauR/np.sqrt(2*np.log(2))
                     
                     #_Plot of the measured QENS signal
                     ax.errorbar(qDatas.energies, 
@@ -415,6 +422,7 @@ class Window(QDialog):
                     s0 = self.scatFitList1[k].x[2]
                     s1 = self.scatFitList1[k].x[3]
                     s2 = self.scatFitList1[k].x[4]
+                    msd = self.scatFitList1[k].x[5]
 
 
                     ax.plot(qDatas.energies, [g0/(g0**2+val**2) * s1
@@ -427,7 +435,7 @@ class Window(QDialog):
 
                     #_Plot of the fitted incoherent structure factor
                     ax.plot(qDatas.energies, self.fittedFunc(qDatas, resShift, normFact, lorS, 
-                                        GauR, lorR, sigma, g0, g1, s0, s1, s2, bkgd), 
+                                        GauR, lorR, j, self.scatFitList1[k].x), 
                             label='convolution', linewidth=2, color='orangered')
                     
 
