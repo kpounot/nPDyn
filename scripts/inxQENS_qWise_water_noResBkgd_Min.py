@@ -87,7 +87,6 @@ class Window(QDialog):
                                     if val.qVal not in qDiscardList] 
 
         
-
         self.scatFit()
 
 #_Construction of the GUI

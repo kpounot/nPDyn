@@ -64,29 +64,17 @@ class Window(QDialog):
                   'rb') as resFit:
             resFitData = pk.Unpickler(resFit).load()
             self.resFitList = resFitData[0]
+            #_If there is only of fit for the resolution function, we assume the same is used
+            #_for all data files
             if len(self.resFitList) == 1:
                 self.resFitList = np.tile(self.resFitList, len(self.dataFiles))
             self.meanResGauWidth = resFitData[1]
 
-        #_Get values for normalization
+        #_Get datas from the file and store them into self.dataList 
         for i, dataFile in enumerate(self.dataFiles):
-            if karg['elasticNormF']=='True':
-                self.normF.append(elasticNormF.get_elastic_normF())
-            else:
-                self.normF.append([val[0][0] for val in self.resFitList[i]])
-
-            #_Get datas from the file and store them into self.dataList 
             inxDatas = inxBinQENS.inxBin(dataFile, karg['binS'])
             self.dataList.append(inxDatas)    
 
-
-        #_Keep the datas from wanted q-range
-        qMin = min([datas.qVal for datas in self.dataList[0]], 
-	                key = lambda x : abs(float(karg['qMin']) - x))
-        qMax = min([datas.qVal for datas in self.dataList[0]], 
-	                key = lambda x : abs(float(karg['qMax']) - x))
-        for i, fileDatas in enumerate(self.dataFiles):
-            self.dataList[i] = [val for val in self.dataList[i] if qMin <= val.qVal <= qMax]
 
         #_Discard the selected index
         if karg['qDiscard'] is not '':
@@ -95,7 +83,27 @@ class Window(QDialog):
             for j, fileDatas in enumerate(self.dataFiles):
                 for val in qDiscardList:
                     self.dataList[j].pop(int(val))
+                    self.resFitList[j].pop(int(val))
         
+
+        #_Keep the datas from wanted q-range
+        qMin = min([datas.qVal for datas in self.dataList[0]], 
+	                key = lambda x : abs(float(karg['qMin']) - x))
+        qMax = min([datas.qVal for datas in self.dataList[0]], 
+	                key = lambda x : abs(float(karg['qMax']) - x))
+        for i, fileDatas in enumerate(self.dataFiles):
+            self.resFitList[i] = [self.resFitList[i][qIdx] for qIdx, val in enumerate(self.dataList[i]) 
+                                                                    if qMin <= val.qVal <= qMax]
+            self.dataList[i] = [val for val in self.dataList[i] if qMin <= val.qVal <= qMax]
+
+
+        #_Get values for normalization
+        for i, dataFile in enumerate(self.dataFiles):
+            if karg['elasticNormF']=='True':
+                self.normF.append(elasticNormF.get_elastic_normF())
+            else:
+                self.normF.append([val[0][0] for val in self.resFitList[i]])
+
 
         if karg['new_fit']=='True':
             #_Get the file in which the fitted parameters are to be saved

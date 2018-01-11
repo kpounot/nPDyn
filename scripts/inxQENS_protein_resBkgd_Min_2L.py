@@ -66,9 +66,9 @@ class Window(QDialog):
         qMax = min([datas.qVal for datas in self.dataList[0]], 
 	                key = lambda x : abs(float(karg['qMax']) - x))
         for i, fileDatas in enumerate(self.dataFiles):
-            self.dataList[i] = [val for val in self.dataList[i] if qMin <= val.qVal <= qMax]
             self.resFitList[i] = [self.resFitList[i][qIdx] for qIdx, val in enumerate(self.dataList[i]) 
                                                                     if qMin <= val.qVal <= qMax]
+            self.dataList[i] = [val for val in self.dataList[i] if qMin <= val.qVal <= qMax]
 
 
         #_Get values for normalization
