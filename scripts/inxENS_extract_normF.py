@@ -27,7 +27,7 @@ def get_elastic_normF():
     binS = int(karg['binS'])
 
     dataList = inxBinENS.inxBin(dataFile, binS)
-    
+
     qList = list(map(float, [i.qVal for i in dataList]))
     reducedqList = [val for val in qList if qMin < val < qMax]
     reducedIndex = [i for i, val in enumerate(qList) if qMin < val < qMax]
@@ -42,6 +42,7 @@ def get_elastic_normF():
         reducedIndex, reducedqList = list(zip(*zipList))[0], list(zip(*zipList))[1]
 
     dataList = [val for i, val in enumerate(dataList) if i in reducedIndex]
+
 
 
     #_Extract the intensities and errors for the same temperature depending on q values 

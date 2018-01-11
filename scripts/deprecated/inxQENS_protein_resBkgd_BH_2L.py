@@ -1,23 +1,24 @@
-import sys, os
-import pickle as pk
+import sys
 import numpy as np
 import inxBinQENS
 import argParser
 import re
 import matplotlib.pyplot as plt
+from collections import namedtuple
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
 from PyQt5 import QtGui
-from mpl_toolkits.mplot3d.axes3d import Axes3D
+import mpl_toolkits.mplot3d.axes3d as ax3d
+from sympy.functions.special.delta_functions import DiracDelta
 from scipy import optimize
 from scipy.signal import fftconvolve
+from scipy.special import wofz
+from scipy.stats import chisquare, bayes_mvs
+from scipy.misc import factorial
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.gridspec as gridspec
 import matplotlib
-import inxQENS_extract_resFunc_analysis as resFuncAnalysis
-import inxENS_extract_normF as elasticNormF
-
 
 class Window(QDialog):
     def __init__(self):
@@ -30,35 +31,21 @@ class Window(QDialog):
         self.resList = []
         self.resFitList = []
         self.scatFitList1 = []
-        self.meanResGauWidth = []
-        self.normF = []
-        
-        #_Get the resolution function parameters
-        with open(os.path.dirname(os.path.abspath(__file__)).rstrip('scripts') + 'params/resFunc_params', 
-                  'rb') as resFit:
-            resFitData = pk.Unpickler(resFit).load()
-            self.resFitList = resFitData[0]
-            #_If there is only of fit for the resolution function, we assume the same is used
-            #_for all data files
-            if len(self.resFitList) == 1:
-                self.resFitList = np.tile(self.resFitList, len(self.dataFiles))
-            self.meanResGauWidth = resFitData[1]
-
-        #_Get datas from the file and store them into self.dataList 
+        self.scatFitList2 = []
+        self.tempBkgd = []
+        self.bkgdList = []
         for i, dataFile in enumerate(self.dataFiles):
+        
+            #_Get the corresponding file at low temperature and integrate the curves
+            message = QMessageBox.information(QWidget(), 'File selection',
+                    'Please select the corresponding low temperature file for :\n ...' + 
+                    dataFile[dataFile.rfind('/'):])
+            resFile = QFileDialog().getOpenFileName()[0]
+            self.resList.append(inxBinQENS.inxBin(resFile, karg['binS']))
+        
+            #_Get datas from the file and store them into self.dataList 
             inxDatas = inxBinQENS.inxBin(dataFile, karg['binS'])
             self.dataList.append(inxDatas)    
-
-
-        #_Discard the selected index
-        if karg['qDiscard'] is not '':
-            qDiscardPattern = re.compile(r'[ ,.:;-]+')
-            qDiscardList = qDiscardPattern.split(karg['qDiscard'])
-            for j, fileDatas in enumerate(self.dataFiles):
-                for val in qDiscardList:
-                    self.dataList[j].pop(int(val))
-                    self.resFitList[j].pop(int(val))
-        
 
         #_Keep the datas from wanted q-range
         qMin = min([datas.qVal for datas in self.dataList[0]], 
@@ -67,35 +54,25 @@ class Window(QDialog):
 	                key = lambda x : abs(float(karg['qMax']) - x))
         for i, fileDatas in enumerate(self.dataFiles):
             self.dataList[i] = [val for val in self.dataList[i] if qMin <= val.qVal <= qMax]
-            self.resFitList[i] = [self.resFitList[i][qIdx] for qIdx, val in enumerate(self.dataList[i]) 
-                                                                    if qMin <= val.qVal <= qMax]
+            self.resList[i] = [val for val in self.resList[i] if qMin <= val.qVal <= qMax]
+
+        #_Discard the selected index
+        if karg['qDiscard'] is not '':
+            qDiscardPattern = re.compile(r'[ ,:;-]+')
+            qDiscardList = qDiscardPattern.split(karg['qDiscard'])
+            qDiscardList = [min([datas.qVal for datas in self.dataList[0]], 
+	                key = lambda x: abs(float(val) - x)) for val in qDiscardList]
+            for i, fileDatas in enumerate(self.dataFiles):
+                self.dataList[i] = [val for val in self.dataList[i] 
+                                    if val.qVal not in qDiscardList] 
+                self.resList[i] = [val for val in self.resList[i] 
+                                    if val.qVal not in qDiscardList] 
 
 
-        #_Get values for normalization
-        for i, dataFile in enumerate(self.dataFiles):
-            if karg['elasticNormF']=='True':
-                self.normF.append(elasticNormF.get_elastic_normF())
-            else:
-                self.normF.append([val[0][0] for val in self.resFitList[i]])
-
-        if karg['new_fit']=='True':
-            #_Get the file in which the fitted parameters are to be saved
-            message = QMessageBox.information(QWidget(), 'File selection',
-                    'Please select the file in which to save the fitted parameters...') 
-            self.paramsFile = QFileDialog().getSaveFileName()[0]
-            self.scatFit()
-
-        else:
-            #_Get the file containing the fitted parameters
-            message = QMessageBox.information(QWidget(), 'File selection',
-                    'Please select the file containing the fitted parameters...') 
-            paramsFile = QFileDialog().getOpenFileName()[0]
-            with open(paramsFile, 'rb') as params:
-                self.scatFitList1 = pk.Unpickler(params).load()
-
-
+        self.resFit()
+        self.scatFit()
+ 
 #_Construction of the GUI
-
         # a figure instance to plot on
         self.figure = plt.figure()
 
@@ -114,7 +91,10 @@ class Window(QDialog):
         self.analysisButton = QPushButton('Analysis')
         self.analysisButton.clicked.connect(self.analysisPlot)
 
-        self.plot3DButton = QPushButton('3D Plot')
+        self.resButton = QPushButton('Resolution')
+        self.resButton.clicked.connect(self.resPlot)
+
+        self.plot3DButton = QPushButton('plot 3D')
         self.plot3DButton.clicked.connect(self.plot3D)
 
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -138,67 +118,87 @@ class Window(QDialog):
         layout.addWidget(self.plot3DButton)
         layout.addWidget(self.fitButton)
         layout.addWidget(self.analysisButton)
+        layout.addWidget(self.resButton)
         self.setLayout(layout)
 
-
-
-
 #_Everything needed for the fit
-    def fitFunc(self, x, fileData, i):
+    def resFunc(self, x, lorG, gauG, lorS, normF, shift, bkgd):
+        return  (normF * (lorS * lorG/(lorG**2 + (x-shift)**2) /np.pi 
+                + (1-lorS) * np.exp(-((x-shift)**2) / (2*gauG**2)) / (gauG*np.sqrt(2*np.pi))
+                + bkgd))  
 
-        cost = 0
+    def resFit(self):
+    
+        for i, resFile in enumerate(self.resList):
+            resList = []
+            for j, datas in enumerate(resFile):
+                resList.append(optimize.curve_fit(self.resFunc, 
+                                datas.energies,
+                                datas.intensities,
+                                sigma=[val + 0.0001 for val in datas.errors],
+                                #p0 = [1, 1, 0.8, 20, 0], 
+                                bounds=([0., 0., 0., 0., -10, 0.],  
+                                        [2, 10, 1., 10000, 10, 0.1]), 
+                                method='trf'))
+            self.resFitList.append(resList)
 
-        gList   = x[0:2] 
-        gList   = gList.reshape(gList.shape[0], 1)
-        s0      = x[2]
-        sList   = x[3:5]
-        sList   = sList.reshape(sList.shape[0], 1)
-        msd     = x[5]
-        for j, data in enumerate(fileData):
 
-            shift = self.resFitList[i][j][0][4]
-            normF = self.resFitList[i][j][0][0]
-            S     = self.resFitList[i][j][0][1]
-            gauW  = self.resFitList[i][j][0][3]
-            lorW  = self.resFitList[i][j][0][2]
-            bkgd  = self.resFitList[i][j][0][5]
+    def fitFunc(self, x, fileDatas, i):
+
+        bkgdL = []
+
+        chiSquared = 0
+        g0 = x[0] / np.pi
+        g1 = x[1] / np.pi
+        s0 = x[2]
+        s1 = x[3]
+        s2 = x[4]
+        for j, datas in enumerate(fileDatas):
+
+            resShift = self.resFitList[i][j][0][4]
+            normFact = self.resFitList[i][j][0][3]
+            lorS = self.resFitList[i][j][0][2]
+            GauR = self.resFitList[i][j][0][1]
+            lorR = self.resFitList[i][j][0][0]
+            bkgd = self.resFitList[i][j][0][5]
+            sigma = GauR/np.sqrt(2*np.log(2))
 
             
-            X = data.energies
-            
-            #_Resolution function
-            f_res = ((S * lorW / (lorW**2 + (X - shift)**2) / np.pi 
-                    + (1-S) * np.exp(-(X - shift)**2 / (2*gauW**2)) / (gauW * np.sqrt(2*np.pi)) 
-                    + bkgd))
+            funSquared = sum([(datas.intensities[k]/normFact - 
+                    (s0 * self.resFunc(val, lorR, GauR, lorS, 1, resShift, bkgd) + 
+                    s1 * (lorS * (lorR + g0) / (np.pi * ((lorR + g0)**2 + val**2))
+                    + (1-lorS) * np.real(wofz(val + 1j*g0/(sigma*np.sqrt(2)))) / 
+                    (sigma*np.sqrt(np.pi*2)) + bkgd) + 
 
-            #_Lorentzians
-            f_lor = gList / (np.pi * (X**2 + gList**2))
+                    s2 * (lorS * (lorR + g1) / (np.pi * ((lorR + g1)**2 + val**2)) 
+                    + (1-lorS) * np.real(wofz(val + 1j*g1/(sigma*np.sqrt(2)))) / 
+                    (sigma*np.sqrt(np.pi*2)) + bkgd)))**2 
 
-            convolutions = np.array([np.convolve(val, f_res, mode='same') for val in f_lor])
+                    / (datas.intensities[k] / normFact)**2 
+                    * (sum(datas.intensities) / sum(datas.errors))**2 
+                    for k, val in enumerate(datas.energies)])
 
-            f = np.exp(-data.qVal**2*msd/3) * (s0 * f_res + np.sum(sList * convolutions, axis=0))
+            #chiSquared += np.log(1 + funSquared) #_Cauchy loss function 
+            #chiSquared += 2 * ((1 + funSquared)**0.5 - 1) #_Soft_l1 loss function
+            chiSquared += funSquared
 
-            cost += np.sum((data.intensities / self.normF[i][j] - f)**2 / (data.errors / self.normF[i][j])**2)
-
-
-        return cost
-
+        return chiSquared
 
 
     def scatFit(self):
     
         scatList1 = []
-        for i, fileData in enumerate(self.dataList):
+        for i, fileDatas in enumerate(self.dataList):
             print('>>> File : ' + self.dataFiles[i][self.dataFiles[i].rfind('/'):], flush=True)
             print(75*'_', flush=True)
             
             #_Minimization 
-            scatList1.append(optimize.minimize(lambda x:
-                    self.fitFunc(x, fileData, i),
-                    [1, 30, 0.5, 0.1, 0.4, 2], 
-                    bounds = [(0., 5), (0., 4000), (0., 1), (0., 1), (0., 1), (0., 3.)],
-                    options={'eps':1e-10, 'maxcor':250, 'maxls':50, 
-                             'maxfun':100000, 'maxiter':100000},
+            scatList1.append(optimize.basinhopping(lambda x:
+                    self.fitFunc(x, fileDatas, i),
+                    [1, 200, 0.5, 0.1, 0.4], 
+                    niter = 50, 
+                    stepsize=10,
+                    accept_test = self.fitAccept,
                     callback=self.fitState))
 
             print('> Final result : ', flush=True)
@@ -211,40 +211,42 @@ class Window(QDialog):
 
             self.scatFitList1 = scatList1
 
+    #_Accept test for the basinHopping algorithm
+    def fitAccept(self, f_new, x_new, f_old, x_old):
+        testList = [False if val < 0 else True for val in x_new]
+        
+        return False if False in testList else True
+            
     #_Callback function for the algorithm
-    def fitState(self, x):
-        print('Step results :', flush=True)
+    def fitState(self, x, f, accepted):
+        print('at minimum  %.5f  accepted : %d' % (f, int(accepted)), flush=True)
         print('        {0:<50}= {1:.4f}'.format('g0', x[0]), flush=True)
         print('        {0:<50}= {1:.4f}'.format('g1', x[1]), flush=True)
         print('        {0:<50}= {1:.4f}'.format('s0', x[2]), flush=True)
         print('        {0:<50}= {1:.4f}'.format('s1', x[3]), flush=True)
         print('        {0:<50}= {1:.4f}'.format('s2', x[4]), flush=True)
 
+
     #_Function used to produce the plot of the fit
-    def fittedFunc(self, data, shift, normFact, S, gauW, lorW, bkgd, j, x):
+    def fittedFunc(self, datas, resShift, normFact, lorS, GauR, lorR, sigma, 
+                                                g0, g1, s0, s1, s2, bkgd):
 
-        s0 = x[0]
-        gList = x[1:3]
-        gList = gList.reshape(gList.shape[0], 1)
-        sList = x[3:4]
-        sList = sList.reshape(sList.shape[0], 1)
-        msd = x[5]
-
-        X = data.energies
+        g0 = g0 / np.pi
+        g1 = g1 / np.pi
         
-        #_Resolution function
-        f_res = ((S * lorW / (lorW**2 + (X - shift)**2) / np.pi 
-                + (1-S) * np.exp(-(X - shift)**2 / (2*gauW**2)) / (gauW * np.sqrt(2*np.pi)) 
-                + bkgd))
 
-        #_Lorentzians
-        f_lor = gList / (np.pi * (X**2 + gList**2))
+        Model = [s0 * self.resFunc(val, lorR, GauR, lorS, 1, resShift, bkgd) + 
+                s1 * (lorS * fftconvolve(lorR/(val**2 + lorR**2)/np.pi, 
+                g0/(val**2 + g0**2), mode='same') + 
+                (1-lorS) * np.real(wofz(val + 1j*g0/(sigma*np.sqrt(2)))) /
+                (sigma*np.sqrt(np.pi*2)) + bkgd) + 
+                s2 * (lorS * fftconvolve(lorR/(val**2 + lorR**2)/np.pi, 
+                g1/(val**2 + g1**2), mode='same') + 
+                (1-lorS) * np.real(wofz(val + 1j*g1/(sigma*np.sqrt(2)))) / 
+                (sigma*np.sqrt(np.pi*2)) + bkgd)
+                for k, val in enumerate(datas.energies)] 
 
-        convolutions = np.array([np.convolve(val, f_res, mode='same') for val in f_lor])
-
-        f = np.exp(-data.qVal**2*msd/3) * (s0 * f_res + np.sum(sList * convolutions, axis=0))
-
-        return f
+        return Model        
 
 
 #_Definitions of the slots for the plot window
@@ -286,7 +288,7 @@ class Window(QDialog):
             ax = self.figure.add_subplot(mplGrid[:,k], projection='3d')
 
             for i, datas in enumerate(fileDatas):
-                normFact = self.resFitList[k][i][0][0]
+                normFact = self.resFitList[k][i][0][3]
 
                 ax.plot(datas.energies, 
                                   [val/normFact for val in datas.intensities], 
@@ -302,6 +304,8 @@ class Window(QDialog):
 
         plt.tight_layout()
         self.canvas.draw()
+ 
+
     
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
@@ -309,7 +313,6 @@ class Window(QDialog):
         plt.gcf().clear()     
 
         mplGrid = gridspec.GridSpec(2, 2)
-        #_Plot the datas for selected q value normalized with integrated curves at low temperature
         xList = [x+1 for x in range(len(self.dataFiles))]
 
         g0List = []
@@ -327,15 +330,20 @@ class Window(QDialog):
 
         for k, fileDatas in enumerate(self.dataList):
             g0List.append(self.scatFitList1[k].x[0])
-            g0Err.append(np.sqrt(np.diag(self.scatFitList1[k].hess_inv.todense()))[0])
+            g0Err.append(np.sqrt(np.diag(
+                        self.scatFitList1[k].lowest_optimization_result.hess_inv))[0])
             g1List.append(self.scatFitList1[k].x[1])
-            g1Err.append(np.sqrt(np.diag(self.scatFitList1[k].hess_inv.todense()))[1])
+            g1Err.append(np.sqrt(np.diag(
+                        self.scatFitList1[k].lowest_optimization_result.hess_inv))[1])
             s0List.append(self.scatFitList1[k].x[2])
-            s0Err.append(np.sqrt(np.diag(self.scatFitList1[k].hess_inv.todense()))[2])
+            s0Err.append(np.sqrt(np.diag(
+                        self.scatFitList1[k].lowest_optimization_result.hess_inv))[2])
             s1List.append(self.scatFitList1[k].x[3])
-            s1Err.append(np.sqrt(np.diag(self.scatFitList1[k].hess_inv.todense()))[3])
+            s1Err.append(np.sqrt(np.diag(
+                        self.scatFitList1[k].lowest_optimization_result.hess_inv))[3])
             s2List.append(self.scatFitList1[k].x[4])
-            s2Err.append(np.sqrt(np.diag(self.scatFitList1[k].hess_inv.todense()))[4])
+            s2Err.append(np.sqrt(np.diag(
+                        self.scatFitList1[k].lowest_optimization_result.hess_inv))[4])
 
             
             #_Plot of the g0 parameter of the fits
@@ -343,9 +351,8 @@ class Window(QDialog):
             ax.errorbar(xList[k], g0List[k], g0Err[k], marker='o', 
                     linestyle='None', label='g0')
             ax.set_ylabel(r'$\Gamma 0$', fontsize=18)
-            ax.set_ylim(0, 5)
             ax.set_xlim([0, len(self.dataFiles) +1])
-            ax.grid(True)
+            ax.grid()
 
             #_Plot of the g1 parameter of the fits
             ax = self.figure.add_subplot(mplGrid[:1,1])
@@ -353,21 +360,19 @@ class Window(QDialog):
                     linestyle='None', label='g1')
             ax.set_ylabel(r'$\Gamma 1$', fontsize=18)
             ax.set_xlim([0, len(self.dataFiles) +1])
-            ax.set_ylim(0, 500)
             plt.legend(framealpha=0.5)
-            ax.grid(True)
+            ax.grid()
 
             #_Plot of the s0 parameter of the fits
             ax = self.figure.add_subplot(mplGrid[1:,0])
             ax.errorbar(xList[k],s0List[k], s0Err[k], marker='o', 
                     linestyle='None', label=self.dataFiles[k][self.dataFiles[k].rfind('/'):])
             ax.set_ylabel(r'$s0$', fontsize=18)
-            ax.set_ylim(0, 1)
             plt.xticks(
                 [0] + [i + 1 for i, val in enumerate(self.dataFiles)] + [len(self.dataFiles)+1], 
                 [''] + [val[self.dataFiles[k].rfind('/'):] for val in self.dataFiles] + [''],
                 rotation=45, ha='right')
-            ax.grid(True)
+            ax.grid()
 
             #_Plot of the s1 and s2 parameters
             ax = self.figure.add_subplot(mplGrid[1:,1])
@@ -376,13 +381,12 @@ class Window(QDialog):
             ax.errorbar(xList[k], s2List[k], s2Err[k], marker='o', 
                     linestyle='None', label='s2')
             ax.set_ylabel(r'$ Lorentzians \ contributions$', fontsize=18)
-            ax.set_ylim(0, 1)
             plt.xticks(
                 [0] + [i + 1 for i, val in enumerate(self.dataFiles)] + [len(self.dataFiles)+1], 
                 [''] + [val[self.dataFiles[k].rfind('/'):] for val in self.dataFiles] + [''],
                 rotation=45, ha='right')
             plt.legend(framealpha=0.5)
-            ax.grid(True)
+            ax.grid()
 
         plt.tight_layout()
         self.canvas.draw()
@@ -401,11 +405,12 @@ class Window(QDialog):
             for j, qDatas in enumerate(fileDatas):
                 if qDatas.qVal == qValToShow:
                     resShift = self.resFitList[k][j][0][4]
-                    normFact = self.resFitList[k][j][0][0]
-                    lorS = self.resFitList[k][j][0][1]
-                    GauR = self.resFitList[k][j][0][3]
-                    lorR = self.resFitList[k][j][0][2]
-                    bkgd = self.resFitList[k][j][0][5] 
+                    normFact = self.resFitList[k][j][0][3]
+                    lorS = self.resFitList[k][j][0][2]
+                    GauR = self.resFitList[k][j][0][1]
+                    lorR = self.resFitList[k][j][0][0]
+                    bkgd = self.resFitList[k][j][0][5]
+                    sigma = GauR/np.sqrt(2*np.log(2))
                     
                     #_Plot of the measured QENS signal
                     ax.errorbar(qDatas.energies, 
@@ -414,16 +419,15 @@ class Window(QDialog):
 
                     #_Plot of the resolution function
                     ax.plot(qDatas.energies, 
-                            [resFuncAnalysis.resFunc(val, lorR, GauR, lorS, 1, resShift, bkgd) 
+                            [self.resFunc(val, lorR, GauR, lorS, 1, resShift, bkgd) 
                                              for val in qDatas.energies], label='resolution')
 
                     #_Plot of the fitted lorentzian
-                    g0 = self.scatFitList1[k].x[0] 
+                    g0 = self.scatFitList1[k].x[0]
                     g1 = self.scatFitList1[k].x[1]
                     s0 = self.scatFitList1[k].x[2]
                     s1 = self.scatFitList1[k].x[3]
                     s2 = self.scatFitList1[k].x[4]
-                    msd = self.scatFitList1[k].x[5]
 
 
                     ax.plot(qDatas.energies, [g0/(g0**2+val**2) * s1
@@ -436,7 +440,7 @@ class Window(QDialog):
 
                     #_Plot of the fitted incoherent structure factor
                     ax.plot(qDatas.energies, self.fittedFunc(qDatas, resShift, normFact, lorS, 
-                                        GauR, lorR, bkgd, j, self.scatFitList1[k].x), 
+                                        GauR, lorR, sigma, g0, g1, s0, s1, s2, bkgd), 
                             label='convolution', linewidth=2, color='orangered')
                     
 
@@ -452,6 +456,43 @@ class Window(QDialog):
         self.canvas.draw()
 
     
+    def resPlot(self):
+	   
+        plt.gcf().clear()     
+        ax = self.figure.add_subplot(111)  
+        
+        qValToShow = min([datas.qVal for datas in self.dataList[0]], 
+	                key = lambda x : abs(float(self.lineEdit.text()) - x))
+        #_Plot the datas for selected q value normalized with integrated curves at low temperature
+        for k, fileDatas in enumerate(self.resList):
+            for j, qDatas in enumerate(fileDatas):
+                if qDatas.qVal == qValToShow:
+    
+                    resShift = self.resFitList[k][j][0][4]
+                    normFact = self.resFitList[k][j][0][3]
+                    lorS = self.resFitList[k][j][0][2]
+                    GauR = self.resFitList[k][j][0][1]
+                    lorR = self.resFitList[k][j][0][0]
+                    bkgd = self.resFitList[k][j][0][5]
+
+                    ax.plot(qDatas.energies, [val/normFact for val in qDatas.intensities])
+    
+                    ax.plot(qDatas.energies, 
+                            [self.resFunc(val, lorR, GauR, lorS, 1, resShift, bkgd)
+                                             for val in qDatas.energies])
+
+
+            ax.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
+            ax.set_yscale('log')
+            ax.set_ylabel(r'$S_{10K}(' + str(qValToShow) + ', \omega)$', fontsize=18)   
+            ax.legend(['...' + dataFile[dataFile.rfind('/'):] for dataFile in self.dataFiles], 
+                   loc='upper left', framealpha=0.5)
+            
+        
+        ax.grid()
+        self.figure.tight_layout()
+        self.canvas.draw()
+
 if __name__ == '__main__':
 
     app = QApplication(sys.argv)

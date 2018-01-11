@@ -67,26 +67,6 @@ class Window(QDialog):
             inxDatas = inxBinQENS.inxBin(dataFile, karg['binS'])
             self.dataList.append(inxDatas)    
 
-        #_Keep the datas from wanted q-range
-        qMin = min([datas.qVal for datas in self.dataList[0]], 
-	                key = lambda x : abs(float(karg['qMin']) - x))
-        qMax = min([datas.qVal for datas in self.dataList[0]], 
-	                key = lambda x : abs(float(karg['qMax']) - x))
-        for i, fileDatas in enumerate(self.dataFiles):
-            self.dataList[i] = [val for val in self.dataList[i] if qMin <= val.qVal <= qMax]
-
-
-        #_Discard the selected index
-        if karg['qDiscard'] is not '':
-            qDiscardPattern = re.compile(r'[ ,:;-]+')
-            qDiscardList = qDiscardPattern.split(karg['qDiscard'])
-            qDiscardList = [min([datas.qVal for datas in self.dataList[0]], 
-	                key = lambda x: abs(float(val) - x)) for val in qDiscardList]
-            for i, fileDatas in enumerate(self.dataFiles):
-                self.dataList[i] = [val for val in self.dataList[i] 
-                                    if val.qVal not in qDiscardList] 
-
-        
 
         self.resFit()
 
