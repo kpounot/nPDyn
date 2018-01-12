@@ -12,9 +12,7 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from sympy.functions.special.delta_functions import DiracDelta
 from scipy import optimize
 from scipy.signal import fftconvolve
-from scipy.special import wofz, sph_jn
-from scipy.stats import chisquare, bayes_mvs
-from scipy.misc import factorial
+from scipy.special import spherical_jn
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.gridspec as gridspec
@@ -201,7 +199,8 @@ class Window(QDialog):
             bkgd = 0
             pBkgd = x[j + 7]
 
-            bessel = sph_jn(self.maxBesselOrder, self.HO_dist * data.qVal)[0]
+            bessel = np.array([spherical_jn(i, self.HO_dist * data.qVal) 
+                                for i in range(0, self.maxBesselOrder + 1)])
             bessel = bessel.reshape((bessel.shape[0], 1))
             L = np.arange(1, bessel.shape[0]).reshape((bessel.shape[0]-1, 1))
             X = data.energies
@@ -278,7 +277,8 @@ class Window(QDialog):
     def fittedFunc(self, data, j, resP, modelP):
 
 
-        bessel = sph_jn(self.maxBesselOrder, self.HO_dist * data.qVal)[0]
+        bessel = np.array([spherical_jn(i, self.HO_dist * data.qVal) 
+                            for i in range(0, self.maxBesselOrder + 1)])
         bessel = bessel.reshape((bessel.shape[0], 1))
         L = np.arange(1, bessel.shape[0]).reshape((bessel.shape[0]-1, 1))
         X = data.energies

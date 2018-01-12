@@ -9,12 +9,9 @@ from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QL
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-from sympy.functions.special.delta_functions import DiracDelta
 from scipy import optimize
 from scipy.signal import fftconvolve
-from scipy.special import wofz, sph_jn
-from scipy.stats import chisquare, bayes_mvs
-from scipy.misc import factorial
+from scipy.special import spherical_jn
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.gridspec as gridspec
@@ -32,6 +29,7 @@ class Window(QDialog):
         self.resDataList = []
         self.resFitList = []
         self.scatFitList1 = []
+        self.normF = []
         self.HO_dist = 0.96
 
         try:
@@ -104,7 +102,6 @@ class Window(QDialog):
                     'Please select the file in which to save the fitted parameters...') 
             self.paramsFile = QFileDialog().getSaveFileName()[0]
             self.scatFit()
-            self.getProba()
         else:
             #_Get the file containing the fitted parameters
             message = QMessageBox.information(QWidget(), 'File selection',
@@ -137,9 +134,6 @@ class Window(QDialog):
         self.plot3DButton = QPushButton('3D Plot')
         self.plot3DButton.clicked.connect(self.plot3D)
 
-        self.resButton = QPushButton('Resolution')
-        self.resButton.clicked.connect(self.resPlot)
-
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         self.boxLine = QFrame()
@@ -161,7 +155,6 @@ class Window(QDialog):
         layout.addWidget(self.plot3DButton)
         layout.addWidget(self.fitButton)
         layout.addWidget(self.analysisButton)
-        layout.addWidget(self.resButton)
         self.setLayout(layout)
 
 
@@ -193,7 +186,8 @@ class Window(QDialog):
             bkgd = 0
             pBkgd = x[j + 7]
 
-            bessel = sph_jn(self.maxBesselOrder, self.HO_dist * data.qVal)[0]
+            bessel = np.array([spherical_jn(i, self.HO_dist * data.qVal) 
+                                for i in range(0, self.maxBesselOrder + 1)])
             bessel = bessel.reshape((bessel.shape[0], 1))
             L = np.arange(1, bessel.shape[0]).reshape((bessel.shape[0]-1, 1))
             X = data.energies
@@ -263,7 +257,8 @@ class Window(QDialog):
                                             gt, gr, s0, st, sr, bkgd, msd, pBkgd, diffFactor):
 
 
-        bessel = sph_jn(self.maxBesselOrder, self.HO_dist * data.qVal)[0]
+        bessel = np.array([spherical_jn(i, self.HO_dist * data.qVal) 
+                            for i in range(0, self.maxBesselOrder + 1)])
         bessel = bessel.reshape((bessel.shape[0], 1))
         L = np.arange(1, bessel.shape[0]).reshape((bessel.shape[0]-1, 1))
         X = data.energies
