@@ -233,7 +233,7 @@ class Window(QDialog):
                 scatList1.append(optimize.basinhopping(self.fitFunc,
                                     x0, 
                                     niter=self.BH_iter,
-                                    niter_success=0.5*self.BH_iter,
+                                    niter_success=0.25*self.BH_iter,
                                     disp=True,
                                     minimizer_kwargs={'args': (fileData, i, N),
                                                       'bounds': bounds}))

@@ -154,6 +154,8 @@ class Window(QDialog):
         sList   = x[3:5]
         sList   = sList.reshape(sList.shape[0], 1)
         msd     = x[5]
+        diffFactor = x[6]
+
         for j, data in enumerate(fileData):
 
             shift = self.resFitList[i][j][0][4]
@@ -172,13 +174,13 @@ class Window(QDialog):
                     + bkgd))
 
             #_Lorentzians
-            f_lor = gList / (np.pi * (X**2 + gList**2))
+            f_lor = gList*data.qVal**diffFactor / (np.pi * (X**2 + (gList*data.qVal**diffFactor)**2 ))
 
             convolutions = np.array([np.convolve(val, f_res, mode='same') for val in f_lor])
 
             f = np.exp(-data.qVal**2*msd/3) * (s0 * f_res + np.sum(sList * convolutions, axis=0))
 
-            cost += np.sum((data.intensities / self.normF[i][j] - f)**2 / (data.errors / self.normF[i][j])**2)
+            cost += np.sum((data.intensities / self.normF[i][j] - f)**2 / (data.errors**2))
 
 
         return cost
@@ -195,8 +197,8 @@ class Window(QDialog):
             #_Minimization 
             scatList1.append(optimize.minimize(lambda x:
                     self.fitFunc(x, fileData, i),
-                    [1, 30, 0.5, 0.1, 0.4, 2], 
-                    bounds = [(0., 5), (0., 4000), (0., 1), (0., 1), (0., 1), (0., 3.)],
+                    [2, 30, 0.6, 0.2, 0.2, 1, 2], 
+                    bounds = [(0., 5), (0., 100), (0., 1), (0., 1), (0., 1), (0., 3.), (0., 3.)],
                     options={'eps':1e-10, 'maxcor':250, 'maxls':50, 
                              'maxfun':100000, 'maxiter':100000},
                     callback=self.fitState))
@@ -207,6 +209,8 @@ class Window(QDialog):
             print('Fit s0 : ' + str(scatList1[i].x[2]), flush=True)
             print('Fit s1 : ' + str(scatList1[i].x[3]), flush=True)
             print('Fit s2 : ' + str(scatList1[i].x[4]), flush=True)
+            print('Fit msd : ' + str(scatList1[i].x[5]), flush=True)
+            print('Fit diffFactor : ' + str(scatList1[i].x[6]), flush=True)
 
 
             self.scatFitList1 = scatList1
@@ -219,16 +223,19 @@ class Window(QDialog):
         print('        {0:<50}= {1:.4f}'.format('s0', x[2]), flush=True)
         print('        {0:<50}= {1:.4f}'.format('s1', x[3]), flush=True)
         print('        {0:<50}= {1:.4f}'.format('s2', x[4]), flush=True)
+        print('        {0:<50}= {1:.4f}'.format('msd', x[5]), flush=True)
+        print('        {0:<50}= {1:.4f}'.format('diffFactor', x[6]), flush=True)
 
     #_Function used to produce the plot of the fit
     def fittedFunc(self, data, shift, normFact, S, gauW, lorW, bkgd, j, x):
 
-        s0 = x[0]
-        gList = x[1:3]
-        gList = gList.reshape(gList.shape[0], 1)
-        sList = x[3:4]
-        sList = sList.reshape(sList.shape[0], 1)
-        msd = x[5]
+        s0         = x[0]
+        gList      = x[1:3]
+        gList      = gList.reshape(gList.shape[0], 1)
+        sList      = x[3:4]
+        sList      = sList.reshape(sList.shape[0], 1)
+        msd        = x[5]
+        diffFactor = x[6]
 
         X = data.energies
         
@@ -238,7 +245,7 @@ class Window(QDialog):
                 + bkgd))
 
         #_Lorentzians
-        f_lor = gList / (np.pi * (X**2 + gList**2))
+        f_lor = gList*data.qVal**diffFactor / (np.pi * (X**2 + (gList*data.qVal**diffFactor)**2 ))
 
         convolutions = np.array([np.convolve(val, f_res, mode='same') for val in f_lor])
 
