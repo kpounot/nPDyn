@@ -197,9 +197,9 @@ class Window(QDialog):
             #_Minimization 
             scatList1.append(optimize.minimize(lambda x:
                     self.fitFunc(x, fileData, i),
-                    [2, 30, 0.6, 0.2, 0.2, 1, 2], 
+                    [2, 30, 0.6, 0.2, 0.05, 1, 2], 
                     bounds = [(0., 5), (0., 100), (0., 1), (0., 1), (0., 1), (0., 3.), (0., 3.)],
-                    options={'eps':1e-10, 'maxcor':250, 'maxls':50, 
+                    options={'eps':1e-10, 'maxcor':500, 'maxls':150, 
                              'maxfun':100000, 'maxiter':100000},
                     callback=self.fitState))
 
@@ -417,7 +417,7 @@ class Window(QDialog):
                     #_Plot of the measured QENS signal
                     ax.errorbar(qDatas.energies, 
                            [x/normFact for x in qDatas.intensities],
-                           [x/normFact for x in qDatas.errors], fmt='o')
+                           [x/normFact for x in qDatas.errors], fmt='o', zorder=2)
 
                     #_Plot of the resolution function
                     ax.plot(qDatas.energies, 
@@ -444,7 +444,7 @@ class Window(QDialog):
                     #_Plot of the fitted incoherent structure factor
                     ax.plot(qDatas.energies, self.fittedFunc(qDatas, resShift, normFact, lorS, 
                                         GauR, lorR, bkgd, j, self.scatFitList1[k].x), 
-                            label='convolution', linewidth=2, color='orangered')
+                            label='convolution', linewidth=2, color='orangered', zorder=5)
                     
 
             ax.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
