@@ -82,7 +82,7 @@ class Window(QDialog):
 
         #_Discard the selected index
         if karg['qDiscard'] is not '':
-            qDiscardPattern = re.compile(r'[ ,.:;-]+')
+            qDiscardPattern = re.compile(r'[ ,:;-]+')
             qDiscardList = qDiscardPattern.split(karg['qDiscard'])
             for j, fileDatas in enumerate(self.dataFiles):
                 for val in qDiscardList:
@@ -430,13 +430,13 @@ class Window(QDialog):
         #_Plot of the s parameters
         ax2.errorbar(xList, stList/sTot, marker='o', 
                 linestyle='-', label='st')
-        ax2.set_ylabel(r'$ Lorentzians \ contributions$', fontsize=14)
+        ax2.set_ylabel(r'$ Weight$', fontsize=14)
         ax2.legend(framealpha=0.5, loc='upper center')
         ax2.grid(True)
 
         ax3.errorbar(xList, srList/sTot, marker='^', 
                 linestyle='-', label='sr')
-        ax3.set_ylabel(r'$ Lorentzians \ contributions$', fontsize=14)
+        ax3.set_ylabel(r'$ Weight$', fontsize=14)
         ax3.legend(framealpha=0.5, loc='upper center')
         plt.xticks([0] + [i + 1 for i, val in enumerate(self.dataFiles)] + [len(self.dataFiles)+1], 
                    [''] + [val[self.dataFiles[k].rfind('/'):] for val in self.dataFiles] + [''],
@@ -445,7 +445,7 @@ class Window(QDialog):
 
         ax4.errorbar(xList, s0List/sTot, marker='x', 
                 linestyle='-', label='s0')
-        ax4.set_ylabel(r'$ Lorentzians \ contributions$', fontsize=14)
+        ax4.set_ylabel(r'$ Weight$', fontsize=14)
         ax4.legend(framealpha=0.5, loc='upper center')
         ax4.grid(True)
 
@@ -512,10 +512,11 @@ class Window(QDialog):
             ax[k].set_title('...' + self.dataFiles[k][self.dataFiles[k].rfind('/'):])
             ax[k].grid()
         
-        [plt.setp(axis.get_xticklabels(), visible=False) for axis in ax[:5]]
+        if len(ax) > 5:
+            [plt.setp(axis.get_xticklabels(), visible=False) for axis in ax[:5]]
         [plt.setp(axis.get_yticklabels(), visible=False) for axis in ax[1:5]]
         [plt.setp(axis.get_yticklabels(), visible=False) for axis in ax[6:]]
-        ax[-1].legend(framealpha=0.5, loc='upper right', bbox_to_anchor=(1.5, 1))
+        plt.legend(loc='upper left', bbox_to_anchor=(-0.5, 1), fontsize=14)
         plt.tight_layout()
         self.canvas.draw()
 

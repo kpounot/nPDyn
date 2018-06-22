@@ -394,7 +394,7 @@ class Window(QDialog):
 
             
             ax = self.figure.add_subplot(mplGrid[1:,k])
-            ax.errorbar(gList, sList, xerr=gErrList, yerr=sErrList, 
+            ax.errorbar(gList, sList, 
                     marker='o', linestyle='None')
             ax.set_xlabel(r'$\Gamma \ parameter \ (\mu eV)$', fontsize=18)
             ax.set_ylabel(r'$Amplitude$', fontsize=18)

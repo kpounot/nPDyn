@@ -162,11 +162,8 @@ class Window(QDialog):
             for j, qDatas in enumerate(fileDatas):
                 if qDatas.qVal == qValToShow:
                     ax.errorbar(qDatas.energies, 
-                           #[x for x in qDatas.intensities],
-                           #[x for x in qDatas.errors], fmt='o')
-                           [x * 2 if k == 1 else x for x in qDatas.intensities],
-                           #[x  for x in qDatas.errors], 
-                           fmt='o')
+                           [x for x in qDatas.intensities],
+                           [x for x in qDatas.errors], fmt='o')
             ax.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
             ax.set_yscale('log')
             ax.set_ylabel(r'$S(' + str(qValToShow) + ', \omega)$', fontsize=18)   
