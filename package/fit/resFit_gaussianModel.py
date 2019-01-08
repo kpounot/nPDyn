@@ -37,7 +37,7 @@ def resFit(resData):
                                             resData.X,
                                             resData.intensities[qIdx],
                                             sigma=resData.errors[qIdx],
-                                            p0=[init_normF, 0.1, 1, 1, 0.1, init_bkgd],
+                                            #p0=[init_normF, 0.1, 1, 1, 0.1, init_bkgd],
                                             bounds=([0., 0., 0., 0., -10, 0.],  
                                                     [np.inf, 1, 100, 100, 10, np.inf]),
                                             max_nfev=100000,

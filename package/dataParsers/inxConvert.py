@@ -2,7 +2,7 @@ import sys
 import numpy as np
 from collections import namedtuple
 
-def convert(datafile):
+def convert(datafile, FWS=None):
     """ This method take a single dataFile as argument and return the corresponding dataSet.
 
         The dataSet is a namedtuple containing the following entries:

@@ -21,8 +21,8 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
     For FWS, data are stored as list of namedtuple, each corresponding to one energy offset.
     They containing several members (all being numpy arrays):
-        - deltaE        -> energy offset
         - qVals         -> list of q values
+        - deltaE        -> energy offset
         - intensities   -> 2D array of counts values for each q-value (axis 0) and scan number (axis 1)
         - errors        -> 2D array of errors values for each q-value (axis 0) and scan number (axis 1) 
         - temp          -> temperature value (for time-resolved FWS performed at fixed temperature) 
@@ -33,7 +33,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
     #_Fixed window scan processing
     if FWS == True:
-        FWSData = namedtuple('FWSData', 'deltaE qVals intensities errors temp norm qIdx') 
+        FWSData = namedtuple('FWSData', 'qVals deltaE intensities errors temp norm qIdx') 
 
         if averageTemp:
             temp    = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'].value)
@@ -58,7 +58,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
             deltaE = h5File[workspace + '/logs/Doppler.maximum_delta_energy/value'].value
 
-            dataList.append( FWSData( deltaE, listQ, listI, listErr, temp, False, np.arange(listQ.size) ) )
+            dataList.append( FWSData( listQ, deltaE, listI, listErr, temp, False, np.arange(listQ.size) ) )
 
         return dataList
 

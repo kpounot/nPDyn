@@ -30,11 +30,7 @@ class ResPlot(QWidget):
 
         super().__init__()
 
-        self.resFiles       = parent.resFiles
-        self.resData        = parent.resData
-        self.resFunc        = parent.resFunc
-        self.resParams      = parent.resParams
-        self.paramsNames    = parent.resPNames
+        self.dataset   = parent.resData
 
         try:
             self.initChecks()
@@ -97,28 +93,31 @@ class ResPlot(QWidget):
         """ This is used to plot the experimental data, without any fit. """
 	   
         plt.gcf().clear()     
-        ax = subplotsFormat(self, False, True, res=True)  
+        ax = subplotsFormat(self, False, True)  
         
         for idx, subplot in enumerate(ax):
             #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
-            qValToShow = min(self.resData[idx].qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
-            qValIdx = int(np.argwhere(self.resData[idx].qVals == qValToShow)[0])
+            qValToShow = min(self.dataset[idx].data.qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
+            qValIdx = int(np.argwhere(self.dataset[idx].data.qVals == qValToShow)[0])
 
             #_Plot the datas for selected q value normalized with integrated curves at low temperature
-            normF = self.resParams[idx][qValIdx][0][0]
+            normF = self.dataset[idx].params[qValIdx][0][0]
 
-            subplot.errorbar(self.resData[idx].X, 
-                        self.resData[idx].intensities[qValIdx] / normF,
-                        self.resData[idx].errors[qValIdx] / normF, 
+            subplot.errorbar(self.dataset[idx].data.X, 
+                        self.dataset[idx].data.intensities[qValIdx] / normF,
+                        self.dataset[idx].data.errors[qValIdx] / normF, 
                         fmt='o')
 
             subplot.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
             subplot.set_yscale('log')
             subplot.set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
-            subplot.set_title(self.resFiles[idx], fontsize=10)   
+            subplot.set_title(self.dataset[idx].fileName, fontsize=10)   
             subplot.grid()
             
         self.canvas.draw()
+
+
+
 
     def plot3D(self):
         """ 3D plot of the whole dataset. """
@@ -129,22 +128,22 @@ class ResPlot(QWidget):
         normColors = matplotlib.colors.Normalize(vmin=0, vmax=2)
         cmap = matplotlib.cm.get_cmap('winter')
 
-        ax = subplotsFormat(self, projection='3d', res=True)
+        ax = subplotsFormat(self, projection='3d')
 
         for idx, subplot in enumerate(ax):
-            for i, qWiseData in enumerate(self.resData[idx].intensities):
-                normF = self.resParams[idx][i][0][0]
+            for i, qWiseData in enumerate(self.dataset[idx].intensities):
+                normF = self.dataset[idx].resParams[i][0][0]
 
-                subplot.plot(self.resData[idx].X, 
+                subplot.plot(self.dataset[idx].X, 
                         qWiseData / normF,
-                        self.resData[idx].qVals[i], 
+                        self.dataset[idx].qVals[i], 
                         zdir='y', 
-                        c=cmap(normColors(self.resData[idx].qVals[i])))
+                        c=cmap(normColors(self.dataset[idx].qVals[i])))
 
             subplot.set_xlabel(r'$\hslash \omega \ (\mu eV)$')
             subplot.set_ylabel(r'$q$')
             subplot.set_zlabel(r'$S \ (q, \omega)$')
-            subplot.set_title(self.resFiles[idx], fontsize=10)   
+            subplot.set_title(self.dataset[idx].dataFile, fontsize=10)   
             subplot.set_ylim((0, 2))
             subplot.set_zlim((0, 1))
             subplot.grid()
@@ -152,20 +151,22 @@ class ResPlot(QWidget):
         self.canvas.draw()
     
 
+
+
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
 
         plt.gcf().clear()     
 
         #_Creates as many subplots as there are parameters in the model
-        ax = subplotsFormat(self, True, False, resParams=True)
+        ax = subplotsFormat(self, True, False)
 
         #_Plot the parameters of the fits
-        for fileIdx, fileName in enumerate(self.resFiles):
+        for fileIdx, fileName in enumerate(self.dataset):
             #_Create 2D numpy array to easily access the q dependance of each parameter
             paramsList = np.column_stack( (params[0] for params in self.resParams[fileIdx]) )
 
-            qList = self.resData[fileIdx].qVals 
+            qList = self.dataset[fileIdx].qVals 
 
             for idx, subplot in enumerate(ax):
                 subplot.plot(qList, paramsList[idx], marker='o', label=fileName) 
@@ -178,28 +179,30 @@ class ResPlot(QWidget):
         self.canvas.draw()
 
 
+
+
     def resPlot(self):
 	   
         plt.gcf().clear()     
-        ax = subplotsFormat(self, False, True, res=True) 
+        ax = subplotsFormat(self, False, True) 
 
         for idx, subplot in enumerate(ax):
             #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
-            qValToShow = min(self.resData[idx].qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
-            qValIdx = int(np.argwhere(self.resData[idx].qVals == qValToShow)[0])
+            qValToShow = min(self.dataset[idx].qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
+            qValIdx = int(np.argwhere(self.dataset[idx].qVals == qValToShow)[0])
 
             #_Get the normalization factor
             normF = self.resParams[idx][qValIdx][0][0]
 
             #_Plot the datas for selected q value normalized with integrated curves at low temperature
-            subplot.errorbar(self.resData[idx].X, 
-                        self.resData[idx].intensities[qValIdx] / normF,
-                        self.resData[idx].errors[qValIdx] / normF, 
+            subplot.errorbar(self.dataset[idx].X, 
+                        self.dataset[idx].intensities[qValIdx] / normF,
+                        self.dataset[idx].errors[qValIdx] / normF, 
                         fmt='o',
                         zorder=1)
 
             #_Plot the model
-            subplot.plot(self.resData[idx].X, self.resFunc[idx](self.resData[idx].X, 
+            subplot.plot(self.dataset[idx].X, self.resFunc[idx](self.dataset[idx].X, 
                                                       *self.resParams[idx][qValIdx][0]) / normF, 
                                                       zorder=2)
 
@@ -216,18 +219,13 @@ class ResPlot(QWidget):
     def initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
-        if self.resData == None:
+        if self.dataset == None:
             raise Exception("No data for resolution function were loaded.")
 
-        if self.resParams == None:
-            raise Exception("No parameters for resolution function were found.\n" 
+        try:
+            self.dataset.params
+        except AttributeError:
+            print("No parameters for resolution function were found.\n" 
                             + "Please use a fitting method before plotting.\n")
-
-        if self.paramsNames == None:
-            self.paramsNames = ["P%i" % i for i, val in enumerate(self.resParams[0][0])]
-
-        for idx in range(len(self.resFiles)):
-            if len(self.paramsNames[idx]) != self.resParams[idx][0][0].size:
-                raise Exception("Length of paramsNames different to resParams")
 
 

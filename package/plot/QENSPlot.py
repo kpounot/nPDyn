@@ -15,7 +15,7 @@ import matplotlib
 
 from .subPlotsFormat import subplotsFormat
  
-class QENSPlot(QWidget):
+class QENSPlot_powder(QWidget):
     """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
         a lineedit widget to allow the user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
@@ -25,7 +25,7 @@ class QENSPlot(QWidget):
         Analysis    -> plot the different model parameters as a function of q-value
         Resolution  -> plot the fitted model on top of the experimental data for the selected q-value """
 
-    def __init__(self, parent, fileIdxList, powder):
+    def __init__(self, parent, fileIdxList):
 
         super().__init__()
 
@@ -34,7 +34,6 @@ class QENSPlot(QWidget):
         self.resFunc        = parent.resFunc
         self.resParams      = parent.resParams
         self.parent         = parent
-        self.powder         = powder
         self.fileIdxList    = fileIdxList
 
 
@@ -178,7 +177,7 @@ class QENSPlot(QWidget):
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
             subplot.plot(range(paramsList.shape[1]), paramsList[idx], marker='o',
-                         label=self.paramsNames[0][idx]) 
+                         label=self.modelList[0].getParamsNames(self.dataSetList[0].qIdx)[idx]) 
             subplot.grid(True)
             subplot.legend(framealpha=0.5)
             subplot.set_xticks(range(len(self.dataFiles)))

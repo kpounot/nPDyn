@@ -207,13 +207,13 @@ class TempRampPlot(QWidget):
                                                                 in enumerate(self.dataSetList[i].X)]
 
             #_Plotting the MSD
-            ax.errorbar(self.dataSetList[i].X[:tempIdx], 
-                        msdList[:tempIdx],
-                        errList[:tempIdx], 
+            ax.errorbar(self.dataSetList[i].X[:tempIdx+1], 
+                        msdList[:tempIdx+1],
+                        errList[:tempIdx+1], 
                         label = self.dataFiles[i])
 
             ax.set_xlabel(r'$Temperature (K)$')
-            ax.set_ylabel(r'$MSD \ (\AA)$ q=%.2f to %.2f ($\AA^{-1})$' % ( qMin, qMax ))
+            ax.set_ylabel(r'$MSD \ (\AA^{2})$ q=%.2f to %.2f ($\AA^{-1})$' % ( qMin, qMax ))
             ax.legend(framealpha=0.5, fontsize=12, loc='upper left')
             ax.grid()
 

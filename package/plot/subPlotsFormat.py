@@ -2,8 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=False, res=False,
-                        resParams=False):
+def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=False):
     """ This method is used to try to determine the best number of rows and columns for plotting.
         Depending on the size of the fileIdxList, the plot will have a maximum of subplots per row,
         typically around 4-5 and the required number of columns.
@@ -11,21 +10,15 @@ def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=F
         Input: sharex       -> matplotlib's parameter for x-axis sharing
                sharey       -> matplotlib's parameter for y-axis sharing
                projection   -> projection type for subplots (None, '3d',...) (optional, default None)
-               params       -> if True, use size of paramsList instead of fileIdxList
-               res          -> if True, use size of resFile list instead of fileIdxList
-               resParams    -> if True, use size of resParams list instead of fileIdxList
+               params       -> if True, use size of paramsNames instead of fileIdxList
         
         Output: axis list from figure.subplots method of matplotlib """
 
     #_Getting number of necessary subplots
     if params:
-        listSize = caller.paramsList[0][0].x.size
-    if resParams:
-        listSize = len(caller.resParams[0][0][0])
-    if res:
-        listSize = len(caller.resFiles)
-    if not params and not resParams and not res:
-        listSize = len(caller.fileIdxList)
+        listSize = len(caller.paramNames)
+    else:
+        listSize = len(caller.dataset)
 
 
     #_Generating the subplots
