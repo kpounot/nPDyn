@@ -4,6 +4,7 @@ import argparse
 from PyQt5.QtWidgets import QApplication 
 
 from package.Dataset import Dataset
+from package.dataTypes.models import *
 
 app = QApplication(sys.argv)
 

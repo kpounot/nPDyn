@@ -15,7 +15,7 @@ import matplotlib
 
 from .subPlotsFormat import subplotsFormat
  
-class QENSPlot_powder(QWidget):
+class QENSPlot(QWidget):
     """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
         a lineedit widget to allow the user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
@@ -25,24 +25,12 @@ class QENSPlot_powder(QWidget):
         Analysis    -> plot the different model parameters as a function of q-value
         Resolution  -> plot the fitted model on top of the experimental data for the selected q-value """
 
-    def __init__(self, parent, fileIdxList):
+    def __init__(self, datasetList):
 
         super().__init__()
 
-        self.D2OFunc        = parent.D2OFunc
-        self.D2OParams      = parent.D2OParams
-        self.resFunc        = parent.resFunc
-        self.resParams      = parent.resParams
-        self.parent         = parent
-        self.fileIdxList    = fileIdxList
-
-
         #_Dataset related attributes
-        self.dataSetList    = [parent.dataSetList[i] for i in fileIdxList]
-        self.dataFiles      = [parent.dataFiles[i] for i in fileIdxList]
-        self.paramsList     = [parent.paramsList[i] for i in fileIdxList]
-        self.paramsNames    = [parent.paramsNames[i] for i in fileIdxList]
-        self.modelList      = [parent.modelList[i] for i in fileIdxList]
+        self.dataset = datasetList
 
         try:
             self.initChecks()
@@ -107,17 +95,17 @@ class QENSPlot_powder(QWidget):
         ax = subplotsFormat(self, True, True)
         
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
-        qVals = self.dataSetList[0].qVals[self.dataSetList[0].qIdx]
+        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
         qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
         qValIdx = int(np.argwhere(qVals == qValToShow)[0])
 
         for idx, subplot in enumerate(ax):
-            subplot.errorbar(self.dataSetList[idx].X, 
-                        self.dataSetList[idx].intensities[qValIdx],
-                        self.dataSetList[idx].errors[qValIdx], 
+            subplot.errorbar(self.dataset[idx].data.X, 
+                        self.dataset[idx].data.intensities[qValIdx],
+                        self.dataset[idx].data.errors[qValIdx], 
                         fmt='o')
             
-            subplot.set_title(self.dataFiles[idx], fontsize=10)
+            subplot.set_title(self.dataset[idx].fileName, fontsize=10)
             subplot.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
             subplot.set_yscale('log')
             subplot.set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
@@ -126,8 +114,10 @@ class QENSPlot_powder(QWidget):
         self.figure.tight_layout()
         self.canvas.draw()
 
+
+
     def plot3D(self):
-        """ 3D plot of the whole dataset. """
+        """ 3D plot of the whole dataset.data. """
 
         plt.gcf().clear()     
         ax = subplotsFormat(self, False, False, '3d') 
@@ -137,15 +127,15 @@ class QENSPlot_powder(QWidget):
         cmap = matplotlib.cm.get_cmap('winter')
 
         for i, subplot in enumerate(ax):
-            for qIdx in self.dataSetList[i].qIdx:
-                subplot.plot(self.dataSetList[i].X, 
-                             self.dataSetList[i].intensities[qIdx],
-                             self.dataSetList[i].qVals[qIdx], 
+            for qIdx in self.dataset[i].data.qIdx:
+                subplot.plot(self.dataset[i].data.X, 
+                             self.dataset[i].data.intensities[qIdx],
+                             self.dataset[i].data.qVals[qIdx], 
                              zdir='y', 
                              zorder=100-qIdx,
-                             c=cmap(normColors(self.dataSetList[i].qVals[qIdx])))
+                             c=cmap(normColors(self.dataset[i].data.qVals[qIdx])))
 
-            subplot.set_title(self.dataFiles[i], fontsize=10)
+            subplot.set_title(self.dataset[i].fileName, fontsize=10)
             subplot.set_xlabel(r'$\hslash \omega (\mu eV)$')
             subplot.set_ylabel(r'$q$')
             subplot.set_zlabel(r'$S(q, \omega)$')
@@ -153,6 +143,7 @@ class QENSPlot_powder(QWidget):
 
         self.canvas.draw()
     
+
 
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
@@ -163,7 +154,7 @@ class QENSPlot_powder(QWidget):
         plt.gcf().clear()     
 
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
-        qVals = self.dataSetList[0].qVals[self.dataSetList[0].qIdx]
+        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
         qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
         qValIdx = int(np.argwhere(qVals == qValToShow)[0])
 
@@ -172,18 +163,20 @@ class QENSPlot_powder(QWidget):
         ax = subplotsFormat(self, sharex=True, params=True)
 
         #_Create 2D numpy array to easily access parameters for each file
-        paramsList = np.column_stack( [params[qValIdx].x for params in self.paramsList] )
+        paramsList = np.column_stack( [data.params[qValIdx].x for data in self.dataset] )
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
             subplot.plot(range(paramsList.shape[1]), paramsList[idx], marker='o',
-                         label=self.modelList[0].getParamsNames(self.dataSetList[0].qIdx)[idx]) 
+                         label=self.dataset[0].paramsNames[idx]) 
             subplot.grid(True)
             subplot.legend(framealpha=0.5)
-            subplot.set_xticks(range(len(self.dataFiles)))
-            subplot.set_xticklabels(self.dataFiles, rotation=-45, ha='left', fontsize=8)
+            subplot.set_xticks(range(len(self.dataset)))
+            subplot.set_xticklabels([data.fileName for data in self.dataset], 
+                                                                rotation=-45, ha='left', fontsize=8)
         
         self.canvas.draw()
+
 
 
     def fitPlot(self):
@@ -194,7 +187,7 @@ class QENSPlot_powder(QWidget):
         ax = subplotsFormat(self, sharey=True)
 
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
-        qVals = self.dataSetList[0].qVals[self.dataSetList[0].qIdx]
+        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
         qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
         qValIdx = int(np.argwhere(qVals == qValToShow)[0])
 
@@ -202,39 +195,36 @@ class QENSPlot_powder(QWidget):
         #_Plot the datas for selected q value normalized with integrated curves at low temperature
         for idx, subplot in enumerate(ax):
             #_Plot the experimental data
-            subplot.errorbar(self.dataSetList[idx].X, 
-                        self.dataSetList[idx].intensities[qValIdx],
-                        self.dataSetList[idx].errors[qValIdx], 
+            subplot.errorbar(self.dataset[idx].data.X, 
+                        self.dataset[idx].data.intensities[qValIdx],
+                        self.dataset[idx].data.errors[qValIdx], 
                         label='Experimental',
                         zorder=1)
 
             #_Plot the background
-            subplot.axhline(self.resParams[idx][qValIdx][0][-1], label='Background', zorder=2)
+            subplot.axhline(self.dataset[idx].resData.params[qValIdx][0][-1], label='Background', zorder=2)
 
             #_Plot the resolution function
-            resF = self.resFunc[idx](self.dataSetList[idx].X, *self.resParams[idx][qValIdx][0][:-1], 0)
-            if self.dataSetList[idx].norm:
-                resF /= self.resParams[idx][qValIdx][0][0]
+            resF = self.dataset[idx].resData.model(self.dataset[idx].data.X, 
+                                                    *self.dataset[idx].resData.params[qValIdx][0][:-1], 0)
+            if self.dataset[idx].data.norm:
+                resF /= self.dataset[idx].resData.params[qValIdx][0][0]
 
-            subplot.plot( self.dataSetList[idx].X, 
+            subplot.plot( self.dataset[idx].data.X, 
                           resF,
                           label='Resolution',
                           zorder=3 )
 
             #_Plot the model
-            subplot.plot( self.dataSetList[idx].X,
-                          self.modelList[idx](  self.paramsList[idx][qValIdx].x, 
-                                                self.dataSetList[idx],
-                                                self.resFunc[idx],
-                                                self.resParams[idx],
-                                                self.D2OFunc,
-                                                self.D2OParams,
-                                                qIdx=qValIdx,
-                                                returnCost=False),
+            subplot.plot( self.dataset[idx].data.X,
+                          self.dataset[idx].model(  self.dataset[idx].params[qValIdx].x, 
+                                                    self.dataset[idx],
+                                                    qIdx=qValIdx,
+                                                    returnCost=False),
                           label='Model',
                           zorder=4)
 
-            subplot.set_title(self.dataFiles[idx], fontsize=10)
+            subplot.set_title(self.dataset[idx].fileName, fontsize=10)
             subplot.set_xlabel(r'$\hslash\omega (\mu eV)$')
             subplot.set_yscale('log')
             subplot.set_ylim(1e-3, 1.2)
@@ -251,40 +241,12 @@ class QENSPlot_powder(QWidget):
     def initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
-        if self.paramsList[0]:
-            nbrParams = self.paramsList[0][0].x.size
-
-        for i in self.fileIdxList:
-            if not self.parent.dataSetList[i]:
-                raise Exception("ERROR: Index error, no data were found in dataSetList for index %i.\n" % i)
-
-            if not self.parent.paramsList[i]:
-                print("WARNING: no fitted parameters were found for data at index %i.\n" % i    
+        for idx, dataset in enumerate(self.dataset):
+            try: 
+                if not dataset.params:
+                    print("WARNING: no fitted parameters were found for data at index %i.\n" % i    
                       + "Some plotting methods might not work properly.\n")
-
-            if self.paramsList[i]:
-                if self.paramsList[i][0].x.size != nbrParams:
-                    print("WARNING: number of parameters doesn't match for all files.\n"
-                            + "Some plotting methods might not work properly.\n")
-
-                if self.paramsList[i][0].x.size != len(self.paramsNames[i]):
-                    print("WARNING: number of parameters doesn't match number of names.\n"
-                            + "Some plotting methods might not work properly.\n")
-
-
-
-        if not self.powder:
-            if self.D2OParams == None:
-                raise Exception("No parameters for D2O lineshape were found.\n" 
-                                + "Please use a fitting method before plotting.\n")
-
-        if self.resFunc == None:
-            raise Exception("No resolution function was found.\n"
-                            + "Please set one, or use fitting method before using this method.\n")
-
-        if self.resParams == None:
-            raise Exception("No parameters for resolution function were found.\n" 
+            except AttributeError:
+                print("No parameters for dataset at index %i were found.\n" % idx 
                             + "Please use a fitting method before plotting.\n")
-
-
 

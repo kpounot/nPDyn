@@ -3,7 +3,7 @@ from collections import namedtuple
 
 from scipy import optimize
 
-def basinHopping_fit(parent, modelClass, fileIdx, qWise, BH_iter, disp):
+def basinHopping_fit(qWise, BH_iter=100, disp=True):
     """ Uses Scipy's basinhopping routine to fit the pseudo-Voigt profile to the experimental data
         given in the argument. 
 

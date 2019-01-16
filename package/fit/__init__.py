@@ -4,6 +4,4 @@ __all__ = [ 'D2OFit',
             'fitENS',
             'fitENS_models',
             'fitQENS',
-            'fitQENS_models',
-            'resFit_gaussianModel',
-            'resFit_pseudoVoigtModel']
+            'fitQENS_models']

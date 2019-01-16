@@ -16,7 +16,7 @@ def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=F
 
     #_Getting number of necessary subplots
     if params:
-        listSize = len(caller.paramNames)
+        listSize = len(caller.dataset[0].paramsNames)
     else:
         listSize = len(caller.dataset)
 
@@ -38,9 +38,9 @@ def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=F
                                                             subplot_kw={'projection':projection}).flatten()
 
         #_Setting the shared axis, useful for listSize not multiple of 3
-        if sharex and not resParams:
+        if sharex:
             for idx in range(listSize-1, listSize-4, -1):
-                caller.figure.axes[idx].set_xticklabels(caller.dataFiles)
+                caller.figure.axes[idx].set_xticklabels([val.fileName for val in caller.dataset])
 
 
     if listSize > 9 and listSize <= 12:
@@ -48,9 +48,9 @@ def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=F
                                                             subplot_kw={'projection':projection}).flatten()
 
         #_Setting the shared axis, useful for listSize not multiple of 3
-        if sharex and not resParams:
+        if sharex:
             for idx in range(listSize-1, listSize-5, -1):
-                caller.figure.axes[idx].set_xticklabels(caller.dataFiles)
+                caller.figure.axes[idx].set_xticklabels([val.fileName for val in caller.dataset])
 
 
 
@@ -59,9 +59,9 @@ def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=F
                                                             subplot_kw={'projection':projection}).flatten()
     
         #_Setting the shared axis, useful for listSize not multiple of 3
-        if sharex and not resParams:
+        if sharex:
             for idx in range(listSize-1, listSize-6, -1):
-                caller.figure.axes[idx].set_xticklabels(caller.dataFiles)
+                caller.figure.axes[idx].set_xticklabels([val.fileName for val in caller.dataset])
 
 
     #_Removing unecessary axes

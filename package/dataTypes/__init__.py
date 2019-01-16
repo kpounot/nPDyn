@@ -3,6 +3,5 @@ __all__ = [ 'baseType',
             'FWSType',
             'TempRampType',
             'ECType',
-            'resType',
-            'resFunc_pseudoVoigt',
-            'resFunc_gaussian']
+            'D2OType',
+            'resType']

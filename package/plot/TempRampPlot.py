@@ -25,12 +25,12 @@ class TempRampPlot(QWidget):
         Fit                 -> plot the fitted model on data for all temperatures
         MSD                 -> plot the fitted MSD as a function of temperature """
 
-    def __init__(self, parent, fileIdxList):
+    def __init__(self, datasetList):
 
         super().__init__()
 
-        self.parent         = parent
-        self.fileIdxList    = fileIdxList
+        #_Dataset related attributes
+        self.dataset = datasetList
 
         try:
             self.initChecks()
@@ -39,12 +39,8 @@ class TempRampPlot(QWidget):
             return
 
 
-        #_Dataset related attributes
-        self.dataSetList    = [parent.dataSetList[i] for i in fileIdxList]
-        self.dataFiles      = [parent.dataFiles[i] for i in fileIdxList]
-        self.paramsList     = [parent.paramsList[i] for i in fileIdxList]
-        self.paramsNames    = [parent.paramsNames[i] for i in fileIdxList]
-        self.modelList      = [parent.modelList[i] for i in fileIdxList]
+
+
 
         #--------------------------------------------------
         #_Construction of the GUI
@@ -103,10 +99,10 @@ class TempRampPlot(QWidget):
         plt.gcf().clear()       
         ax = self.figure.add_subplot(111)  
 
-        for i in range(len(self.fileIdxList)):
-            ax.plot(self.dataSetList[i].X, 
-                    np.sum(self.dataSetList[i].intensities, axis=0),
-                    label=self.dataFiles[i])
+        for dataset in self.dataset:
+            ax.plot(dataset.data.X, 
+                    np.sum(dataset.data.intensities, axis=0),
+                    label=dataset.fileName)
 
             ax.set_xlabel(r'$Temperature (K)$')
             ax.set_ylabel(r'$Scattering$')
@@ -115,6 +111,7 @@ class TempRampPlot(QWidget):
 
         self.canvas.draw()
     
+
 
     def qWiseScat(self):
         """ For each file, plots the temperature of elastic scattering intensity for each q-value. """
@@ -127,13 +124,13 @@ class TempRampPlot(QWidget):
         cmap = matplotlib.cm.get_cmap('rainbow')
 
         for i, subplot in enumerate(ax):
-            for qIdx in self.dataSetList[i].qIdx:
-                subplot.plot(self.dataSetList[i].X, 
-                             self.dataSetList[i].intensities[qIdx],
-                             label=self.dataSetList[i].qVals[qIdx],
-                             c=cmap(normColors(self.dataSetList[i].qVals[qIdx])))
+            for qIdx in self.dataset[i].data.qIdx:
+                subplot.plot(self.dataset[i].data.X, 
+                             self.dataset[i].data.intensities[qIdx],
+                             label=self.dataset[i].data.qVals[qIdx],
+                             c=cmap(normColors(self.dataset[i].data.qVals[qIdx])))
 
-            subplot.set_title(self.dataFiles[i], fontsize=10)
+            subplot.set_title(self.dataset[i].fileName, fontsize=10)
             subplot.set_xlabel(r'$Temperature (K)$')
             subplot.set_ylabel(r'$Scattering$')
             subplot.legend(framealpha=0.5, fontsize=12)
@@ -141,6 +138,7 @@ class TempRampPlot(QWidget):
 
         self.canvas.draw()
     
+
 
     #_Plot of the parameters resulting from the fit procedure
     def fit(self):
@@ -150,34 +148,35 @@ class TempRampPlot(QWidget):
 
         for i, subplot in enumerate(ax):
             #_Obtaining the temperature to plot as being the closest one to the number entered by the user 
-            tempToShow = min(self.dataSetList[i].X, key = lambda x : abs(float(self.lineEdit.text()) - x))
-            tempIdx = int(np.argwhere(self.dataSetList[i].X == tempToShow)[0])
+            tempToShow = min(self.dataset[i].data.X, key = lambda x : abs(float(self.lineEdit.text()) - x))
+            tempIdx = int(np.argwhere(self.dataset[i].data.X == tempToShow)[0])
 
 
             #_Plotting experimental data
-            subplot.errorbar(   self.dataSetList[i].qVals**2, 
-                                self.dataSetList[i].intensities[:,tempIdx],
-                                self.dataSetList[i].errors[:,tempIdx],
+            subplot.errorbar(   self.dataset[i].data.qVals**2, 
+                                self.dataset[i].data.intensities[:,tempIdx],
+                                self.dataset[i].data.errors[:,tempIdx],
                                 label="Experimental"   )
     
             #_Adding a transparent blue region to easily locate the fitted data points
             #_(provided that no detectors were discarded between fitting and plotting)
-            qMin = self.dataSetList[i].qVals[self.dataSetList[i].qIdx[0]]
-            qMax = self.dataSetList[i].qVals[self.dataSetList[i].qIdx[-1]]
+            qMin = self.dataset[i].data.qVals[self.dataset[i].data.qIdx[0]]
+            qMax = self.dataset[i].data.qVals[self.dataset[i].data.qIdx[-1]]
             subplot.axvspan(qMin**2, qMax**2, color='c', alpha=0.4)
 
             #_Plotting the model and adding the parameters values to the label
             label = "Model\n"
-            if len(self.paramsList[i]) == len(self.paramsNames[i]): #_Formatting the legend output
-                paramVals = np.round(self.paramsList[i][tempIdx][0], 2).astype(str)
+            if len(self.dataset[i].params) == len(self.dataset[i].paramsNames): #_Formatting the legend output
+                paramVals = np.round(self.dataset.params[tempIdx][0], 2).astype(str)
                 for pIdx, val in enumerate(paramVals): 
-                    label += self.paramsNames[i][pIdx] + ": " + val + "\n"
+                    label += self.dataset[i].paramsNames[pIdx] + ": " + val + "\n"
 
-            subplot.plot(   self.dataSetList[i].qVals**2,
-                            self.modelList[i](self.dataSetList[i].qVals, *self.paramsList[i][tempIdx][0]),
+            subplot.plot(   self.dataset[i].data.qVals**2,
+                            self.dataset[i].model(self.dataset[i].data.qVals, 
+                                                    *self.dataset[i].params[tempIdx][0]),
                             label=label)
 
-            subplot.set_title(self.dataFiles[i], fontsize=10)
+            subplot.set_title(self.dataset[i].fileName, fontsize=10)
             subplot.set_xlabel(r'$Scattering \ vector \ q \ (\AA^{-2})$')
             subplot.set_ylabel(r'EISF at %d K' % tempToShow)
             subplot.legend(framealpha=0.5, fontsize=12)
@@ -192,25 +191,25 @@ class TempRampPlot(QWidget):
         ax = self.figure.add_subplot(111)  
 
         #_Plot the mean-squared displacement as a function of temperature for each file
-        for i in range(len(self.fileIdxList)):
+        for dataset in self.dataset:
             #_Obtaining the temperature to plot as being the closest one to the number entered by the user 
-            tempToShow = min(self.dataSetList[i].X, key = lambda x : abs(float(self.lineEdit.text()) - x))
-            tempIdx = int(np.argwhere(self.dataSetList[i].X == tempToShow)[0])
+            tempToShow = min(dataset.data.X, key = lambda x : abs(float(self.lineEdit.text()) - x))
+            tempIdx = int(np.argwhere(dataset.data.X == tempToShow)[0])
 
             #_Extracting the MSD from parameters for each temperature
-            msdList = [self.paramsList[i][tempIdx][0][1] for tempIdx, temp in enumerate(self.dataSetList[i].X)]
-            qMin = self.dataSetList[i].qVals[self.dataSetList[i].qIdx[0]]
-            qMax = self.dataSetList[i].qVals[self.dataSetList[i].qIdx[-1]]
+            msdList = [dataset.params[tempIdx][0][1] for tempIdx, temp in enumerate(dataset.data.X)]
+            qMin = dataset.data.qVals[dataset.data.qIdx[0]]
+            qMax = dataset.data.qVals[dataset.data.qIdx[-1]]
 
             #_Computing the errors for each temperature from covariant matrix
-            errList = [np.sqrt(np.diag(self.paramsList[i][tempIdx][1]))[1] for tempIdx, temp 
-                                                                in enumerate(self.dataSetList[i].X)]
+            errList = [np.sqrt(np.diag(dataset.params[tempIdx][1]))[1] for tempIdx, temp 
+                                                                in enumerate(dataset.data.X)]
 
             #_Plotting the MSD
-            ax.errorbar(self.dataSetList[i].X[:tempIdx+1], 
+            ax.errorbar(dataset.data.X[:tempIdx+1], 
                         msdList[:tempIdx+1],
                         errList[:tempIdx+1], 
-                        label = self.dataFiles[i])
+                        label = dataset.fileName)
 
             ax.set_xlabel(r'$Temperature (K)$')
             ax.set_ylabel(r'$MSD \ (\AA^{2})$ q=%.2f to %.2f ($\AA^{-1})$' % ( qMin, qMax ))
@@ -224,11 +223,12 @@ class TempRampPlot(QWidget):
         """ This methods is used to perform some checks before finishing class initialization. """
 
 
-        for i in self.fileIdxList:
-            if not self.parent.dataSetList[i]:
-                raise Exception("ERROR: Index error, no data were found in dataSetList for index %i.\n" % i)
-
-            if not self.parent.paramsList[i]:
-                print("WARNING: no fitted parameters were found for data at index %i.\n" % i    
+        for idx, dataset in enumerate(self.dataset):
+            try: 
+                if not dataset.params:
+                    print("WARNING: no fitted parameters were found for data at index %i.\n" % i    
                       + "Some plotting methods might not work properly.\n")
+            except AttributeError:
+                print("No parameters for dataset at index %i were found.\n" % idx 
+                            + "Please use a fitting method before plotting.\n")
 

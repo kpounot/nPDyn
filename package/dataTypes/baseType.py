@@ -10,7 +10,7 @@ from ..fileFormatParser import guessFileFormat, readFile, fileImporters
 
 class BaseType:
 
-    def __init__(self, fileName=None, data=None, rawData=None):
+    def __init__(self, fileName=None, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
         """ Initialize a base type that will be inherited by all other specialized types through its decorator. 
         
             Input:  fileName    -> name of the file being read
@@ -21,6 +21,9 @@ class BaseType:
         self.data       = data 
         self.rawData    = rawData #_Used to reset data to its initial state
 
+        self.resData    = resData #_For use with sample data types
+        self.D2OData    = D2OData #_For use with sample data types
+        self.ECData     = ECData 
 
 
 
@@ -35,7 +38,13 @@ class BaseType:
             data = guessFileFormat(self.fileName)
 
         self.data       = data
-        self.rawData    = data
+        self.rawData    = self.data._replace(   qVals       = np.copy(self.data.qVals),
+                                                X           = np.copy(self.data.X),
+                                                intensities = np.copy(self.data.intensities),
+                                                errors      = np.copy(self.data.errors),
+                                                temp        = np.copy(self.data.temp),
+                                                norm        = False,
+                                                qIdx        = np.copy(self.data.qIdx) )
 
 
 
@@ -46,16 +55,50 @@ class BaseType:
 
 
 
-    def normalize(self, normFList):
-        """ Normalizes data using a list of normalization factors.
+    def normalize(self):
+        """ Normalizes data using a list of scaling factors from resolution function fit.
+            It assumes that the scaling factor is in first position in the model parameters.
             There should be as many normalization factors as q-values in data. """
 
+        normFList = np.array( [params[0][0] for params in self.resData.params] )
+
         #_Applying normalization
-        self.data = self.data._replace(intensities = 
-                        np.apply_along_axis(lambda arr: arr / normFList, 0, self.data.intensities))
-        self.data = self.data._replace(errors = 
-                        np.apply_along_axis(lambda arr: arr / normFList, 0, self.data.errors))
-        self.data = self.data._replace(norm = True)
+        self.data = self.data._replace( intensities = self.data.intensities / normFList[:,np.newaxis],
+                                        errors      = self.data.errors / normFList[:,np.newaxis],
+                                        norm        = True )
+
+
+
+
+
+    def substractEC(self, scaleFactor=0.8):
+        """ Use the assigned empty cell data for substraction to loaded data.
+            
+            Empty cell data are scaled using the given scaleFactor prior to substraction. """
+
+        #_Compute the fitted Empty Cell function
+        ECFunc = []
+        for qIdx, qVal in enumerate(self.data.qVals):
+            ECFunc.append( self.ECData.model( self.data.X, *self.ECData.params[qIdx][0] ) )
+
+        ECFunc = np.array( ECFunc )
+
+        #_If data are normalized, uses the same normalization factor for empty cell data
+        if self.data.norm:
+            normFList = np.array([params[0][0] for params in self.ECData.params])[:,np.newaxis]
+            ECFunc /= normFList
+
+        self.data = self.data._replace( intensities = self.data.intensities - scaleFactor * ECFunc )
+
+
+        #_Clean useless values from intensities and errors arrays
+        S       = self.data.intensities
+        errors  = self.data.errors
+        np.place(errors, S < 0, np.inf)
+        np.place(S, S < 0, 0)
+        self.data = self.data._replace(intensities = S)
+        self.data = self.data._replace(errors = errors)
+
 
 
 
@@ -85,13 +128,37 @@ class BaseType:
 
         self.data = self.data._replace(qIdx = [idx for idx, val in enumerate(self.data.qVals)])
 
+
+
+
+    def assignResData(self, resData):
+        """ Sets self.resData attribute to the given one, a ResType instance that can be used by fitting 
+            functions in QENS or FWS types. """
+
+        self.resData = resData
+
+
+
+    def assignD2OData(self, D2OData):
+        """ Sets self.D2OData attribute to the given one, a D2OType instance that can be used by fitting
+            functions in QENS or FWS types. """
+
+        self.D2OData = D2OData
+ 
+
+    def assignECData(self, ECData):
+        """ Sets self.ECData attribute to the given one, a ECType instance that can be used by fitting
+            functions in QENS or FWS types. """
+
+        self.ECData = ECData
  
 
 
 
-class BaseTypeDecorator(BaseType):
-    """ Decorator for BaseType. Should be inherited by all child types. """
+
+class DataTypeDecorator(BaseType):
 
     def __init__(self, dataType):
-        super().__init__(dataType.fileName, dataType.data, dataType.rawData)
+        super().__init__(dataType.fileName, dataType.data, dataType.rawData, dataType.resData, 
+                                                                        dataType.D2OData, dataType.ECData)
 

@@ -23,13 +23,13 @@ class plotMSDSeries(QWidget):
                 fileIdxList -> indices of experimental data's MSD to be compared with msdSeries """
 
 
-    def __init__(self, parent, msdIdxList, tempList, fileIdxList):
+    def __init__(self, msdSeriesList, tempList, datasetList):
 
         super().__init__()
 
-        self.parent         = parent
-        self.tempList       = tempList
-        self.fileIdxList    = fileIdxList
+        self.tempList   = tempList
+        self.dataset    = datasetList
+        self.msdSeries  = msdSeriesList
 
         try:
             self.initChecks()
@@ -38,14 +38,6 @@ class plotMSDSeries(QWidget):
             return
 
 
-        #_Dataset related attributes
-        self.dataSetList    = [parent.dataSetList[i] for i in fileIdxList]
-        self.dataFiles      = [parent.dataFiles[i] for i in fileIdxList]
-        self.paramsList     = [parent.paramsList[i] for i in fileIdxList]
-        self.paramsNames    = [parent.paramsNames[i] for i in fileIdxList]
-        self.modelList      = [parent.modelList[i] for i in fileIdxList]
-
-        self.msdSeries = [parent.msdSeriesList[idx] for idx in msdIdxList] 
 
         #--------------------------------------------------
         #_Construction of the GUI
@@ -97,24 +89,24 @@ class plotMSDSeries(QWidget):
         ax = self.figure.add_subplot(111)  
 
         #_Plot the mean-squared displacement as a function of temperature for each file
-        for i in range(len(self.fileIdxList)):
+        for dataset in self.dataset:
             #_Obtaining the temperature to plot as being the closest one to the number entered by the user 
-            tempToShow = min(self.dataSetList[i].X, key = lambda x : abs(float(self.lineEdit.text()) - x))
-            tempIdx = int(np.argwhere(self.dataSetList[i].X == tempToShow)[0])
+            tempToShow = min(dataset.data.X, key = lambda x : abs(float(self.lineEdit.text()) - x))
+            tempIdx = int(np.argwhere(dataset.data.X == tempToShow)[0])
 
             #_Extracting the MSD from parameters for each temperature
-            msdList = [self.paramsList[i][tempIdx][0][1] for tempIdx, temp in enumerate(self.dataSetList[i].X)]
-            qMin = self.dataSetList[i].qVals[self.dataSetList[i].qIdx[0]]
-            qMax = self.dataSetList[i].qVals[self.dataSetList[i].qIdx[-1]]
+            msdList = [dataset.params[tempIdx][0][1] for tempIdx, temp in enumerate(dataset.data.X)]
+            qMin = dataset.data.qVals[dataset.data.qIdx[0]]
+            qMax = dataset.data.qVals[dataset.data.qIdx[-1]]
 
             #_Computing the errors for each temperature from covariant matrix
-            errList = [np.sqrt(np.diag(self.paramsList[i][tempIdx][1]))[1] for tempIdx, temp 
-                                                                in enumerate(self.dataSetList[i].X)]
+            errList = [np.sqrt(np.diag(dataset.params[tempIdx][1]))[1] for tempIdx, temp 
+                                                                in enumerate(dataset.data.X)]
             #_Plotting the experimental MSD
-            ax.errorbar(self.dataSetList[i].X[:tempIdx+1], 
+            ax.errorbar(dataset.data.X[:tempIdx+1], 
                         msdList[:tempIdx+1],
                         errList[:tempIdx+1], 
-                        label = self.dataFiles[i])
+                        label = dataset.fileName)
 
         for i in range(len(self.msdSeries)):
             
@@ -132,12 +124,14 @@ class plotMSDSeries(QWidget):
     def initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
-
-        for i in self.fileIdxList:
-            if not self.parent.dataSetList[i]:
-                raise Exception("ERROR: Index error, no data were found in dataSetList for index %i.\n" % i)
-
-            if not self.parent.paramsList[i]:
-                print("WARNING: no fitted parameters were found for data at index %i.\n" % i    
+        for idx, dataset in enumerate(self.dataset):
+            try: 
+                if not dataset.params:
+                    print("WARNING: no fitted parameters were found for data at index %i.\n" % i    
                       + "Some plotting methods might not work properly.\n")
+            except AttributeError:
+                print("No parameters for dataset at index %i were found.\n" % idx 
+                            + "Please use a fitting method before plotting.\n")
+
+
 

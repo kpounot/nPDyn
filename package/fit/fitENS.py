@@ -36,4 +36,3 @@ def tempRampCurveFit(parent, modelFunc, fileIdx, p0=None, bounds=None):
 
 
     return fitList
-
