@@ -3,8 +3,8 @@ import numpy as np
 from collections import namedtuple
 from scipy import optimize
 
-from ..QENSType import DataTypeDecorator
-from ...fit.fitQENS_models import protein_powder_2Lorentzians as model
+from ..FWSType import DataTypeDecorator
+from ...fit.fitFWS_models import protein_liquid as model
 
 
 
@@ -17,8 +17,7 @@ class Model(DataTypeDecorator):
 
         self.model      = model
         self.params     = None
-        self.paramsNames = ['s0', 's1', 's2', 'g1', 'g2', 'msd', 'bkgd'] #_For plotting purpose
-
+        self.paramsNames = ['s0', 'sr', 'st', 'rotational', 'translational', 'msd', 'bkgd'] 
         self.BH_iter    = 100
         self.disp       = True
 
@@ -36,6 +35,7 @@ class Model(DataTypeDecorator):
 
             bounds = [(0., 1), (0., 1), (0., 1), (0., 1000), (0., 1000), (0., 10)]
             bounds += [(0., minData) for i in range(len(self.data.qIdx))]
+
 
 
         result = optimize.basinhopping( self.model, 
@@ -62,7 +62,7 @@ class Model(DataTypeDecorator):
         print(50*"-" + "\n", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.6, 0.2, 0.2, 2, 15, 1, 0.001]
+            p0 = [0.6, 0.2, 0.2, 5, 5, 1, 0.001]
 
         if not bounds: #_Using default bounds
             minData = np.min( self.data.intensities ) #_To restrict background below experimental data

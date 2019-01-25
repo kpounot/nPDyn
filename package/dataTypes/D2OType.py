@@ -29,3 +29,11 @@ class D2OType(BaseType):
         self.data = self.data._replace(errors = errors)
  
 
+
+class DataTypeDecorator(D2OType):
+
+    def __init__(self, dataType):
+        super().__init__(dataType.fileName, dataType.data, dataType.rawData, dataType.resData, 
+                                                                        dataType.D2OData, dataType.ECData)
+
+

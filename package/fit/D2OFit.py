@@ -1,67 +1,75 @@
 import numpy as np
 from collections import namedtuple
-from scipy import optimize
+from scipy.signal import fftconvolve, convolve
+from scipy.special import spherical_jn
 
 
-def modelFunc(x, qVal, temp, gD2O, a1):
 
-    return a1 * gD2O / (gD2O**2 + x**2)
+def D2OFit(params, dataset, qIdx=None, returnCost=True):
+    """ This class can be used to fit data from D2O - q-wise or globally - using a single lorentzian and
+        D2O data from IN6 at the ILL. 
+
+        Input:  params      -> parameters for the model (described below), usually given by scipy's routines
+                dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
+                qIdx        -> index of the current q-value
+                               if None, a global fit is performed over all q-values
+                returnCost  -> if True, return the standard deviation of the model to experimental data
+                               if False, return only the model """
 
 
-def fitFunc(params, dataSet, parent, qIdx, returnCost=True):
-    """ This function takes several arguments which are automatically given by basinHopping_D2OFit 
-        function. 
-        
-        Input:  params      -> starting random parameters for the minimization
-                dataSet     -> experimental D2O data
-                parent      -> dataSet class instance in which the resolution function has been fitted
-                qIdx        -> current index of the q-value in the dataSet.qVals list
-                returnCost  -> if used with basinhopping, the function is expected to return the cost,
-                               and not the computed model lineshape itself. """
+    a0 = params[0]  #_contribution factor of elastic signal (EISF)
+    a1 = params[1]  #_contribution factor of lorentzian
 
-    resParams     = parent.resParams[qIdx][0]
-    temp          = dataSet.temp
-    qVal          = dataSet.qVals[qIdx]
-    gD2O          = parent.D2OFunc(temp, qVal) #_Get the D2O lineshape's width at half maximum
+    X = dataset.data.X
+    qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis] #_Reshape to a column vector
 
-    cost = 0
 
-    model   = modelFunc(dataSet.X, qVal, temp, gD2O, *params[1:])
-    resFunc = parent.resFunc(dataSet.X, *resParams)
 
-    model = params[0] * resFunc + np.convolve(model, resFunc, mode='same') + resParams[-1]
+    #_Resolution function
+    if dataset.data.norm: #_Use normalized resolution function if data were normalized
+        f_res = np.array( [dataset.resData.model(X, 1, *dataset.resData.params[i][0][1:]) 
+                                                                        for i in dataset.data.qIdx] )
+    else:
+        f_res = np.array( [dataset.resData.model(X, *dataset.resData.params[i][0]) 
+                                                                        for i in dataset.data.qIdx] )
 
-    cost += np.sum( (dataSet.intensities[qIdx] - model)**2  
-                    / (dataSet.errors[qIdx])**2 )  
+
+
+    #_Model
+
+    #_Computes D2O linewidth for each q-values
+    gD2O = np.array([dataset.sD2O(dataset.data.temp, qVal) for qVal in dataset.data.qVals])
+
+    model = np.zeros((qVals.size, X.size)) #_Initialize the final array
+
+    model = model + gD2O
+
+    model = a1 * model / (np.pi * (X**2 + model**2)) #_Computes the lorentzians
+
+
+
+    #_Performs the convolution for each q-value
+    for idx in range(model.shape[0]):
+        model[idx] = np.convolve(model[idx], f_res[idx], mode='same')
+
+
+    #_Final model, with Debye-Waller factor, EISF, convolutions and background
+    model = a0 * f_res + model
+
+    cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2 
+                                            / dataset.data.errors[dataset.data.qIdx]**2, axis=1) 
+
+
+    if qIdx is not None:
+        cost    = cost[qIdx]
+        model   = model[qIdx]
+    else:
+        cost = np.sum(cost)
+
 
     if returnCost:
         return cost
     else:
         return model
 
-            
-def basinHopping_D2OFit(D2OData, parent, BH_iter, p0, bounds, disp):
-    """ Uses Scipy's basinhopping routine to fit the pseudo-Voigt profile to the experimental data
-        given in the argument D2OData. 
-
-        Input:  D2OData     -> experimental QENS data for D2O
-                parent      -> the dataSet class instance (used to access the resolution function)
-                BH_iter     -> maximum number of basinhopping iteration (optional, default=300)
-                p0          -> starting values for parameters (optional)
-                disp        -> if True, display basinhopping's state info
-        
-        Returns a list of fitted parameters for each scattering angle / q-value. """
-
-    fitList = []
-    for qIdx, qWiseData in enumerate(D2OData.intensities):
-
-        fitList.append(optimize.basinhopping(fitFunc, 
-                        p0,
-                        niter = BH_iter,
-                        niter_success = 0.25*BH_iter,
-                        disp=disp,
-                        minimizer_kwargs={  'args': (D2OData, parent, qIdx),
-                                            'bounds': bounds }))
-
-    return fitList
 

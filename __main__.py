@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import QApplication
 from package.Dataset import Dataset
 from package.dataTypes.models import *
 
-app = QApplication(sys.argv)
 
 #_Defining options for nPDyn call
 parser = argparse.ArgumentParser()

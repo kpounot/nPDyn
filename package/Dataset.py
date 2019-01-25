@@ -54,7 +54,9 @@ class Dataset:
 
         self.modelList = [  resFunc_pseudoVoigt.Model,
                             resFunc_gaussian.Model,
+                            D2OFunc_singleLorentzian_BH.Model,
                             QENS_prot_powder_doubleLorentzian_BH.Model,
+                            QENS_water_powder_BH.Model,
                             TempRamp_gaussian.Model ]
 
 
@@ -74,6 +76,13 @@ class Dataset:
         if D2OFile:
             data = D2OType.D2OType(D2OFile)
             data.importData()
+            data = D2OFunc_singleLorentzian_BH.Model(data)
+
+            if self.resData != []:
+                data.assignResData(self.resData[0])
+                data.normalize()
+                data.qWisefit()
+
             self.D2OData = data
 
 
@@ -177,11 +186,7 @@ class Dataset:
             to the index of the file to be removed from self.dataFiles, self.dataSetList and 
             self.rawDataList. """
 
-        self.dataFiles.pop(fileIdx)
         self.dataSetList.pop(fileIdx)
-        self.rawDataList.pop(fileIdx)
-        self.paramsList.pop(fileIdx)
-        self.modelList.pop(fileIdx)
 
 
     def resetDataSet(self, *fileIdxList):
@@ -208,17 +213,13 @@ class Dataset:
 
 
 
-    def importTempRampMD(self, dcdFiles, tempList, dataSetIdx=0, binSize=1, fromTimeSpace=False, frame=100, 
-                                                                                    converter_kwargs={}):
+    def importTempRampMD(self, dcdFiles, tempList, dataSetIdx=0, binSize=1, converter_kwargs={}):
         """ Imports data from MD simulation using the getTempEISF method in MDParser class. 
         
             Input:  dcdFiles    -> list of dcd files corresponding to each temperature
                     tempList    -> list of temperatures used, should be in the same order as dcd files
                     dataSetIdx  -> experimental dataset index to be used as reference for q-values and indices
                                    (optional, default 0)
-                    fromTimeSpace    -> if true, use directly the EISF at given frame instead of scattering func
-                                     (optional, default False)
-                    frame            -> frame to be used with fromTimeSpace (optional, default 100)
                     converter_kwargs -> arguments to be passed to scattering function computation methods
                                         in NAMDAnalyzer package. (optional, some defaults value but better use
                                         it explicitly. 
@@ -229,18 +230,63 @@ class Dataset:
         qIdx  = self.dataSetList[0].data.qIdx
 
         MDTuple = namedtuple('MDDataT', 'qVals X intensities errors temp norm qIdx')
-        MDDataT = self.MDData.getTempRampEISF(dcdFiles, tempList, qVals, qIdx, binSize, fromTimeSpace, frame,
-                                                                                        converter_kwargs)
+        MDDataT = self.MDData.getTempRampEISF(dcdFiles, tempList, qVals, qIdx, binSize, converter_kwargs)
             
         self.dataSetList.append( TempRampType.TempRampType( self.MDData.psfFile, 
                                                             MDDataT,
                                                             MDDataT,
-                                                            self.resData,
                                                             self.D2OData,
                                                             self.ECData ) )
 
+
+        self.dataSetList[-1].assignResData(self.resData[0]) #_Assign first resolution function by default
+
         #_Free up memory
         self.MDData.dcdData.dcdData = None
+
+
+    def importQENS_MD(self, dcdFile, dataSetIdx=0, binSize=1, resBkgdIdx=None, converter_kwargs={}):
+        """ Imports data from MD simulation using the getTempEISF method in MDParser class. 
+        
+            Input:  dcdFiles    -> list of dcd files corresponding to each temperature
+                    tempList    -> list of temperatures used, should be in the same order as dcd files
+                    dataSetIdx  -> experimental dataset index to be used as reference for q-values and indices
+                                   (optional, default 0)
+                    resKkgdIdx  -> if not None, should be an integer giving the index of resolution data
+                                    in self.resData, from which background signal intensity should be
+                                    extracted (optional, default None - no experimental background added)
+                    converter_kwargs -> arguments to be passed to scattering function computation methods
+                                        in NAMDAnalyzer package. (optional, some defaults value but better use
+                                        it explicitly. 
+                                        
+            Stores the resulting namedtuple in self.dataSetList as any other experimental data. """
+
+        qVals = self.dataSetList[0].data.qVals
+        qIdx  = self.dataSetList[0].data.qIdx
+
+        MDTuple = namedtuple('MDDataT', 'qVals X intensities errors temp norm qIdx')
+        MDDataT = self.MDData.getQENS(dcdFile, qVals, qIdx, binSize, converter_kwargs)
+
+
+        #_Gets fitted instrumental background and add it to simulated data
+        if resBkgdIdx is not None:
+            bkgd = np.array( [data[0][-1] for data in self.resData[resBkgdIdx].params] )[:, np.newaxis]
+            
+            MDDataT = MDDataT._replace(intensities = MDDataT.intensities + bkgd)
+
+            
+        self.dataSetList.append( QENSType.QENSType( self.MDData.psfFile, 
+                                                            MDDataT,
+                                                            MDDataT,
+                                                            self.D2OData,
+                                                            self.ECData ) )
+
+
+        self.dataSetList[-1].assignResData(self.resData[0]) #_Assign first resolution function by default
+
+        #_Free up memory
+        self.MDData.dcdData.dcdData = None
+
 
 
     def plotMSDfromMD(self, tempList, msdIdxList, *fileIdxList):
@@ -260,6 +306,7 @@ class Dataset:
 
         plotW = plotMSDSeries(msdSeriesList, tempList, datasetList)
         plotW.show()
+
 
 
     def getMSDfromMD(self, dcdFiles, binSize=1, converter_kwargs={}):
@@ -287,6 +334,8 @@ class Dataset:
         for i in fileIdxList:
             self.dataSetList[i].normalize()
 
+
+
     
     def normalize_ENS_usingLowTemp(self, *fileIdxList, nbrBins=5):
         """ This method is meant to be used only with elastic temperature ramp. For which the given
@@ -309,12 +358,11 @@ class Dataset:
 
 
 
-    def substract_EC(self, *fileIdxList, subFactor=0.8):
+    def substract_EC(self, subFactor, *fileIdxList):
         """ This method uses the fitted empty cell function to substract the signal for the selected
             dataSet. 
 
             Input: subFactor    -> pre-multiplying factor for empty cell data prior to substraction
-                                   (optional, default 0.9)
                    fileIdxList  -> can be "all", then every dataSet in self.dataSetList is normalized
                                 can also be a single integer or a list of integer (optional, default "all") """
 
@@ -328,6 +376,8 @@ class Dataset:
 
  
 
+
+
     def discardDetectors(self, decIdxList, *fileIdxList):
         """ Remove data corresponding to given detectors/q-values
             The process modifies dataset.qIdx attributes, that is used for sample QENS fitting and plotting. """
@@ -337,9 +387,9 @@ class Dataset:
             fileIdxList = range(len(self.dataSetList))
 
         for idx in fileIdxList:
-            self.dataSetList[idx].data = self.dataSetList[idx].data._replace(qIdx = 
-                                        [val for val in self.dataSetList[idx].data.qIdx 
-                                         if val not in decIdxList])
+            self.dataSetList[idx].discardDetectors(*decIdxList)
+
+
 
 
     def resetDetectors(self, *fileIdxList):
@@ -355,6 +405,7 @@ class Dataset:
 
             
 
+
     def assignModeltoData(self, model, *fileIdxList):
         """ Helper function to quickly assign the given model to all dataset with given indices in
             self.dataSetList. If model is not None, the decorator pattern is used to modify the dataType
@@ -367,6 +418,8 @@ class Dataset:
 
         for idx in fileIdxList:
             self.dataSetList[idx] = model( self.dataSetList[idx] )
+
+
 
 
 
@@ -475,7 +528,7 @@ class Dataset:
         """ This method plots the resolution function.
             A PyQt window is showed with different data representation possibilities. """
 
-        plotW = D2OPlot.D2OPlot(self)
+        plotW = D2OPlot.D2OPlot([self.D2OData])
         plotW.show()
  
 

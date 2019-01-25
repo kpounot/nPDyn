@@ -15,12 +15,15 @@ import matplotlib
 
 from .subPlotsFormat import subplotsFormat
  
+
+
 class QENSPlot(QWidget):
     """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
         a lineedit widget to allow the user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
 
         Plot        -> plot the normalized experimental data for the selected q-value
+        Compare     -> superimpose experimental data on one plot
         3D Plot     -> plot the whole normalized dataSet
         Analysis    -> plot the different model parameters as a function of q-value
         Resolution  -> plot the fitted model on top of the experimental data for the selected q-value """
@@ -52,6 +55,9 @@ class QENSPlot(QWidget):
         self.button = QPushButton('Plot')
         self.button.clicked.connect(self.plot)
 
+        self.compareButton = QPushButton('Compare')
+        self.compareButton.clicked.connect(self.compare)
+
         self.analysisButton = QPushButton('Analysis')
         self.analysisButton.clicked.connect(self.analysisPlot)
 
@@ -79,6 +85,7 @@ class QENSPlot(QWidget):
         layout.addWidget(self.label)
         layout.addWidget(self.lineEdit)
         layout.addWidget(self.button)
+        layout.addWidget(self.compareButton)
         layout.addWidget(self.plot3DButton)
         layout.addWidget(self.analysisButton)
         layout.addWidget(self.fitButton)
@@ -116,8 +123,41 @@ class QENSPlot(QWidget):
 
 
 
+
+    def compare(self):
+        """ This is used to plot the experimental data, without any fit. """
+	   
+        plt.gcf().clear()     
+        
+        ax = self.figure.add_subplot(111)
+
+        #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
+        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
+        qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
+        qValIdx = int(np.argwhere(qVals == qValToShow)[0])
+
+        for dataset in self.dataset:
+            ax.errorbar(dataset.data.X, 
+                        dataset.data.intensities[qValIdx],
+                        dataset.data.errors[qValIdx], 
+                        label=dataset.fileName,
+                        fmt='o')
+            
+            ax.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
+            ax.set_yscale('log')
+            ax.set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
+            ax.legend(framealpha=0.5)
+            ax.grid()
+
+        self.figure.tight_layout()
+        self.canvas.draw()
+
+
+
+
+
     def plot3D(self):
-        """ 3D plot of the whole dataset.data. """
+        """ 3D plot of the whole dataset """
 
         plt.gcf().clear()     
         ax = subplotsFormat(self, False, False, '3d') 
@@ -167,10 +207,8 @@ class QENSPlot(QWidget):
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
-            subplot.plot(range(paramsList.shape[1]), paramsList[idx], marker='o',
-                         label=self.dataset[0].paramsNames[idx]) 
-            subplot.grid(True)
-            subplot.legend(framealpha=0.5)
+            subplot.scatter(range(paramsList.shape[1]), paramsList[idx], marker='o')
+            subplot.set_ylabel(self.dataset[0].paramsNames[idx]) 
             subplot.set_xticks(range(len(self.dataset)))
             subplot.set_xticklabels([data.fileName for data in self.dataset], 
                                                                 rotation=-45, ha='left', fontsize=8)
@@ -193,43 +231,51 @@ class QENSPlot(QWidget):
 
 
         #_Plot the datas for selected q value normalized with integrated curves at low temperature
-        for idx, subplot in enumerate(ax):
+        for idx, dataset in enumerate(self.dataset):
             #_Plot the experimental data
-            subplot.errorbar(self.dataset[idx].data.X, 
-                        self.dataset[idx].data.intensities[qValIdx],
-                        self.dataset[idx].data.errors[qValIdx], 
+            ax[idx].errorbar(dataset.data.X, 
+                        dataset.data.intensities[dataset.data.qIdx][qValIdx],
+                        dataset.data.errors[dataset.data.qIdx][qValIdx], 
                         label='Experimental',
                         zorder=1)
 
+
+
             #_Plot the background
-            subplot.axhline(self.dataset[idx].resData.params[qValIdx][0][-1], label='Background', zorder=2)
+            ax[idx].axhline(dataset.resData.params[qValIdx][0][-1], label='Background', zorder=2)
+
+
+
+            #_Computes resolution function using parameters corresponding the teh right q-value
+            resParams = [dataset.resData.params[i] for i in dataset.data.qIdx]
+
+            resF = dataset.resData.model(dataset.data.X, *resParams[qValIdx][0][:-1], 0)
+
+            if dataset.data.norm:
+                resF /= resParams[qValIdx][0][0]
 
             #_Plot the resolution function
-            resF = self.dataset[idx].resData.model(self.dataset[idx].data.X, 
-                                                    *self.dataset[idx].resData.params[qValIdx][0][:-1], 0)
-            if self.dataset[idx].data.norm:
-                resF /= self.dataset[idx].resData.params[qValIdx][0][0]
-
-            subplot.plot( self.dataset[idx].data.X, 
+            ax[idx].plot( dataset.data.X, 
                           resF,
                           label='Resolution',
                           zorder=3 )
 
+
+
             #_Plot the model
-            subplot.plot( self.dataset[idx].data.X,
-                          self.dataset[idx].model(  self.dataset[idx].params[qValIdx].x, 
-                                                    self.dataset[idx],
+            ax[idx].plot( dataset.data.X,
+                          dataset.model(  dataset.params[qValIdx].x, 
+                                                    dataset,
                                                     qIdx=qValIdx,
                                                     returnCost=False),
                           label='Model',
-                          zorder=4)
+                          zorder=4 )
 
-            subplot.set_title(self.dataset[idx].fileName, fontsize=10)
-            subplot.set_xlabel(r'$\hslash\omega (\mu eV)$')
-            subplot.set_yscale('log')
-            subplot.set_ylim(1e-3, 1.2)
-            subplot.set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$')   
-            subplot.grid()
+            ax[idx].set_title(dataset.fileName, fontsize=10)
+            ax[idx].set_xlabel(r'$\hslash\omega (\mu eV)$')
+            ax[idx].set_yscale('log')
+            ax[idx].set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$')   
+            ax[idx].grid()
         
         plt.legend(framealpha=0.5, fontsize=12)
         self.canvas.draw()
@@ -244,9 +290,9 @@ class QENSPlot(QWidget):
         for idx, dataset in enumerate(self.dataset):
             try: 
                 if not dataset.params:
-                    print("WARNING: no fitted parameters were found for data at index %i.\n" % i    
+                    print("WARNING: no fitted parameters were found for data at index %i.\n" % idx    
                       + "Some plotting methods might not work properly.\n")
             except AttributeError:
                 print("No parameters for dataset at index %i were found.\n" % idx 
-                            + "Please use a fitting method before plotting.\n")
+                            + "Please assign a model and use a fitting method before plotting.\n")
 

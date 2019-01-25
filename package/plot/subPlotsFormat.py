@@ -37,32 +37,16 @@ def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=F
         ax = caller.figure.subplots(int(np.ceil(listSize / 3)), 3, sharex, sharey, 
                                                             subplot_kw={'projection':projection}).flatten()
 
-        #_Setting the shared axis, useful for listSize not multiple of 3
-        if sharex:
-            for idx in range(listSize-1, listSize-4, -1):
-                caller.figure.axes[idx].set_xticklabels([val.fileName for val in caller.dataset])
-
 
     if listSize > 9 and listSize <= 12:
         ax = caller.figure.subplots(int(np.ceil(listSize / 4)), 4, sharex, sharey, 
                                                             subplot_kw={'projection':projection}).flatten()
-
-        #_Setting the shared axis, useful for listSize not multiple of 3
-        if sharex:
-            for idx in range(listSize-1, listSize-5, -1):
-                caller.figure.axes[idx].set_xticklabels([val.fileName for val in caller.dataset])
-
 
 
     if listSize > 12:
         ax = caller.figure.subplots(int(np.ceil(listSize / 5)), 5, sharex, sharey, 
                                                             subplot_kw={'projection':projection}).flatten()
     
-        #_Setting the shared axis, useful for listSize not multiple of 3
-        if sharex:
-            for idx in range(listSize-1, listSize-6, -1):
-                caller.figure.axes[idx].set_xticklabels([val.fileName for val in caller.dataset])
-
 
     #_Removing unecessary axes
     for idx, subplot in enumerate(ax):

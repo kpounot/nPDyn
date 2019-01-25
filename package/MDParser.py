@@ -28,8 +28,7 @@ class MDData(NAMDAnalyzer):
         self.MDDataT = namedtuple('MDDataT', 'qVals X intensities errors temp norm qIdx')
 
 
-    def getTempRampEISF(self, dcdFiles, tempList, qVals, qIdx, binSize=2, fromTimeSpace=False, frame=100, 
-                                                                                    converter_kwargs={}):
+    def getTempRampEISF(self, dcdFiles, tempList, qVals, qIdx, binSize=2, converter_kwargs={}):
         """ This method calls the convertScatFunctoEISF for energy space or simply extract the column
             corresponding to the given timeInterval if 'fromTimeSpace' argument is set to True.
 
@@ -48,7 +47,7 @@ class MDData(NAMDAnalyzer):
         #_Defining some defaults arguments
         kwargs = {  'qValList'    : qVals,
                     'minFrames'   : 1, 
-                    'maxFrames'   : 600, 
+                    'maxFrames'   : 1000, 
                     'nbrBins'     : 50, 
                     'resFunc'     : None, 
                     'selection'   : 'waterH', 
@@ -75,6 +74,48 @@ class MDData(NAMDAnalyzer):
         errors      = 1e-6 * np.ones_like(intensities)
 
         return self.MDDataT( qVals, np.array(tempList), intensities, errors, 0, False, qIdx )
+
+
+
+    def getQENS(self, dcdFile, qVals, qIdx, binSize=2, converter_kwargs={}):
+        """ This method calls the convertScatFunctoEISF for energy space or simply extract the column
+            corresponding to the given timeInterval if 'fromTimeSpace' argument is set to True.
+
+            This procedure is done for each dcd file in 'dcdFiles'. It might take some time depending
+            on the size of the dcd files. Due to memory limitation, this cannot be done in parallel on most
+            computers. This is why the method is implemented like that.
+
+            Finally, all the EISF for each temperature are gathered into a single namedtuple similar to the
+            one used in nPDyn.
+
+            This namedtuple can be added to the dataSetList of nPDyn and used as any experimetal file. """
+
+
+
+        #_Defining some defaults arguments
+        kwargs = {  'qValList'    : qVals,
+                    'minFrames'   : 1, 
+                    'maxFrames'   : 1000, 
+                    'nbrBins'     : 50, 
+                    'resFunc'     : None, 
+                    'selection'   : 'waterH', 
+                    'begin'       : 0, 
+                    'end'         : None      } 
+
+        #_Modifies default arguments with given ones, if any
+        for key, value in converter_kwargs.items():
+            kwargs[key] = value
+
+
+        self.importFile(dcdFile)
+        self.dcdData.binDCD(binSize)
+        self.dcdData.compScatteringFunc(**kwargs)
+
+        scatF = self.dcdData.getScatFunc()
+
+        errors      = np.zeros_like(scatF[0])
+
+        return self.MDDataT( qVals, scatF[1], scatF[0], errors, 0, False, qIdx )
 
 
 

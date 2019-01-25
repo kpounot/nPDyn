@@ -163,15 +163,15 @@ class ECPlot(QWidget):
         ax = subplotsFormat(self, True, False, params=True)
 
         #_Plot the parameters of the fits
-        for fileIdx, fileName in enumerate(self.dataset):
+        for fileIdx, dataset in enumerate(self.dataset):
             #_Create 2D numpy array to easily access the q dependance of each parameter
-            paramsList = np.column_stack( (params[0] for params in self.dataset[fileIdx].params) )
+            paramsList = np.column_stack( (params[0] for params in dataset.params) )
 
-            qList = self.dataset[fileIdx].data.qVals 
+            qList = dataset.data.qVals 
 
             for idx, subplot in enumerate(ax):
-                subplot.plot(qList, paramsList[idx], marker='o', label=fileName) 
-                subplot.set_ylabel(self.dataset[fileIdx].paramsNames[idx])
+                subplot.plot(qList, paramsList[idx], marker='o', label=dataset.fileName) 
+                subplot.set_ylabel(dataset.paramsNames[idx])
                 subplot.set_xlabel(r'$q \ (\AA^{-1})$')
                 subplot.grid(True)
 

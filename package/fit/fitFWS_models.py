@@ -1,32 +1,24 @@
 import numpy as np
 from collections import namedtuple
 from scipy.signal import fftconvolve, convolve
-from scipy.special import spherical_jn
 
 
 
 
-def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True):
-    """ This class can be used to fit data from powder protein samples - q-wise or globally -
-        using two lorentzians, which is the number that should be used to fit QENS data. Indeed,
-        considering the work of D.S. Sivia (1992) on bayesian analysis of QENS data fitting, it appears
-        clearly that using more lorentzians just results in overfitting.
+def protein_liquid(params, dataset, qIdx=None, returnCost=True):
+    """ Fitting function for protein in liquid D2O environment.
 
         Input:  params      -> parameters for the model (described below), usually given by scipy's routines
                 dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
                 qIdx        -> index of the current q-value
                                if None, a global fit is performed over all q-values
                 returnCost  -> if True, return the standard deviation of the model to experimental data
-                               if False, return only the model 
-                               
-        Reference :
-        -   D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
-            quasi-elastic neutron scattering data. Physica B, 182, 341-348 """
+                               if False, return only the model """
 
 
     s0      = params[0]     #_contribution factor of elastic signal (EISF)
-    sList   = params[1:3]   #_contribution factors for each lorentzian
-    sList   = sList[np.newaxis,:,np.newaxis] #_Reshape for multiplication with model array along axis 1
+    s1      = params[1]     #_contribution factors for each lorentzian
+    s2      = params[2]     #_Reshape for multiplication with model array along axis 1
     gList   = params[3:5]   #_lorentzian width
     msd     = params[5]     #_mean-squared displacement for the Debye-Waller factor
     bkgd    = params[6:]    #_background terms (q-dependent)

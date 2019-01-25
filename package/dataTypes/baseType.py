@@ -85,7 +85,7 @@ class BaseType:
 
         #_If data are normalized, uses the same normalization factor for empty cell data
         if self.data.norm:
-            normFList = np.array([params[0][0] for params in self.ECData.params])[:,np.newaxis]
+            normFList = np.array([params[0][0] for params in self.resData.params])[:,np.newaxis]
             ECFunc /= normFList
 
         self.data = self.data._replace( intensities = self.data.intensities - scaleFactor * ECFunc )

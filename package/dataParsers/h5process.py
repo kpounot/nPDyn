@@ -33,7 +33,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
     #_Fixed window scan processing
     if FWS == True:
-        FWSData = namedtuple('FWSData', 'qVals deltaE intensities errors temp norm qIdx') 
+        FWSData = namedtuple('FWSData', 'qVals X intensities errors temp norm qIdx') 
 
         if averageTemp:
             temp    = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'].value)
@@ -46,19 +46,30 @@ def processData(dataFile, FWS=False, averageTemp=True):
         listQ = 4*np.pi / wavelength * np.sin(np.pi  * twoThetaList / 360)
 
         dataList = [] # Stores the full dataset for a given data file
+
+        #_Initialize some lists and store energies, intensities and errors in them
+        listI    = []
+        listErr  = []
+        deltaE   = []
         for j, workspace in enumerate(h5File):
-            listI   = h5File[workspace + '/workspace/values'].value
-            listErr = h5File[workspace + '/workspace/errors'].value
+            listI.append(   h5File[workspace + '/workspace/values'].value )
+            listErr.append( h5File[workspace + '/workspace/errors'].value )
+            deltaE.append(  h5File[workspace + '/logs/Doppler.maximum_delta_energy/value'].value )
 
-            #_Clean useless values from intensities and errors arrays
-            np.place(listErr, listErr==0, np.inf)
-            np.place(listErr, listErr==np.nan, np.inf)
-            np.place(listI, listI / listErr < 0.5, 0)
-            np.place(listErr, listI / listErr < 0.5, np.inf)
+        #_Converts intensities and errors to numpy and array and transpose to get 
+        #_(# frames, # qVals, # energies) shaped array
+        listI   = np.array(listI).T
+        listErr = np.array(listErr).T
+        deltaE  = np.array(deltaE)[:,0]
 
-            deltaE = h5File[workspace + '/logs/Doppler.maximum_delta_energy/value'].value
+        #_Clean useless values from intensities and errors arrays
+        np.place(listErr, listErr==0, np.inf)
+        np.place(listErr, listErr==np.nan, np.inf)
+        np.place(listI, listI / listErr < 0.5, 0)
+        np.place(listErr, listI / listErr < 0.5, np.inf)
 
-            dataList.append( FWSData( listQ, deltaE, listI, listErr, temp, False, np.arange(listQ.size) ) )
+
+        dataList = FWSData( listQ, deltaE, listI, listErr, temp, False, np.arange(listQ.size) )
 
         return dataList
 
