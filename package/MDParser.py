@@ -18,8 +18,8 @@ class MDData(NAMDAnalyzer):
         The getTempRampEISF methods need several .dcd files that will be loaded and unloaded one after 
         the other for each temperature. """
 
-    def __init__(self, fileList=None):
-        super().__init__(fileList)
+    def __init__(self, fileList=None, stride=1):
+        super().__init__(fileList, stride)
 
         self.QENSdataList       = []
         self.FWSdataList        = []
@@ -47,8 +47,8 @@ class MDData(NAMDAnalyzer):
         #_Defining some defaults arguments
         kwargs = {  'qValList'    : qVals,
                     'minFrames'   : 1, 
-                    'maxFrames'   : 1000, 
-                    'nbrBins'     : 50, 
+                    'maxFrames'   : 600, 
+                    'nbrBins'     : 80, 
                     'resFunc'     : None, 
                     'selection'   : 'waterH', 
                     'begin'       : 0, 
@@ -95,8 +95,8 @@ class MDData(NAMDAnalyzer):
         #_Defining some defaults arguments
         kwargs = {  'qValList'    : qVals,
                     'minFrames'   : 1, 
-                    'maxFrames'   : 1000, 
-                    'nbrBins'     : 50, 
+                    'maxFrames'   : 600, 
+                    'nbrBins'     : 80, 
                     'resFunc'     : None, 
                     'selection'   : 'waterH', 
                     'begin'       : 0, 

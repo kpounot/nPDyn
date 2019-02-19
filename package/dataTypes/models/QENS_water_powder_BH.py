@@ -15,11 +15,12 @@ class Model(DataTypeDecorator):
     def __init__(self, dataType):
         super().__init__(dataType)
 
-        self.model      = model
-        self.params     = None
-        self.paramsNames = ['s0', 'sr', 'st', 'rotational', 'translational', 'msd', 'bkgd'] 
-        self.BH_iter    = 100
-        self.disp       = True
+        self.model          = model
+        self.params         = None
+        self.paramsNames    = ['s0', 'sr', 'st', 'rotational', 'translational', 'msd', 'bkgd'] 
+        self.lorWidthIdx    = [3, 4]
+        self.BH_iter        = 50
+        self.disp           = True
 
 
 
@@ -31,9 +32,9 @@ class Model(DataTypeDecorator):
             p0 = [0.6, 0.2, 0.2, 2, 15, 1] + [0.001 for i in range(len(self.data.qIdx))]
 
         if not bounds: #_Using default bounds
-            minData = np.min( self.data.intensities ) #_To restrict background below experimental data
+            minData = 1.5 * np.min( self.data.intensities ) #_To restrict background below experimental data
 
-            bounds = [(0., 1), (0., 1), (0., 1), (0., 1000), (0., 1000), (0., 10)]
+            bounds = [(0., 1), (0., 1), (0., 1), (0., 30), (0., 30), (0., 10)]
             bounds += [(0., minData) for i in range(len(self.data.qIdx))]
 
 
@@ -42,8 +43,12 @@ class Model(DataTypeDecorator):
                                         p0,
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
+                                        interval=25,
                                         disp=self.disp,
-                                        minimizer_kwargs={ 'args':(self,), 'bounds':bounds } )
+                                        minimizer_kwargs={  'args':(self,), 
+                                                            'bounds':bounds,
+                                                            'options': {'maxcor': 100,
+                                                                        'maxfun': 200000}})
 
 
 

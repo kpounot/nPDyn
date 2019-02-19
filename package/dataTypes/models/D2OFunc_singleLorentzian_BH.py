@@ -20,6 +20,7 @@ class Model(DataTypeDecorator):
         self.params     = None
         self.paramsNames = ["a1", "a2"] #_For plotting purpose
 
+        self.volFraction= 0.95
         self.getD2OData = getD2Odata
         self.sD2O       = getD2Odata()
         self.BH_iter    = 100

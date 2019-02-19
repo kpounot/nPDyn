@@ -204,10 +204,13 @@ class QENSPlot(QWidget):
 
         #_Create 2D numpy array to easily access parameters for each file
         paramsList = np.column_stack( [data.params[qValIdx].x for data in self.dataset] )
+        errList    = np.column_stack( [ np.sqrt(np.diag(
+                                        data.params[qValIdx].lowest_optimization_result.hess_inv.todense())) 
+                                        for data in self.dataset ] )
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
-            subplot.scatter(range(paramsList.shape[1]), paramsList[idx], marker='o')
+            subplot.errorbar(range(paramsList.shape[1]), paramsList[idx], marker='o')
             subplot.set_ylabel(self.dataset[0].paramsNames[idx]) 
             subplot.set_xticks(range(len(self.dataset)))
             subplot.set_xticklabels([data.fileName for data in self.dataset], 
@@ -225,9 +228,12 @@ class QENSPlot(QWidget):
         ax = subplotsFormat(self, sharey=True)
 
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
+        qIdxList = self.dataset[0].data.qIdx
         qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
         qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
         qValIdx = int(np.argwhere(qVals == qValToShow)[0])
+
+        
 
 
         #_Plot the datas for selected q value normalized with integrated curves at low temperature
@@ -242,7 +248,7 @@ class QENSPlot(QWidget):
 
 
             #_Plot the background
-            ax[idx].axhline(dataset.resData.params[qValIdx][0][-1], label='Background', zorder=2)
+            ax[idx].axhline(dataset.params[qValIdx].x[6+qValIdx], label='Background', zorder=2)
 
 
 
@@ -258,6 +264,7 @@ class QENSPlot(QWidget):
             ax[idx].plot( dataset.data.X, 
                           resF,
                           label='Resolution',
+                          ls=':',
                           zorder=3 )
 
 

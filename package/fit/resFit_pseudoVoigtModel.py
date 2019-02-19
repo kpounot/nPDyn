@@ -34,14 +34,23 @@ def resFit(resData):
         init_normF  = np.mean(resData.intensities[qIdx]) 
         init_bkgd   = np.min([val for val in resData.intensities[qIdx] if val > 0])
 
+        maxI    = 1.5 * np.max(resData.intensities)
+        maxBkgd = np.min(resData.intensities.flatten()[ np.argwhere(
+                                                    resData.intensities.flatten() > 0.0)[0] ])
+
+
+        p0 = [init_normF, 0.1, 1, 0.5, 0.1, init_bkgd]
+        if qIdx > 0:
+            p0 = resList[qIdx-1][0]
+
         resList.append(optimize.curve_fit(  resFunc, 
                                             resData.X,
                                             resData.intensities[qIdx],
                                             sigma=resData.errors[qIdx],
-                                            #p0=[init_normF, 0.2, 1, 0.5, 0.1, init_bkgd],
+                                            p0=p0,
                                             bounds=([0., 0., 0., 0., -10, 0.],  
-                                                    [np.inf, 1, 100, 100, 10, np.inf]),
-                                            maxfev=100000,
+                                                    [maxI, 1, 1000, 1000, 10, maxBkgd]),
+                                            maxfev=1000000,
                                             method='trf'))
 
     return resList

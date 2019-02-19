@@ -52,12 +52,12 @@ class Dataset:
                                         #_different psf files loading
 
 
-        self.modelList = [  resFunc_pseudoVoigt.Model,
-                            resFunc_gaussian.Model,
-                            D2OFunc_singleLorentzian_BH.Model,
-                            QENS_prot_powder_doubleLorentzian_BH.Model,
-                            QENS_water_powder_BH.Model,
-                            TempRamp_gaussian.Model ]
+        self.modelList = {  1:resFunc_pseudoVoigt.Model,
+                            2:resFunc_gaussian.Model,
+                            3:D2OFunc_singleLorentzian_BH.Model,
+                            4:QENS_prot_powder_doubleLorentzian_BH.Model,
+                            5:QENS_water_powder_BH.Model,
+                            6:TempRamp_gaussian.Model                     }
 
 
         
@@ -205,11 +205,17 @@ class Dataset:
 #_Molecular dynamics simulation data related methods
 #--------------------------------------------------
 
-    def initMD(self, psfFile):
+    def initMD(self, psfFile, stride=1):
         """ Initialize a NAMDAnalyzer instance with the given psf file. """
 
-        self.MDData = None #_Free memory
-        self.MDData = MDData(psfFile)
+        try:
+            self.MDData.dcdData.dcdData = None #_Free memory
+            self.MDData.psfData         = None #_Free memory
+        except AttributeError:
+            pass
+
+
+        self.MDData = MDData(psfFile, stride)
 
 
 
@@ -252,7 +258,7 @@ class Dataset:
                     tempList    -> list of temperatures used, should be in the same order as dcd files
                     dataSetIdx  -> experimental dataset index to be used as reference for q-values and indices
                                    (optional, default 0)
-                    resKkgdIdx  -> if not None, should be an integer giving the index of resolution data
+                    resBkgdIdx  -> if not None, should be an integer giving the index of resolution data
                                     in self.resData, from which background signal intensity should be
                                     extracted (optional, default None - no experimental background added)
                     converter_kwargs -> arguments to be passed to scattering function computation methods
