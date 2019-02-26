@@ -1,7 +1,7 @@
 from distutils.core import setup, Extension
 
 
-with open('README', 'r') as f:
+with open('README.md', 'r') as f:
     description = f.read()
 
 

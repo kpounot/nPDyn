@@ -190,8 +190,11 @@ class TempRampPlot(QWidget):
         plt.gcf().clear()     
         ax = self.figure.add_subplot(111)  
 
+
+        markers = ['o', 's', 'v', '^', 'h', 'p', 'd', '*']
+
         #_Plot the mean-squared displacement as a function of temperature for each file
-        for dataset in self.dataset:
+        for i, dataset in enumerate(self.dataset):
             #_Obtaining the temperature to plot as being the closest one to the number entered by the user 
             tempToShow = min(dataset.data.X, key = lambda x : abs(float(self.lineEdit.text()) - x))
             tempIdx = int(np.argwhere(dataset.data.X == tempToShow)[0])
@@ -209,6 +212,7 @@ class TempRampPlot(QWidget):
             ax.errorbar(dataset.data.X[:tempIdx+1], 
                         msdList[:tempIdx+1],
                         errList[:tempIdx+1], 
+                        marker=markers[i],
                         label = dataset.fileName)
 
             ax.set_xlabel(r'$Temperature (K)$')
@@ -217,6 +221,7 @@ class TempRampPlot(QWidget):
             ax.grid()
 
         self.canvas.draw()
+
 
 
     def initChecks(self):

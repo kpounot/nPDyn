@@ -57,7 +57,8 @@ class Dataset:
                             3:D2OFunc_singleLorentzian_BH.Model,
                             4:QENS_prot_powder_doubleLorentzian_BH.Model,
                             5:QENS_water_powder_BH.Model,
-                            6:TempRamp_gaussian.Model                     }
+                            6:TempRamp_gaussian.Model,
+                            7:TempRamp_q4.Model }
 
 
         
@@ -343,7 +344,7 @@ class Dataset:
 
 
     
-    def normalize_ENS_usingLowTemp(self, *fileIdxList, nbrBins=5):
+    def normalize_ENS_usingLowTemp(self, *fileIdxList, nbrBins=8):
         """ This method is meant to be used only with elastic temperature ramp. For which the given
             number of first bins (low temperature) are used to compute an average signal at low 
             temperature. The average is then used to normalize the whole dataset. This for each q-value.
@@ -351,7 +352,7 @@ class Dataset:
             Input:  fileIdxList ->  can be "all", then every dataSet in self.dataSetList is normalized
                                     can also be a single integer or a list of integer (optional, default "all")
                     nbrBins     ->  number of low temperature bins used to compute the normalization factor
-                                    (optional, default 5) """
+                                    (optional, default 8) """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -406,8 +407,7 @@ class Dataset:
             fileIdxList = range(len(self.dataSetList))
 
         for idx in fileIdxList:
-            self.dataSetList[idx].data = self.dataSetList[idx]._replace(qIdx = 
-                                            [idx for idx, val in enumerate(self.dataSetList[idx].qVals)])
+            self.dataSetList[idx].resetDetectors()
 
             
 
@@ -555,7 +555,7 @@ class Dataset:
         if not fileIdxList:
             fileIdxList = range(len(self.dataSetList))
 
-        datasetList = [dataset for i, dataset in enumerate(self.dataSetList) if i in fileIdxList]
+        datasetList = [self.dataSetList[i] for i in fileIdxList] 
 
         plotW = QENSPlot.QENSPlot(datasetList)
         
@@ -578,8 +578,8 @@ class Dataset:
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
             fileIdxList = range(len(self.dataSetList))
-
-        datasetList = [dataset for i, dataset in enumerate(self.dataSetList) if i in fileIdxList] 
+        
+        datasetList = [self.dataSetList[i] for i in fileIdxList] 
 
         plotW = TempRampPlot.TempRampPlot(datasetList)
         plotW.show()

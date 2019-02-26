@@ -16,12 +16,12 @@ class Model(DataTypeDecorator):
     def __init__(self, dataType):
         super().__init__(dataType)
 
-        self.model      = models.gaussian
+        self.model      = models.q4_corrected_gaussian
         self.params     = None
-        self.paramsNames = ["scale", "MSD"] #_For plotting purpose
+        self.paramsNames = ["scale", "MSD", "sigma"] #_For plotting purpose
 
 
-        self.defaultBounds = (0., [10., 4.])
+        self.defaultBounds = (0., [10., 4., 10.])
 
 
 
@@ -32,7 +32,7 @@ class Model(DataTypeDecorator):
             bounds = self.defaultBounds
 
         if not p0:
-            p0 = [1.0, 0.0]
+            p0 = [1.0, 0.0, 0.5]
 
         qIdxList = self.data.qIdx
         

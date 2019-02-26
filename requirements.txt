@@ -4,3 +4,4 @@ matplotlib
 ipython
 pyqt
 h5py
+cython
