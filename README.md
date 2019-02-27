@@ -1,12 +1,20 @@
 Work still ongoing, not all features are working properly or are present at the moment.
 
 ## Installation/Usage:
+nPDyn makes use of NAMDAnalyzer, which can be obtained at github.com/kpounot/NAMDAnalyzer
 Extract the archive in the wanted directory
+
+
 ### Unix
 For installation within your python framework, use:
 
     make 
     make install
+
+or
+
+    python3 setup.py build
+    python3 setup.py install
 
 ### Windows
 It's recommended to use MinGW or similar tools. Then, the package can be installed using:
