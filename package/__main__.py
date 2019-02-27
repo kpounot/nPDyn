@@ -3,8 +3,8 @@ import argparse
 
 from PyQt5.QtWidgets import QApplication 
 
-from package.Dataset import Dataset
-from package.dataTypes.models import *
+from nPDyn.Dataset import Dataset
+from nPDyn.dataTypes.models import *
 
 
 #_Defining options for nPDyn call

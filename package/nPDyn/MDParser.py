@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from collections import namedtuple
 
-from .NAMDAnalyzer.package.NAMDAnalyzer import NAMDAnalyzer
+from NAMDAnalyzer.NAMDAnalyzer import NAMDAnalyzer
 
 
 class MDData(NAMDAnalyzer):

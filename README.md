@@ -1,12 +1,27 @@
 Work still ongoing, not all features are working properly or are present at the moment.
 
 ## Installation/Usage:
-Just extract the archive in the wanted directory.
-Then, the package can be directly imported in python or a session can be started with IPython using the following:
+Extract the archive in the wanted directory
+### Unix
+For installation within your python framework, use:
+
+    make 
+    make install
+
+### Windows
+It's recommended to use MinGW or similar tools. Then, the package can be installed using:
+
+    mingw32-make.exe
+    mingw32-make.exe install
+
+### Use with ipython
+The package can be directly imported in python or a session can be started with IPython using the following:
 
     ipython -i <npdyn __main__ path> -- [kwargs]
 
+
 ### Keywords arguments on main call:
+This can be used when python or ipython is called within the folder where __main__ is located.
 
 - --QENS, -q            - import a list of QENS data files
 - --FWS, -f             - import a list of FWS data files

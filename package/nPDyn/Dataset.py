@@ -6,6 +6,8 @@ import re
 
 from collections import namedtuple
 
+from PyQt5.QtWidgets import QApplication
+
 from . import fileFormatParser
 from .dataTypes import *
 from .dataTypes.models import *
@@ -510,6 +512,7 @@ class Dataset:
         """ This method plots the resolution function.
             A PyQt window is showed with different data representation possibilities. """
 
+        app = QApplication(sys.argv)
         plotW = resPlot.ResPlot(self.resData)
         plotW.show()
 
@@ -522,6 +525,7 @@ class Dataset:
         """ This method plots the empty cell lineshape fitted function.
             A PyQt window is showed with different data representation possibilities. """
 
+        app = QApplication(sys.argv)
         plotW = ECPlot.ECPlot([self.ECData])
         plotW.show()
         
@@ -534,6 +538,7 @@ class Dataset:
         """ This method plots the resolution function.
             A PyQt window is showed with different data representation possibilities. """
 
+        app = QApplication(sys.argv)
         plotW = D2OPlot.D2OPlot([self.D2OData])
         plotW.show()
  
@@ -557,6 +562,7 @@ class Dataset:
 
         datasetList = [self.dataSetList[i] for i in fileIdxList] 
 
+        app = QApplication(sys.argv)
         plotW = QENSPlot.QENSPlot(datasetList)
         
         plotW.show()
@@ -581,6 +587,7 @@ class Dataset:
         
         datasetList = [self.dataSetList[i] for i in fileIdxList] 
 
+        app = QApplication(sys.argv)
         plotW = TempRampPlot.TempRampPlot(datasetList)
         plotW.show()
 

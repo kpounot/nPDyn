@@ -1,2 +1,3 @@
-__all__ = [ 'Dataset',
-            'MDParser']
+from .nPDyn import Dataset
+
+from .nPDyn.dataTypes.models import *
