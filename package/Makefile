@@ -4,12 +4,12 @@ init:
 	pip3 install -r requirements.txt
 
 nPDyn: setup.py
-	ipython setup.py -- build 
+	python setup.py build 
 	
 
 .PHONY: install
 install:
-	ipython setup.py -- install
+	python setup.py install
 
 
 .PHONY: clean
