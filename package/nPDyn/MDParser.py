@@ -5,7 +5,14 @@ import matplotlib.pyplot as plt
 
 from collections import namedtuple
 
-from NAMDAnalyzer.NAMDAnalyzer import NAMDAnalyzer
+
+#_Try to import NAMDAnalyzer, print a warning message in case it cannot be found
+try:
+    from NAMDAnalyzer.NAMDAnalyzer import NAMDAnalyzer
+except ImportError:
+    print("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was not installed within your python framework.\n" 
+            + "MD simulations related methods won't work.\n")
+    pass
 
 
 class MDData(NAMDAnalyzer):

@@ -14,8 +14,16 @@ from .dataTypes.models import *
 from .fit import *
 from .plot import *
 
-from .MDParser import MDData
+#_In case NAMDAnalyzer is not installed, print a warning from within MDParser and import is ignored
+try:
+    from .MDParser import MDData
+except:
+    pass
+
 from .plot.plotMD_MSD import plotMSDSeries
+
+
+
 
 
 class Dataset:
@@ -23,7 +31,7 @@ class Dataset:
         anything else as long as the format can be recognized. 
 
         For call with ipython, the dataSet can be initialized directly from command line using the 
-        following: 'ipython -i dataSet.py -- [dataSet related optional arguments]'
+        following: 'ipython -i Dataset.py -- [dataSet related optional arguments]'
         
         Input:  QENSFiles   ->  list of Quasi-Elastic Neutron Scattering data files to be loaded (optional)
                 FWSFiles    ->  list of Fixed Window Scans data files to be loaded (optional)

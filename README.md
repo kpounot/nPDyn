@@ -2,6 +2,7 @@ Work still ongoing, not all features are working properly or are present at the 
 
 ## Installation/Usage:
 nPDyn makes use of NAMDAnalyzer, which can be obtained at github.com/kpounot/NAMDAnalyzer
+
 Extract the archive in the wanted directory
 
 
