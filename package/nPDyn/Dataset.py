@@ -259,7 +259,7 @@ class Dataset:
         self.dataSetList[-1].assignResData(self.resData[0]) #_Assign first resolution function by default
 
         #_Free up memory
-        self.MDData.dcdData.dcdData = None
+        self.MDData.dcdData = None
 
 
     def importQENS_MD(self, dcdFile, dataSetIdx=0, binSize=1, resBkgdIdx=None, converter_kwargs={}):
@@ -302,7 +302,7 @@ class Dataset:
         self.dataSetList[-1].assignResData(self.resData[0]) #_Assign first resolution function by default
 
         #_Free up memory
-        self.MDData.dcdData.dcdData = None
+        self.MDData.dcdData = None
 
 
 

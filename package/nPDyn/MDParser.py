@@ -8,14 +8,15 @@ from collections import namedtuple
 
 #_Try to import NAMDAnalyzer, print a warning message in case it cannot be found
 try:
-    from NAMDAnalyzer.NAMDAnalyzer import NAMDAnalyzer
+    from NAMDAnalyzer.Dataset import Dataset as MDDataset
+    from NAMDAnalyzer.dataConverters.backscatteringDataConvert import BackScatData
 except ImportError:
     print("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was not installed within your python framework.\n" 
             + "MD simulations related methods won't work.\n")
     pass
 
 
-class MDData(NAMDAnalyzer):
+class MDData(MDDataset, BackScatData):
     """ This class wraps the NAMDAnalyzer class. It's initialized with the __init__ method of
         NAMDAnalyzer's Dataset class and the given file list.
 
@@ -26,7 +27,8 @@ class MDData(NAMDAnalyzer):
         the other for each temperature. """
 
     def __init__(self, fileList=None, stride=1):
-        super().__init__(fileList, stride)
+        MDDataset.__init__(self, fileList, stride=stride)
+        BackScatData.__init__(self, self)
 
         self.QENSdataList       = []
         self.FWSdataList        = []
@@ -68,14 +70,14 @@ class MDData(NAMDAnalyzer):
         for dcdFile in dcdFiles:
 
             self.importFile(dcdFile)
-            self.dcdData.binDCD(binSize)
-            self.dcdData.compScatteringFunc(**kwargs)
+            self.binDCD(binSize)
+            self.compScatteringFunc(**kwargs)
 
             if fromTimeSpace:
                 tempDataSeries.append( self.EISF[0][:,frame].real )
 
             else:
-                tempDataSeries.append( self.dcdData.convertScatFunctoEISF().real )
+                tempDataSeries.append( self.convertScatFunctoEISF().real )
 
         intensities = np.array(tempDataSeries).T
         errors      = 1e-6 * np.ones_like(intensities)
@@ -115,10 +117,10 @@ class MDData(NAMDAnalyzer):
 
 
         self.importFile(dcdFile)
-        self.dcdData.binDCD(binSize)
-        self.dcdData.compScatteringFunc(**kwargs)
+        self.binDCD(binSize)
+        self.compScatteringFunc(**kwargs)
 
-        scatF = self.dcdData.getScatFunc()
+        scatF = self.scatFunc
 
         errors      = np.zeros_like(scatF[0])
 
@@ -146,8 +148,8 @@ class MDData(NAMDAnalyzer):
         for dcdFile in dcdFiles:
 
             self.importFile(dcdFile)
-            self.dcdData.binDCD(binSize)
-            msdSeries.append( self.dcdData.compMSD(**kwargs) )
+            self.binDCD(binSize)
+            msdSeries.append( self.compMSD(**kwargs) )
 
 
         return np.array(msdSeries)
