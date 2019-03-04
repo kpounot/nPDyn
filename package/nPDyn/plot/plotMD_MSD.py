@@ -25,6 +25,8 @@ class plotMSDSeries(QWidget):
 
     def __init__(self, msdSeriesList, tempList, datasetList):
 
+        self.app = QApplication(sys.argv)
+
         super().__init__()
 
         self.tempList   = tempList

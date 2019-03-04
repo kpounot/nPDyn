@@ -190,11 +190,11 @@ def protein_liquid(params, dataset, qIdx=None, returnCost=True):
 
 
     beta    = params[0]     #_contribution factor of protein
-    a0      = params[1]     #_contribution factor of elastic signal (EISF)
-    g0      = params[2]     #_global diffusion linewidth
-    g1      = params[3]     #_internal diffusion linewidth
-    bkgd    = params[4:]    #_background terms (q-dependent)
-    bkgd    = bkgd[:, np.newaxis]
+    g0      = params[1]     #_global diffusion linewidth
+    g1      = params[2]     #_internal diffusion linewidth
+    a0      = params[3:]    #_contribution factor of elastic signal (EISF), must be of same shape as number 
+                            #_of q indices used
+    a0      = a0[:,np.newaxis]
 
     X = dataset.data.X
     qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis] #_Reshape to a column vector
@@ -225,13 +225,12 @@ def protein_liquid(params, dataset, qIdx=None, returnCost=True):
 
 
     #_Model
-    model = np.zeros((qVals.size, gList.size, X.size)) #_Initialize the final array
+    model = np.zeros((qVals.size, 2, X.size)) #_Initialize the final array
 
-    model = model + (qVals**2 * gList)[:,:,np.newaxis] #_Adding the loretzian width, and an axis for energies
+    model[:,0] += a0 * g0 / (X**2 + g0**2)
+    model[:,1] += (1 - a0) * (g0+g1) / (X**2 + (g0+g1)**2)
 
-    model = model / (np.pi * (X**2 + model**2)) #_Computes the lorentzians
-
-    model = np.sum(sList * model, axis=1) #_Sum the convoluted lorentzians along axis 1 (contribution factors s)
+    model = np.sum( beta * model + D2Osignal, axis=1 ) 
 
 
 
@@ -239,9 +238,6 @@ def protein_liquid(params, dataset, qIdx=None, returnCost=True):
     for idx in range(model.shape[0]):
         model[idx] = np.convolve(model[idx], f_res[idx], mode='same')
 
-
-    #_Final model, with Debye-Waller factor, EISF, convolutions and background
-    model = np.exp(-qVals**2*msd/3) * (s0 * f_res + model) + bkgd
 
     cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2 
                                             / dataset.data.errors[dataset.data.qIdx]**2, axis=1) 

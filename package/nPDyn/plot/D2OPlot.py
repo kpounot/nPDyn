@@ -29,6 +29,8 @@ class D2OPlot(QWidget):
 
     def __init__(self, datasetList):
 
+        self.app = QApplication(sys.argv)
+        
         super().__init__()
 
         #_Dataset related attributes

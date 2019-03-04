@@ -28,6 +28,8 @@ class ResPlot(QWidget):
 
     def __init__(self, dataset):
 
+        self.app = QApplication(sys.argv)
+
         super().__init__()
 
         self.dataset   = dataset
