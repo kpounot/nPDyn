@@ -7,7 +7,8 @@ def gaussian(x, scaleF, msd):
     """ This function can be used to fit elastic data. It makes use of simple gaussian approximation.
 
         Input:  scaleF      -> scaling factor
-                msd         -> mean-squared displacement """
+                msd         -> mean-squared displacement
+                shift       -> x shift from origin"""
 
     return ( scaleF * np.exp( -(1/6) * x**2 * msd ) )
 
@@ -18,7 +19,8 @@ def q4_corrected_gaussian(x, scaleF, msd, sigma):
 
         Input:  scaleF      -> scaling factor
                 msd         -> mean-squared displacement
-                sigma       -> extra correction term for q**4 contribution """
+                sigma       -> extra correction term for q**4 contribution
+                shift       -> x shift from origin """
 
     return scaleF * np.exp( -x**2 * msd ) * (1 + 1/72 * (x**4) * sigma)
 

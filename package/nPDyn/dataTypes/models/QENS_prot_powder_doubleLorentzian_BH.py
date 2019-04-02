@@ -18,10 +18,8 @@ class Model(DataTypeDecorator):
         self.model          = model
         self.params         = None
         self.paramsNames    = ['s0', 's1', 's2', 'g1', 'g2', 'msd', 'bkgd'] #_For plotting purpose
-        self.lorWidthIdx    = [3, 4]
         self.BH_iter        = 50
         self.disp           = True
-
 
 
     def fit(self, p0=None, bounds=None):
@@ -75,15 +73,48 @@ class Model(DataTypeDecorator):
 
 
         result = []
-        for qIdx in self.data.qIdx:
+        for i, qIdx in enumerate(self.data.qIdx):
+            print("\nFitting model for q index %i\n" % qIdx, flush=True)
             result.append(optimize.basinhopping( self.model, 
                                         p0,
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
                                         disp=self.disp,
-                                        minimizer_kwargs={ 'args':(self, qIdx), 'bounds':bounds } ))
+                                        minimizer_kwargs={ 'args':(self, i), 'bounds':bounds } ))
 
 
 
         self.params = result
+
+
+
+
+    def getWeights_and_lorWidths(self, qIdx):
+        #_For plotting purpose, gives fitted weights and lorentzian width
+        weights     = self.params[qIdx].x[1:3]
+        lorWidths   = self.params[qIdx].x[3:5] * self.data.qVals[qIdx]**2
+        labels      = [r'$\gamma$0', r'$\gamma$g1']
+
+        return weights, lorWidths, labels
+
+
+
+    def getWeights_and_lorErrors(self, qIdx):
+        #_For plotting purpose, gives fitted weights and lorentzian errors
+        errList = np.array( [ np.sqrt(np.diag( params.lowest_optimization_result.hess_inv.todense())) 
+                                                                                 for params in self.params ] )
+
+        weightsErr = errList[qIdx,1:3]
+        lorErr = errList[qIdx,3:5]
+
+        return weightsErr, lorErr
+
+
+
+    def getBackground(self, qIdx):
+
+        if len(self.params[0].x) == 7:
+            return self.params[qIdx].x[6]
+        else:
+            return self.params[qIdx].x[6+qIdx]
 

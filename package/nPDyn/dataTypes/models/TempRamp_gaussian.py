@@ -21,7 +21,7 @@ class Model(DataTypeDecorator):
         self.paramsNames = ["scale", "MSD"] #_For plotting purpose
 
 
-        self.defaultBounds = (0., [10., 4.])
+        self.defaultBounds = (0., [10000., 6.])
 
 
 

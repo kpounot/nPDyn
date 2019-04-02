@@ -163,6 +163,7 @@ class Window(QDialog):
                  + self.volFraction * D2OParams[1] * gD2O / (gD2O**2 + x**2))
 
 
+
     def fitFunc(self, params, dataSet, fileIdx, qIdx, dEList, dEData, dEErrors, returnCost=True):
 
         resParams     = self.resFitList[fileIdx][qIdx][0]
@@ -187,6 +188,7 @@ class Window(QDialog):
             return model
 
                 
+
     def basinHopping_fit(self):
     
         for i, dataSet in enumerate(self.dataList):

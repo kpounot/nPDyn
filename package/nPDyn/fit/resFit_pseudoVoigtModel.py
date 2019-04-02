@@ -14,12 +14,13 @@ def resFunc(x, normF, S, lorW, gauW, shift, bkgd):
                 shift   -> shift of the resolution function center from 0
                 bkgd    -> background term """
 
-    return  (normF * (S * lorW/(lorW**2 + (x-shift)**2) #/ np.pi 
-            + (1-S) * np.exp(-((x-shift)**2) / (2*gauW**2)) #/ (gauW*np.sqrt(2*np.pi)) 
+    return  (normF * (S * lorW/(lorW**2 + (x-shift)**2) / np.pi 
+            + (1-S) * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi)) 
             + bkgd))
 
  
-def resFit(resData):
+
+def resFit(resData, p0=None, bounds=None):
     """ Uses Scipy's curve_fit routine to fit the pseudo-Voigt profile to the experimental data
         given in the argument resData. 
         
@@ -31,26 +32,28 @@ def resFit(resData):
     for qIdx, qWiseData in enumerate(resData.intensities):
 
         #_Initial guesses for parameters based on data
-        init_normF  = np.mean(resData.intensities[qIdx]) 
-        init_bkgd   = np.min([val for val in resData.intensities[qIdx] if val > 0])
+        maxI    = 1.2 * np.max( qWiseData )
+        maxBkgd = np.mean(qWiseData)
+        maxWidth = 0.2 * np.max(resData.X)
 
-        maxI    = 1.5 * np.max(resData.intensities)
-        maxBkgd = np.min(resData.intensities.flatten()[ np.argwhere(
-                                                    resData.intensities.flatten() > 0.0)[0] ])
+        init_normF  = 0.66 * maxI
+        init_bkgd   = 0.5 * maxBkgd
+
+        if not p0:
+            p0 = [init_normF, 0.05, 0.6, 0.6, 0.1, init_bkgd]
+
+        if not bounds:
+            bounds = ([0., 0., 0., 0., -10, 0.],  [maxI, 1, maxWidth, maxWidth, 10, maxBkgd])
 
 
-        p0 = [init_normF, 0.1, 1, 0.5, 0.1, init_bkgd]
-        if qIdx > 0:
-            p0 = resList[qIdx-1][0]
 
         resList.append(optimize.curve_fit(  resFunc, 
                                             resData.X,
                                             resData.intensities[qIdx],
                                             sigma=resData.errors[qIdx],
                                             p0=p0,
-                                            bounds=([0., 0., 0., 0., -10, 0.],  
-                                                    [maxI, 1, 1000, 1000, 10, maxBkgd]),
-                                            maxfev=1000000,
+                                            bounds=bounds,
+                                            maxfev=10000000,
                                             method='trf'))
 
     return resList

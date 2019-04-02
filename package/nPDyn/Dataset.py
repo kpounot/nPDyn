@@ -14,12 +14,6 @@ from .dataTypes.models import *
 from .fit import *
 from .plot import *
 
-#_In case NAMDAnalyzer is not installed, print a warning from within MDParser and import is ignored
-try:
-    from .MDParser import MDData
-except:
-    pass
-
 from .plot.plotMD_MSD import plotMSDSeries
 
 
@@ -62,54 +56,87 @@ class Dataset:
                                         #_different psf files loading
 
 
-        self.modelList = {  1:resFunc_pseudoVoigt.Model,
-                            2:resFunc_gaussian.Model,
-                            3:D2OFunc_singleLorentzian_BH.Model,
-                            4:QENS_prot_powder_doubleLorentzian_BH.Model,
-                            5:QENS_water_powder_BH.Model,
-                            6:TempRamp_gaussian.Model,
-                            7:TempRamp_q4.Model }
+
+        modelT = namedtuple('models', 'resFunc_pseudoVoigt resFunc_gaussian D2OFunc_sglLorentzian_Min'
+                                            + ' QENS_prot_powder_dblLorentzian_BH QENS_water_powder_BH'
+                                            + ' QENS_protein_liquid_BH TempRamp_gaussian TempRamp_q4')
+
+        self.models = modelT(  resFunc_pseudoVoigt.Model,
+                                    resFunc_gaussian.Model,
+                                    D2OFunc_singleLorentzian_Min.Model,
+                                    QENS_prot_powder_doubleLorentzian_BH.Model,
+                                    QENS_water_powder_BH.Model,
+                                    QENS_protein_liquid_BH.Model,
+                                    TempRamp_gaussian.Model,
+                                    TempRamp_q4.Model )
 
 
+        self.importFiles( None, **{ 'QENSFiles':QENSFiles, 'FWSFiles':FWSFiles, 'TempRampFiles':TempRampFiles,
+                                    'ECFile':ECFile, 'resFiles':resFiles, 'D2OFile':D2OFile } )
+
+
+        self.resFuncAssign()
         
-        
+
+
+
+
+    def importFiles(self, fileFormat=None, QENSFiles=None, FWSFiles=None, TempRampFiles=None, 
+                                                                ECFile=None, resFiles=None, D2OFile=None):
+        """ Read and import data from experimental data file.
+            If no file format is given, this method tries to identify the file's type automatically, 
+            and send an error message in case the file could not be imported. 
+            It can be used to import .inx file or QENS/FWS from hdf5 files for now.
+
+            Input:  dataFile    -> path of the data file to be imported
+                    fileFormat  -> format of the file to be imported (inx, hdf5,...) (optional, default None)
+                    filesTypes  -> named parameters containing a list of files paths for each file type given
+
+            
+            The files are imported without binning. """
+
+    
         #_Processing files arguments
+        if ECFile: 
+            data = ECType.ECType(ECFile)
+            data.importData(fileFormat=fileFormat)
+            data = resFunc_pseudoVoigt.Model(data)
+            data.fit( bounds=([0.,0.,0.,0.,-10,0.], [np.inf, 1, 10, 10, 10, 10]) )
+
+            self.ECData = data
+
+
         if resFiles: 
             for f in resFiles:
                 data = resType.ResType(f)
-                data.importData()
+                data.importData(fileFormat=fileFormat)
                 data = resFunc_pseudoVoigt.Model(data)
+                data.assignECData( self.ECData )
                 data.fit()
 
                 self.resData.append( data )
 
 
+
         if D2OFile:
             data = D2OType.D2OType(D2OFile)
-            data.importData()
-            data = D2OFunc_singleLorentzian_BH.Model(data)
+            data.importData(fileFormat=fileFormat)
+            data = D2OFunc_singleLorentzian_Min.Model(data)
+            data.assignECData( self.ECData )
 
             if self.resData != []:
                 data.assignResData(self.resData[0])
                 data.normalize()
-                data.qWisefit()
+                data.qWiseFit()
 
             self.D2OData = data
 
-
-        if ECFile: 
-            data = ECType.ECType(ECFile)
-            data.importData()
-            data = resFunc_pseudoVoigt.Model(data)
-            data.fit()
-
-            self.ECData = data
 
 
         if QENSFiles: 
             for f in QENSFiles:
                 data = QENSType.QENSType(f) 
-                data.importData()
+                data.importData(fileFormat=fileFormat)
                 data.assignD2OData( self.D2OData )
                 data.assignECData( self.ECData )
                 self.dataSetList.append( data )
@@ -125,14 +152,11 @@ class Dataset:
         if TempRampFiles: 
             for f in TempRampFiles:
                 data = TempRampType.TempRampType(f)
-                data.importData()
+                data.importData(fileFormat=fileFormat)
                 data.assignD2OData( self.D2OData )
                 data.assignECData( self.ECData )
                 self.dataSetList.append( data )
 
-
-
-        self.resFuncAssign()
 
 
 
@@ -167,31 +191,6 @@ class Dataset:
 #--------------------------------------------------
 #_Importation, reset and deletion methods
 #--------------------------------------------------
-    def importFile(self, fileFormat=None, fileType='QENS'):
-        """ Read and import data from experimental data file.
-            If no file format is given, this method tries to identify the file's type automatically, 
-            and send an error message in case the file could not be imported. 
-            It can be used to import .inx file or QENS/FWS from hdf5 files for now.
-
-            Input:  dataFile    -> path of the data file to be imported
-                    fileFormat  -> format of the file to be imported (inx, hdf5,...)
-                    fileType    -> string that specifies the type of data to be imported, possible values are 
-                                   QENS, FWS, TempRamp, res, EC, D2O (optional, default QENS)
-
-            
-            The files are imported without binning. """
-
-        #_Use given file format. If None, try to guess
-        if fileFormat:
-            data = fileFormatParser.readFile(fileFormat, dataFile, FWS)
-        else:
-            data = fileFormatParser.guessFileFormat(dataFile, FWS)
-
-        data = ResType(dataFile, data)
-        self.resData.append(data)
-
-
-
     def removeDataSet(self, fileIdx):
         """ This method takes either a single integer as argument, which corresponds
             to the index of the file to be removed from self.dataFiles, self.dataSetList and 
@@ -211,125 +210,6 @@ class Dataset:
         for idx in fileIdxList:
             self.dataSetList[idx].resetData()
  
-
-#--------------------------------------------------
-#_Molecular dynamics simulation data related methods
-#--------------------------------------------------
-
-    def initMD(self, psfFile, stride=1):
-        """ Initialize a NAMDAnalyzer instance with the given psf file. """
-
-        try:
-            self.MDData.dcdData.dcdData = None #_Free memory
-            self.MDData.psfData         = None #_Free memory
-        except AttributeError:
-            pass
-
-
-        self.MDData = MDData(psfFile, stride)
-
-
-
-    def importTempRampMD(self, dcdFiles, tempList, dataSetIdx=0, binSize=1, converter_kwargs={}):
-        """ Imports data from MD simulation using the getTempEISF method in MDParser class. 
-        
-            Input:  dcdFiles    -> list of dcd files corresponding to each temperature
-                    tempList    -> list of temperatures used, should be in the same order as dcd files
-                    dataSetIdx  -> experimental dataset index to be used as reference for q-values and indices
-                                   (optional, default 0)
-                    converter_kwargs -> arguments to be passed to scattering function computation methods
-                                        in NAMDAnalyzer package. (optional, some defaults value but better use
-                                        it explicitly. 
-                                        
-            Stores the resulting namedtuple in self.dataSetList as any other experimental data. """
-
-        qVals = self.dataSetList[0].data.qVals
-        qIdx  = self.dataSetList[0].data.qIdx
-
-        MDTuple = namedtuple('MDDataT', 'qVals X intensities errors temp norm qIdx')
-        MDDataT = self.MDData.getTempRampEISF(dcdFiles, tempList, qVals, qIdx, binSize, converter_kwargs)
-            
-        self.dataSetList.append( TempRampType.TempRampType( self.MDData.psfFile, 
-                                                            MDDataT,
-                                                            MDDataT,
-                                                            self.D2OData,
-                                                            self.ECData ) )
-
-
-        self.dataSetList[-1].assignResData(self.resData[0]) #_Assign first resolution function by default
-
-        #_Free up memory
-        self.MDData.dcdData = None
-
-
-    def importQENS_MD(self, dcdFile, dataSetIdx=0, binSize=1, resBkgdIdx=None, converter_kwargs={}):
-        """ Imports data from MD simulation using the getTempEISF method in MDParser class. 
-        
-            Input:  dcdFiles    -> list of dcd files corresponding to each temperature
-                    tempList    -> list of temperatures used, should be in the same order as dcd files
-                    dataSetIdx  -> experimental dataset index to be used as reference for q-values and indices
-                                   (optional, default 0)
-                    resBkgdIdx  -> if not None, should be an integer giving the index of resolution data
-                                    in self.resData, from which background signal intensity should be
-                                    extracted (optional, default None - no experimental background added)
-                    converter_kwargs -> arguments to be passed to scattering function computation methods
-                                        in NAMDAnalyzer package. (optional, some defaults value but better use
-                                        it explicitly. 
-                                        
-            Stores the resulting namedtuple in self.dataSetList as any other experimental data. """
-
-        qVals = self.dataSetList[0].data.qVals
-        qIdx  = self.dataSetList[0].data.qIdx
-
-        MDTuple = namedtuple('MDDataT', 'qVals X intensities errors temp norm qIdx')
-        MDDataT = self.MDData.getQENS(dcdFile, qVals, qIdx, binSize, converter_kwargs)
-
-
-        #_Gets fitted instrumental background and add it to simulated data
-        if resBkgdIdx is not None:
-            bkgd = np.array( [data[0][-1] for data in self.resData[resBkgdIdx].params] )[:, np.newaxis]
-            
-            MDDataT = MDDataT._replace(intensities = MDDataT.intensities + bkgd)
-
-            
-        self.dataSetList.append( QENSType.QENSType( self.MDData.psfFile, 
-                                                            MDDataT,
-                                                            MDDataT,
-                                                            self.D2OData,
-                                                            self.ECData ) )
-
-
-        self.dataSetList[-1].assignResData(self.resData[0]) #_Assign first resolution function by default
-
-        #_Free up memory
-        self.MDData.dcdData = None
-
-
-
-    def plotMSDfromMD(self, tempList, msdIdxList, *fileIdxList):
-        """ Plot the given computed MSD alongwith given files in fileIdxList.
-
-            Input:  tempList    -> temperature list, same order as in the msd list
-                    msdIdxList  -> indices for msd series in self.MDData.msdSeriesList
-                    fileIdxList -> indices for files in self.fileIdxList to be plotted (optional, default all)
-                    """
-
-        #_If not file indices were given, assumes that all should be use
-        if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
-
-        datasetList     = [dataset for i, dataset in enumerate(self.dataSetList) if i in fileIdxList] 
-        msdSeriesList   = [msd for i, msd in enumerate(self.msdSeriesList) if i in msdIdxList] 
-
-        plotW = plotMSDSeries(msdSeriesList, tempList, datasetList)
-        plotW.show()
-
-
-
-    def getMSDfromMD(self, dcdFiles, binSize=1, converter_kwargs={}):
-        """ For each dcd file in dcdFiles, import it, compute the MSD directly from the trajectories """
-
-        self.msdSeriesList.append(self.MDData.getMSDfromMD(dcdFiles, binSize, converter_kwargs))
 
 
 #--------------------------------------------------
@@ -375,13 +255,15 @@ class Dataset:
 
 
 
-    def substract_EC(self, subFactor, *fileIdxList):
+    def substract_EC(self, *fileIdxList, subFactor=0.9, subD2O=True, subRes=False):
         """ This method uses the fitted empty cell function to substract the signal for the selected
             dataSet. 
 
             Input: subFactor    -> pre-multiplying factor for empty cell data prior to substraction
                    fileIdxList  -> can be "all", then every dataSet in self.dataSetList is normalized
-                                can also be a single integer or a list of integer (optional, default "all") """
+                                    can also be a single integer or a list of integer (optional, default "all") 
+                   subD2O       -> if True, tries to substract empty cell signal from D2O data too 
+                   subRes       -> if True, substract empty cell signal from resolutions data too """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -391,7 +273,21 @@ class Dataset:
         for i in fileIdxList:
             self.dataSetList[i].substractEC(subFactor)
 
- 
+
+
+        if subRes:
+            for idx, resData in enumerate(self.resData):
+                resData.substractEC(subFactor)
+                resData.fit()
+
+
+        if subD2O:
+            try:
+                self.dataSetList[i].D2OData.substractEC(subFactor)
+                self.dataSetList[i].D2OData.qWiseFit()
+            except AttributeError:
+                pass
+
 
 
 
@@ -568,6 +464,28 @@ class Dataset:
         datasetList = [self.dataSetList[i] for i in fileIdxList] 
 
         plotW = QENSPlot.QENSPlot(datasetList)
+        
+        plotW.show()
+
+
+
+
+    def plotFWS(self, *fileIdxList):
+        """ This methods plot the sample data in a PyQt5 widget allowing the user to show different
+            types of plots. 
+
+            The resolution function and other parameters are automatically obtained from the current
+            dataSet class instance. 
+            
+            Input:  fileIdxList -> indices of dataset to be plotted (optional, default "all") """
+
+        #_If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.dataSetList))
+
+        datasetList = [self.dataSetList[i] for i in fileIdxList] 
+
+        plotW = FWSPlot.FWSPlot(datasetList)
         
         plotW.show()
 

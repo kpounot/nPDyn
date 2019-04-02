@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QApplication
 
 from nPDyn.Dataset import Dataset
 from nPDyn.dataTypes.models import *
+from nPDyn.MDParser import MDData
 
 
 #_Defining options for nPDyn call

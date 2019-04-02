@@ -13,7 +13,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import matplotlib.gridspec as gridspec
 import matplotlib
 
-from .subPlotsFormat import subplotsFormat
+from .subPlotsFormat import subplotsFormat, subplotsFormatWithColorBar
 
 class TempRampPlot(QWidget):
     """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
@@ -92,6 +92,23 @@ class TempRampPlot(QWidget):
         self.setLayout(layout)
 
 
+
+
+    def drawCustomColorBar(self, ax, cmap, dataMin, dataMax):
+        """ Draw a custom color bar on the given axis.
+
+            Input:  ax      -> matplotlib's Axes instance on whoch color bar will be drawn
+                    cmap    -> color map to be used
+                    dataMin -> minimum value for data series
+                    dataMax -> maximum value for data series """
+
+        norm = matplotlib.colors.Normalize(dataMin, dataMax)
+
+        matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm)
+        ax.yaxis.tick_right()
+
+
+
     #--------------------------------------------------
     #_Definitions of the slots for the plot window
     #--------------------------------------------------
@@ -119,23 +136,30 @@ class TempRampPlot(QWidget):
         """ For each file, plots the temperature of elastic scattering intensity for each q-value. """
 
         plt.gcf().clear()     
-        ax = subplotsFormat(self, True, True) 
+        ax = subplotsFormatWithColorBar(self)
+
 
         #_Use a fancy colormap
         normColors = matplotlib.colors.Normalize(vmin=0, vmax=2)
-        cmap = matplotlib.cm.get_cmap('rainbow')
-
-        for i, subplot in enumerate(ax):
+        cmap = matplotlib.cm.get_cmap('winter')
+    
+        for i, subplot in enumerate(ax[::2]):
             for qIdx in self.dataset[i].data.qIdx:
                 subplot.plot(self.dataset[i].data.X, 
                              self.dataset[i].data.intensities[qIdx],
                              label=self.dataset[i].data.qVals[qIdx],
                              c=cmap(normColors(self.dataset[i].data.qVals[qIdx])))
 
+            #_Creates a custom color bar
+            qValFirst   = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][0]
+            qValLast    = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][-1]
+            self.drawCustomColorBar(ax[2*i+1], cmap, qValFirst, qValLast)
+            ax[2*i+1].set_aspect(15)
+            ax[2*i+1].set_ylabel('q-values')
+
             subplot.set_title(self.dataset[i].fileName, fontsize=10)
             subplot.set_xlabel(r'$Temperature (K)$')
             subplot.set_ylabel(r'$Scattering$')
-            subplot.legend(framealpha=0.5, fontsize=12)
             subplot.grid()
 
         self.canvas.draw()

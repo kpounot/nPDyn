@@ -1,7 +1,6 @@
 import numpy as np
 from collections import namedtuple
 from scipy.signal import fftconvolve, convolve
-from scipy.special import spherical_jn
 
 
 
@@ -26,16 +25,10 @@ def D2OFit(params, dataset, qIdx=None, returnCost=True):
 
 
     #_Resolution function
-    if dataset.data.norm: #_Use normalized resolution function if data were normalized
-        f_res = np.array( [dataset.resData.model(X, 1, *dataset.resData.params[i][0][1:]) 
-                                                                        for i in dataset.data.qIdx] )
-    else:
-        f_res = np.array( [dataset.resData.model(X, *dataset.resData.params[i][0]) 
-                                                                        for i in dataset.data.qIdx] )
+    resFunc = dataset.getResFunc()
+    resBkgd = [ dataset.resData.params[i][0][-1] for i in dataset.data.qIdx ]
 
 
-
-    #_Model
 
     #_Computes D2O linewidth for each q-values
     gD2O = np.array([dataset.sD2O(dataset.data.temp, qVal) for qVal in dataset.data.qVals])
@@ -44,17 +37,17 @@ def D2OFit(params, dataset, qIdx=None, returnCost=True):
 
     model = model + gD2O
 
-    model = a1 * model / (np.pi * (X**2 + model**2)) #_Computes the lorentzians
+    model = a1 * model / (np.pi * (X**2 + gD2O**2)) * (1/np.pi) #_Computes the lorentzians
 
 
 
     #_Performs the convolution for each q-value
     for idx in range(model.shape[0]):
-        model[idx] = np.convolve(model[idx], f_res[idx], mode='same')
+        model[idx] = np.convolve(model[idx], resFunc[idx], mode='same') 
 
 
-    #_Final model, with Debye-Waller factor, EISF, convolutions and background
-    model = a0 * f_res + model
+    #_Final model, with EISF, convolutions and background
+    model = a0 * resFunc + model  
 
     cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2 
                                             / dataset.data.errors[dataset.data.qIdx]**2, axis=1) 

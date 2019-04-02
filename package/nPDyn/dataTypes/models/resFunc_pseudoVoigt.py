@@ -20,4 +20,4 @@ class Model(DataTypeDecorator):
 
 
     def fit(self, p0=None, bounds=None):
-        self.params = resModel.resFit(self.data)
+        self.params = resModel.resFit(self.data, p0, bounds)

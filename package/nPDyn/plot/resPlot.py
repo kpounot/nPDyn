@@ -167,7 +167,7 @@ class ResPlot(QWidget):
         #_Plot the parameters of the fits
         for fileIdx, dataset in enumerate(self.dataset):
             #_Create 2D numpy array to easily access the q dependance of each parameter
-            paramsList = np.column_stack( (params[0] for params in self.dataset[fileIdx].params) )
+            paramsList = np.column_stack( [params[0] for params in self.dataset[fileIdx].params] )
 
             qList = self.dataset[fileIdx].data.qVals 
 

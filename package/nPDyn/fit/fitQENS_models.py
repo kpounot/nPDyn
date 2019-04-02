@@ -34,16 +34,8 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True):
 
     X = dataset.data.X
     qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis] #_Reshape to a column vector
+    resFunc = dataset.getResFunc()
 
-
-
-    #_Resolution function
-    if dataset.data.norm: #_Use normalized resolution function if data were normalized
-        f_res = np.array( [dataset.resData.model(X, 1, *dataset.resData.params[i][0][1:-1], 0) 
-                                                                        for i in dataset.data.qIdx] )
-    else:
-        f_res = np.array( [dataset.resData.model(X, *dataset.resData.params[i][0][:-1], 0) 
-                                                                        for i in dataset.data.qIdx] )
 
 
 
@@ -59,11 +51,11 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True):
 
     #_Performs the convolution for each q-value
     for idx in range(model.shape[0]):
-        model[idx] = np.convolve(model[idx], f_res[idx], mode='same')
+        model[idx] = np.convolve(model[idx], resFunc[idx], mode='same')
 
 
     #_Final model, with Debye-Waller factor, EISF, convolutions and background
-    model = np.exp(-qVals**2*msd/3) * (s0 * f_res + model) + bkgd
+    model = np.exp(-qVals**2*msd/3) * (s0 * resFunc + model) + bkgd
 
     cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2 
                                             / dataset.data.errors[dataset.data.qIdx]**2, axis=1) 
@@ -112,17 +104,7 @@ def water_powder(params, dataset, qIdx=None, returnCost=True):
 
     X = dataset.data.X
     qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis] #_Shape to a column vector
-
-
-
-
-    #_Resolution function
-    if dataset.data.norm: #_Use normalized resolution function if data were normalized
-        f_res = np.array( [dataset.resData.model(X, 1, *dataset.resData.params[i][0][1:-1], 0) 
-                                                                            for i in dataset.data.qIdx] )
-    else:
-        f_res = np.array( [dataset.resData.model(X, *dataset.resData.params[i][0][:-1], 0) 
-                                                                            for i in dataset.data.qIdx] )
+    resFunc = dataset.getResFunc()
 
 
 
@@ -149,12 +131,12 @@ def water_powder(params, dataset, qIdx=None, returnCost=True):
 
     #_Performs the convolution for each q-value
     for idx in range(model.shape[0]):
-        model[idx] = np.convolve(model[idx], f_res[idx], mode='same')
+        model[idx] = np.convolve(model[idx], resFunc[idx], mode='same')
 
 
     #_Final model, with Debye-Waller factor, EISF, convolutions and background
     s0 = s0 + sr * spherical_jn(0, 0.96*qVals)**2
-    model = np.exp(-qVals**2*msd/3) * (s0 * f_res + model) + bkgd
+    model = np.exp(-qVals**2*msd/3) * (s0 * resFunc + model) + bkgd
 
     cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2 
                                             / dataset.data.errors[dataset.data.qIdx]**2, axis=1) 
@@ -178,11 +160,13 @@ def water_powder(params, dataset, qIdx=None, returnCost=True):
 
 
 
-def protein_liquid(params, dataset, qIdx=None, returnCost=True):
+def protein_liquid(params, dataset, D2OSignal=None, qIdx=None, returnCost=True):
     """ Fitting function for protein in liquid D2O environment.
 
         Input:  params      -> parameters for the model (described below), usually given by scipy's routines
                 dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
+                D2OSignal   -> D2OSignal, fitted or not, to be used in the model (optional, is obtained 
+                                from dataset if None, but this make the whole fitting procedure much slower)
                 qIdx        -> index of the current q-value
                                if None, a global fit is performed over all q-values
                 returnCost  -> if True, return the standard deviation of the model to experimental data
@@ -192,62 +176,54 @@ def protein_liquid(params, dataset, qIdx=None, returnCost=True):
     beta    = params[0]     #_contribution factor of protein
     g0      = params[1]     #_global diffusion linewidth
     g1      = params[2]     #_internal diffusion linewidth
-    a0      = params[3:]    #_contribution factor of elastic signal (EISF), must be of same shape as number 
+    tau     = params[3]     #_Residence time for jump diffusion model
+    a0      = params[4:]    #_contribution factor of elastic signal (EISF), must be of same shape as number 
                             #_of q indices used
     a0      = a0[:,np.newaxis]
 
+
     X = dataset.data.X
     qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis] #_Reshape to a column vector
-    normF = [ dataset.resData.params[qIdx][0][0] for qIdx in dataset.data.qIdx ]
+    normF = np.array( [ dataset.resData.params[qIdx][0][0] for qIdx in dataset.data.qIdx ] )
+    resFunc = dataset.getResFunc()
+    resBkgd = [ dataset.resData.params[i][0][-1] for i in dataset.data.qIdx ]
 
 
 
-    #_Resolution function
-    if dataset.data.norm: #_Use normalized resolution function if data were normalized
-        f_res = np.array( [dataset.resData.model(X, 1, *dataset.resData.params[i][0][1:-1], 0) 
-                                                                        for i in dataset.data.qIdx] )
-    else:
-        f_res = np.array( [dataset.resData.model(X, *dataset.resData.params[i][0][:-1], 0) 
-                                                                        for i in dataset.data.qIdx] )
-
-
-    #_D2O signal
-    temp = dataset.data.temp.mean()
-    gD2O = np.array( [dataset.D2OData.sD2O(temp, qVal) for qVal in qVals] )[:,np.newaxis]
-
-    maxD2O = np.max( dataset.D2OData.data.intensities[qIdx] for qIdx in dataset.data.qIdx ) 
-
-    if dataset.data.norm:
-        maxD2O / normF
-
-    D2Osignal = ( maxD2O[:,np.newaxis] * dataset.D2OData.volFraction * gD2O / (gD2O**2 + X**2) )
+    if D2OSignal is None:
+        D2OSignal = dataset.getD2OSignal()
 
 
 
     #_Model
     model = np.zeros((qVals.size, 2, X.size)) #_Initialize the final array
 
-    model[:,0] += a0 * g0 / (X**2 + g0**2)
-    model[:,1] += (1 - a0) * (g0+g1) / (X**2 + (g0+g1)**2)
+    
+    if qIdx == None:
+        g0 = qVals**2 * g0
+        g1 = g1 * qVals**2 / (1 + g1 * qVals**2 * tau)
 
-    model = np.sum( beta * model + D2Osignal, axis=1 ) 
+    model[:,0] += a0 * g0 / (X**2 + g0**2) * (1 / np.pi)
+    model[:,1] += (1 - a0) * (g0+g1) / (X**2 + (g0+g1)**2) 
+
+    model = np.sum( beta*model, axis=1 ) #_Summing the two lorentzians contributions
 
 
-
-    #_Performs the convolution for each q-value
+    #_Performs the convolution for each q-value, instrumental background should be contained in D2O signal
     for idx in range(model.shape[0]):
-        model[idx] = np.convolve(model[idx], f_res[idx], mode='same')
+        model[idx] = np.convolve(model[idx], resFunc[idx], mode='same') + D2OSignal[idx]
+    
 
-
-    cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2 
-                                            / dataset.data.errors[dataset.data.qIdx]**2, axis=1) 
-
+    cost = np.sum( (dataset.data.intensities[dataset.data.qIdx] - model)**2 
+                                        / dataset.data.errors[dataset.data.qIdx]**2, axis=1) 
+                                   
 
     if qIdx is not None:
         cost    = cost[qIdx]
         model   = model[qIdx]
     else:
         cost = np.sum(cost)
+
 
 
     if returnCost:

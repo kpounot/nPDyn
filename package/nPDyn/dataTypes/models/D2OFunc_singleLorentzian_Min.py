@@ -23,34 +23,30 @@ class Model(DataTypeDecorator):
         self.volFraction= 0.95
         self.getD2OData = getD2Odata
         self.sD2O       = getD2Odata()
-        self.BH_iter    = 100
+        self.BH_iter    = 200
         self.disp       = True
 
 
-    def qWisefit(self, p0=None, bounds=None):
+    def qWiseFit(self, p0=None, bounds=None):
         if self.disp:
             print("\nUsing Scipy's minimize to fit data from file: %s" % self.fileName, flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.2,0.4]
+            p0 = np.array( [1.,1.] ) 
 
         if not bounds: #_Using default bounds
-            bounds = [(0., 1), (0., 1)]
+            bounds = [(0., 10), (0., 10)]
 
 
         result = []
         for qIdx, qVal in enumerate(self.data.qVals):
             result.append( optimize.minimize( self.model, 
                                             p0,
-                                            #niter = self.BH_iter,
-                                            #niter_success = 0.5*self.BH_iter,
-                                            #disp=self.disp,
                                             args=(self,), 
                                             bounds=bounds ) )
 
         self.params = result
 
-        print("Done")
 
 
 

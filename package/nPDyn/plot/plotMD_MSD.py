@@ -23,7 +23,7 @@ class plotMSDSeries(QWidget):
                 fileIdxList -> indices of experimental data's MSD to be compared with msdSeries """
 
 
-    def __init__(self, msdSeriesList, tempList, datasetList):
+    def __init__(self, msdSeriesList, tempList, datasetList=[]):
 
         self.app = QApplication(sys.argv)
 

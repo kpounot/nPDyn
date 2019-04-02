@@ -63,6 +63,9 @@ class QENSPlot(QWidget):
         self.analysisButton = QPushButton('Analysis')
         self.analysisButton.clicked.connect(self.analysisPlot)
 
+        self.qWiseAnalysisButton = QPushButton('q-wise analysis')
+        self.qWiseAnalysisButton.clicked.connect(self.qWiseAnalysis)
+
         self.plot3DButton = QPushButton('3D Plot')
         self.plot3DButton.clicked.connect(self.plot3D)
 
@@ -90,6 +93,7 @@ class QENSPlot(QWidget):
         layout.addWidget(self.compareButton)
         layout.addWidget(self.plot3DButton)
         layout.addWidget(self.analysisButton)
+        layout.addWidget(self.qWiseAnalysisButton)
         layout.addWidget(self.fitButton)
         self.setLayout(layout)
 
@@ -115,9 +119,9 @@ class QENSPlot(QWidget):
                         fmt='o')
             
             subplot.set_title(self.dataset[idx].fileName, fontsize=10)
-            subplot.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
+            subplot.set_xlabel(r'$\hslash\omega [\mu eV]$', fontsize=18)
             subplot.set_yscale('log')
-            subplot.set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
+            subplot.set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
             subplot.grid()
 
         self.figure.tight_layout()
@@ -145,11 +149,21 @@ class QENSPlot(QWidget):
                         label=dataset.fileName,
                         fmt='o')
             
-            ax.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
+            ax.set_xlabel(r'$\hslash\omega [\mu eV]$', fontsize=18)
             ax.set_yscale('log')
-            ax.set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
+            ax.set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
+
             ax.legend(framealpha=0.5)
             ax.grid()
+
+    
+        #_Set some limits on axie
+        minData = np.min(self.dataset[0].data.intensities)
+        maxData = np.max(self.dataset[0].data.intensities)
+        maxX    = self.dataset[0].data.X[-1]
+        ax.set_xlim(-1.5*maxX, 1.5*maxX)
+        ax.set_ylim(0.5*minData, 1.2*maxData)
+
 
         self.figure.tight_layout()
         self.canvas.draw()
@@ -178,7 +192,7 @@ class QENSPlot(QWidget):
                              c=cmap(normColors(self.dataset[i].data.qVals[qIdx])))
 
             subplot.set_title(self.dataset[i].fileName, fontsize=10)
-            subplot.set_xlabel(r'$\hslash \omega (\mu eV)$')
+            subplot.set_xlabel(r'$\hslash \omega [\mu eV]$')
             subplot.set_ylabel(r'$q$')
             subplot.set_zlabel(r'$S(q, \omega)$')
             subplot.grid()
@@ -222,6 +236,43 @@ class QENSPlot(QWidget):
 
 
 
+
+
+    def qWiseAnalysis(self):
+        """ This method provides a quick way to plot the q-dependence of weight factors and lorentzian
+            widths for each contribution. """
+
+        plt.gcf().clear()     
+
+        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]**2
+        qIds  = np.arange(qVals.size)
+
+        ax = self.figure.subplots(len(self.dataset[0].getWeights_and_lorWidths(0)[0]), 2, sharex=True)
+
+        for dIdx, dataset in enumerate(self.dataset):
+            #_Get parameters for each q-value
+            paramsList = np.array( [dataset.getWeights_and_lorWidths(idx) for idx in qIds] )
+            errList = np.array( [dataset.getWeights_and_lorErrors(idx) for idx in qIds] ).astype(float)
+
+            labels = paramsList[0,-1]                       #_Extracts labels
+            paramsList = paramsList[:,:-1].astype(float)    #_Extracts parameters values 
+
+
+            for idx, row in enumerate(ax):
+                row[0].errorbar(qVals, paramsList[:,0,idx], errList[:,0,idx], marker='o')
+                row[0].set_ylabel('Weight - %s' % labels[idx])
+                row[0].set_xlabel(r'q [$\AA^{-2}$]')
+                row[0].set_ylim(0., 1.2)
+
+                row[1].errorbar(qVals, paramsList[:,1,idx], errList[:,1,idx], marker='o')
+                row[1].set_ylabel('Width - %s' %labels[idx])
+                row[1].set_xlabel(r'q [$\AA^{-2}$]')
+                row[1].set_ylim(0., 1.2*np.max(paramsList[:,1,idx]))
+
+        self.canvas.draw()
+
+
+
     def fitPlot(self):
 	   
         plt.gcf().clear()     
@@ -245,12 +296,15 @@ class QENSPlot(QWidget):
                         dataset.data.intensities[dataset.data.qIdx][qValIdx],
                         dataset.data.errors[dataset.data.qIdx][qValIdx], 
                         label='Experimental',
+                        fmt='o',
                         zorder=1)
 
 
 
             #_Plot the background
-            ax[idx].axhline(dataset.params[qValIdx].x[6+qValIdx], label='Background', zorder=2)
+            bkgd = dataset.getBackground(qValIdx)
+            if bkgd is not None:
+                ax[idx].axhline(bkgd, label='Background', zorder=2)
 
 
 
@@ -271,6 +325,30 @@ class QENSPlot(QWidget):
 
 
 
+
+            #_Plot the D2O signal, if any
+            if dataset.D2OData is not None:
+                D2OSignal = dataset.getD2OSignal(dataset.data.qIdx[qValIdx])
+
+                ax[idx].plot(   dataset.data.X,
+                                D2OSignal,
+                                label='D2O',
+                                ls=':',
+                                zorder=4 )
+
+
+
+
+            #_Plot the lorentzians
+            for val in zip( *dataset.getWeights_and_lorWidths(qValIdx) ):
+                ax[idx].plot(   dataset.data.X,
+                                val[0] * val[1] / (val[1]**2 + dataset.data.X**2),
+                                ls='--',
+                                label=val[2],
+                                zorder=6)
+
+
+
             #_Plot the model
             ax[idx].plot( dataset.data.X,
                           dataset.model(  dataset.params[qValIdx].x, 
@@ -278,13 +356,25 @@ class QENSPlot(QWidget):
                                                     qIdx=qValIdx,
                                                     returnCost=False),
                           label='Model',
-                          zorder=4 )
+                          color='red',
+                          zorder=7 )
+
 
             ax[idx].set_title(dataset.fileName, fontsize=10)
-            ax[idx].set_xlabel(r'$\hslash\omega (\mu eV)$')
+            ax[idx].set_xlabel(r'$\hslash\omega [\mu eV]$')
             ax[idx].set_yscale('log')
-            ax[idx].set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$')   
+            ax[idx].set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$')   
             ax[idx].grid()
+
+
+            #_Set some limits on axis
+            minData = np.min(dataset.data.intensities)
+            maxData = np.max(dataset.data.intensities)
+            maxX    = dataset.data.X[-1]
+
+            ax[idx].set_xlim(-1.5*maxX, 1.5*maxX)
+            ax[idx].set_ylim(0.5*minData, 1.2*maxData)
+
         
         plt.legend(framealpha=0.5, fontsize=12)
         self.canvas.draw()

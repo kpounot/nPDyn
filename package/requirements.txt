@@ -1,3 +1,4 @@
+CythonGSL
 scipy 
 numpy
 matplotlib
