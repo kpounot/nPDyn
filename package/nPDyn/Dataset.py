@@ -32,9 +32,8 @@ class Dataset:
                 TempRampFiles   ->  list of temperature ramps data files to be loaded (optional)
                 ECFile      -> Empty cell data to be loaded (optional)
                 resFiles    -> list of resolution function related data to be loaded
-                D2OFiles    -> list of D2O data to be loaded
+                D2OFiles    -> list of D2O data to be loaded """
 
-        """
 
     def __init__(self, QENSFiles=None, FWSFiles=None, TempRampFiles=None, ECFile=None, resFiles=None, 
                                                                                             D2OFile=None):
@@ -58,17 +57,24 @@ class Dataset:
 
 
         modelT = namedtuple('models', 'resFunc_pseudoVoigt resFunc_gaussian D2OFunc_sglLorentzian_Min'
+                                            + ' D2OFunc_lorentzian_and_elastic_Min'
                                             + ' QENS_prot_powder_dblLorentzian_BH QENS_water_powder_BH'
-                                            + ' QENS_protein_liquid_BH TempRamp_gaussian TempRamp_q4')
+                                            + ' QENS_protein_liquid_BH' 
+                                            + ' QENS_protein_liquid_analytic_voigt_BH' 
+                                            + ' TempRamp_gaussian TempRamp_q4'
+                                            + ' FWS_protein_liquid_BH')
 
         self.models = modelT(  resFunc_pseudoVoigt.Model,
                                     resFunc_gaussian.Model,
                                     D2OFunc_singleLorentzian_Min.Model,
+                                    D2OFunc_lorentzian_and_elastic_Min.Model,
                                     QENS_prot_powder_doubleLorentzian_BH.Model,
                                     QENS_water_powder_BH.Model,
                                     QENS_protein_liquid_BH.Model,
+                                    QENS_protein_liquid_analytic_voigt_BH.Model,
                                     TempRamp_gaussian.Model,
-                                    TempRamp_q4.Model )
+                                    TempRamp_q4.Model,
+                                    FWS_protein_liquid_BH.Model)
 
 
         self.importFiles( None, **{ 'QENSFiles':QENSFiles, 'FWSFiles':FWSFiles, 'TempRampFiles':TempRampFiles,
@@ -127,6 +133,7 @@ class Dataset:
             if self.resData != []:
                 data.assignResData(self.resData[0])
                 data.normalize()
+                data.discardOutliers(0.5)
                 data.qWiseFit()
 
             self.D2OData = data
@@ -255,6 +262,35 @@ class Dataset:
 
 
 
+
+    def absorptionCorrection(self, *fileIdxList, canType='tube', canScaling=0.9, 
+                                                neutron_wavelength=6.27, absco_kwargs={}, D2O=False):
+        """ Method for quick absorption correction on all selected dataset in fileIdxList.
+            
+            Same arguments as in baseType class, except D2O, which, if True, involves that corrections are
+            performed on D2O data too. """
+
+        
+        #_If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.dataSetList))
+
+        #_Apply corrections for samples data
+        for i in fileIdxList:
+            self.dataSetList[i].absorptionCorrection(canType, canScaling, neutron_wavelength, absco_kwargs)
+
+
+        if D2O:
+            try:
+                self.D2OData.absorptionCorrection(canType, canScaling, neutron_wavelength, absco_kwargs)
+            except AttrubuteError:
+                print("No D2O data were loaded, corrections on these cannot be applied\n")
+                return
+
+
+
+
+
     def substract_EC(self, *fileIdxList, subFactor=0.9, subD2O=True, subRes=False):
         """ This method uses the fitted empty cell function to substract the signal for the selected
             dataSet. 
@@ -287,6 +323,62 @@ class Dataset:
                 self.dataSetList[i].D2OData.qWiseFit()
             except AttributeError:
                 pass
+
+
+
+
+    def discardOutliers(self, meanScale, *fileIdxList, D2O=False, EC=False, res=False):
+        """ Discard outliers by setting errors to infinite for each data points having a signal over
+            noise ration under a given threshold (determined by meanScale * mean(S/N ratios)). 
+            
+            Input:  meanScale   ->  factor by which mean of signal over noise ratio will be 
+                                    multiplied. Then, this scaled mean is used as a threshold under which
+                                    data errors will be set to infinite so that they won't weigh in the 
+                                    fitting procedure. 
+                    fileIdxList ->  list of data files to be used for outliers discard
+                    D2O         -> if True, discard outliers in D2O data too, and refit
+                    EC          -> if True, discard outliers in empty cell data, and refit
+                    res         -> if True, discard outliers in resolution and refit """
+
+        #_If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.dataSetList))
+        
+        for idx in fileIdxList:
+            self.dataSetList[idx].discardOutliers(meanScale)
+
+
+
+        if res:
+            for resData in self.resData:
+                try:
+                    resData.discardOutliers(meanScale)
+                    resData.fit()
+                except AttributeError:
+                    print("No resolution data were loaded, outliers couldn't be discarded")
+                    pass
+
+
+        if EC:
+            try:
+                self.ECData.discardOutliers(meanScale)
+                self.ECData.fit()
+            except AttributeError:
+                print("No empty cell data were loaded, outliers couldn't be discarded")
+                pass
+
+
+
+        if D2O:
+            try:
+                self.D2OData.discardOutliers(meanScale)
+                self.D2OData.qWiseFit()
+            except AttributeError:
+                print("No D2O data were loaded, outliers couldn't be discarded")
+                pass
+
+
+
 
 
 
@@ -387,6 +479,7 @@ class Dataset:
         
         for data in self.resData:
             data.binData(binS)
+
  
 
 
@@ -470,22 +563,17 @@ class Dataset:
 
 
 
-    def plotFWS(self, *fileIdxList):
+    def plotFWS(self, fileIdx=0):
         """ This methods plot the sample data in a PyQt5 widget allowing the user to show different
             types of plots. 
 
             The resolution function and other parameters are automatically obtained from the current
             dataSet class instance. 
             
-            Input:  fileIdxList -> indices of dataset to be plotted (optional, default "all") """
+            Input:  fileIdx -> index of dataset to plot in self.dataSetList """
 
-        #_If not file indices were given, assumes that all should be use
-        if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
 
-        datasetList = [self.dataSetList[i] for i in fileIdxList] 
-
-        plotW = FWSPlot.FWSPlot(datasetList)
+        plotW = FWSPlot.FWSPlot(self.dataSetList[fileIdx])
         
         plotW.show()
 

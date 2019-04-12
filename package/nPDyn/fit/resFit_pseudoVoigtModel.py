@@ -33,8 +33,8 @@ def resFit(resData, p0=None, bounds=None):
 
         #_Initial guesses for parameters based on data
         maxI    = 1.2 * np.max( qWiseData )
-        maxBkgd = np.mean(qWiseData)
-        maxWidth = 0.2 * np.max(resData.X)
+        maxBkgd = 5 * np.mean( qWiseData[ qWiseData > 0 ] )
+        maxWidth = 0.05 * np.max(resData.X)
 
         init_normF  = 0.66 * maxI
         init_bkgd   = 0.5 * maxBkgd

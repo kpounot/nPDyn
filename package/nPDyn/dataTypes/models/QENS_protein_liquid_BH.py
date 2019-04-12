@@ -17,8 +17,8 @@ class Model(DataTypeDecorator):
 
         self.model      = model
         self.params     = None
-        self.paramsNames = ['beta', 'g0', 'g1', 'tau'] 
-        self.BH_iter    = 50
+        self.paramsNames = ['g0', 'g1', 'tau', 'beta', 'a0'] 
+        self.BH_iter    = 20
         self.disp       = True
 
 
@@ -28,13 +28,15 @@ class Model(DataTypeDecorator):
         print(50*"-", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.8, 1, 10, 0.1] + [0.5 for i in self.data.qIdx]
+            p0 = [2, 20, 0.1] 
+            p0 = p0 + [0.2 for i in self.data.qIdx] + [0.2 for i in self.data.qIdx]
 
         if not bounds: #_Using default bounds
             maxX = 2.5 * np.max( self.data.X )
             maxI = 1.5 * np.max( self.data.intensities )
-            bounds = [(0., maxI), (0.2, maxX), (0.2, maxX), (0, 100)] + [(0., 1) for i in self.data.qIdx] 
-
+            bounds = ( [(0.5, maxX), (0.5, maxX), (0, 10)]
+                        + [(0., maxI) for i in self.data.qIdx] 
+                        + [(0., 1) for i in self.data.qIdx] )
 
 
         #_D2O signal 
@@ -46,6 +48,7 @@ class Model(DataTypeDecorator):
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
                                         disp=self.disp,
+                                        stepsize=10,
                                         minimizer_kwargs={ 'args':(self, D2OSignal), 'bounds':bounds } )
 
 
@@ -60,6 +63,8 @@ class Model(DataTypeDecorator):
 
 
 
+
+
     def qWiseFit(self, p0=None, bounds=None):
         print("\nStarting basinhopping fitting for file: %s\n" % self.fileName, flush=True)
         print(50*"-" + "\n", flush=True)
@@ -70,7 +75,7 @@ class Model(DataTypeDecorator):
         if not bounds: #_Using default bounds
             maxX = 2.5 * np.max( self.data.X )
             maxI = 1.5 * np.max( self.data.intensities )
-            bounds = [(0., maxI), (0.2, maxX), (0.2, maxX), (0., 100), (0., 1)] 
+            bounds = [(0.5, maxX), (0.5, maxX), (0., 100), (0., maxI), (0., 1)] 
 
 
         #_D2O signal 
@@ -89,6 +94,7 @@ class Model(DataTypeDecorator):
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
                                         disp=self.disp,
+                                        stepsize=10,
                                         minimizer_kwargs={ 'args':(self, D2OSignal, i), 'bounds':bounds } ))
 
 
@@ -97,15 +103,50 @@ class Model(DataTypeDecorator):
 
 
 
+    
+#--------------------------------------------------
+#_Parameters accessors
+#--------------------------------------------------
+    def getParams(self, qIdx):
+        """ Accessor for parameters of the model for the given q value """
+
+        if len(self.params[0].x) == 5:
+            params = self.params[qIdx].x
+        else:
+            params = self.params[qIdx].x[ [0,1,2,3+qIdx,3+self.data.qIdx.size+qIdx] ]
+
+        return params
+
+
+
+    def getParamsErrors(self, qIdx):
+        """ Accessor for parameters of the model for the given q value """
+
+        if len(self.params[0].x) == 5:
+            params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
+            params = np.sqrt( np.diag( params ) )
+        else:
+            params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
+            params = np.sqrt( np.diag( params ) )
+            params = params[ [0,1,2,3+qIdx,3+self.data.qIdx.size+qIdx] ]
+
+        return params
+
+
+
+
     def getWeights_and_lorWidths(self, qIdx):
         #_For plotting purpose, gives fitted weights and lorentzian width
         if len(self.params[0].x) == 5:
             weights     = [self.params[qIdx].x[4], 1 - self.params[qIdx].x[4]]
+            beta        = self.params[qIdx].x[3]
         else:
-            weights     = [self.params[qIdx].x[4+qIdx], 1 - self.params[qIdx].x[4+qIdx]]
+            weights     = [self.params[qIdx].x[3+self.data.qIdx.size+qIdx], 
+                                                    1 - self.params[qIdx].x[3+self.data.qIdx.size+qIdx]]
+            beta        = self.params[qIdx].x[3+qIdx]
         
-        weights = np.array(weights) * self.params[qIdx].x[0]
-        lorWidths   = self.params[qIdx].x[1:3]
+        weights = np.array(weights) * beta
+        lorWidths   = self.params[qIdx].x[0:2]
         labels      = ['Global', 'Internal']
 
         return weights, lorWidths, labels
@@ -117,13 +158,13 @@ class Model(DataTypeDecorator):
         #_For plotting purpose, gives fitted weights and lorentzian errors
         errList = np.array( [ np.sqrt(np.diag( params.lowest_optimization_result.hess_inv.todense())) 
                                                                                  for params in self.params ] )
-
         if len(self.params[0].x) == 5:
-            weightsErr = [ errList[qIdx,4], errList[qIdx,4] ]
+            weightsErr     = [errList[qIdx][4], errList[qIdx][4]]
         else:
-            weightsErr = [ errList[qIdx,4+qIdx], errList[qIdx,4+qIdx] ]
-        
-        lorErr = errList[qIdx,1:3]
+            weightsErr     = [errList[qIdx][3+self.data.qIdx.size+qIdx], 
+                                                    errList[qIdx][3+self.data.qIdx.size+qIdx]]
+ 
+        lorErr = errList[qIdx,0:2]
 
         return weightsErr, lorErr
 

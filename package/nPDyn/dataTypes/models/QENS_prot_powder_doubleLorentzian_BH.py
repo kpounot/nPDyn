@@ -89,6 +89,39 @@ class Model(DataTypeDecorator):
 
 
 
+
+#--------------------------------------------------
+#_Parameters accessors
+#--------------------------------------------------
+    def getParams(self, qIdx):
+        """ Accessor for parameters of the model for the given q value """
+
+        if len(self.params[0].x) == 7:
+            params = self.params[qIdx].x
+        else:
+            params = self.params[qIdx].x[ [0,1,2,3,4,5,6+qIdx] ]
+
+        return params
+
+
+
+    def getParamsErrors(self, qIdx):
+        """ Accessor for parameters of the model for the given q value """
+
+        if len(self.params[0].x) == 7:
+            params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
+            params = np.sqrt( np.diag( params ) )
+        else:
+            params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
+            params = np.sqrt( np.diag( params ) )
+            params = params[ [0,1,2,3,4,5,6+qIdx] ]
+
+        return params
+
+
+
+
+
     def getWeights_and_lorWidths(self, qIdx):
         #_For plotting purpose, gives fitted weights and lorentzian width
         weights     = self.params[qIdx].x[1:3]

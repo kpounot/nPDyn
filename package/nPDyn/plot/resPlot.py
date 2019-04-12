@@ -162,7 +162,7 @@ class ResPlot(QWidget):
         plt.gcf().clear()     
 
         #_Creates as many subplots as there are parameters in the model
-        ax = subplotsFormat(self, True, False, params=True)
+        ax = subplotsFormat(self, True, False, None, True)
 
         #_Plot the parameters of the fits
         for fileIdx, dataset in enumerate(self.dataset):

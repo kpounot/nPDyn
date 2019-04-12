@@ -29,7 +29,7 @@ def binData(data, binS):
             IntSlice = tempIntensities[:,i*binS:i*binS+binS]
             ErrSlice = tempErrors[:,i*binS:i*binS+binS]
             for row in range(IntSlice.shape[0]):
-                tempIntensities[row,i]  = np.mean( IntSlice[row][IntSlice[row]!=0]) 
+                tempIntensities[row,i]  = np.mean( IntSlice[row][IntSlice[row]!=0.0]) 
                 tempErrors[row,i]       = np.mean( ErrSlice[row][ErrSlice[row]!=np.inf]) 
 
 

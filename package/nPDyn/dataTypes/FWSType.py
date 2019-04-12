@@ -4,6 +4,7 @@ from collections import namedtuple
 
 from .baseType import BaseType
 from ..fileFormatParser import guessFileFormat, readFile, fileImporters
+from ..lib.pyabsco import py_absco_slab, py_absco_tube
 
 
 class FWSType(BaseType):
@@ -86,6 +87,151 @@ class FWSType(BaseType):
         np.place(S, S < 0, 0)
         self.data = self.data._replace(intensities = S)
         self.data = self.data._replace(errors = errors)
+
+
+
+
+    def absorptionCorrection(self, canType='tube', canScaling=0.9, neutron_wavelength=6.27, 
+                                                                                    absco_kwargs={}):
+        """ Computes absorption coefficients for sample in a flat can and apply corrections to data,
+            for each q-value in self.data.qVals. 
+            
+            Input:  canType             -> type of can used, either 'tube' or 'slab'
+                    canScaling          -> scaling factor for empty can contribution term, set it to 0 to use
+                                            only correction of sample self-attenuation
+                    neutron_wavelength  -> incident neutrons wavelength
+                    absco_kwargs        -> geometry arguments for absco library from Joachim Wuttke
+                                            see http://apps.jcns.fz-juelich.de/doku/sc/absco """
+
+        #_Defining some defaults arguments
+        kwargs = {  'mu_i_S'            : 0.65, 
+                    'mu_f_S'            : 0.65, 
+                    'mu_i_C'            : 0.147,
+                    'mu_f_C'            : 0.147 }
+
+
+
+        if canType=='slab':
+            kwargs['slab_angle']        = 45
+            kwargs['thickness_C_front'] = 0.5 
+            kwargs['thickness_C_rear']  = 0.5 
+
+        if canType=='tube':
+            kwargs['radius']            = 2.15
+            kwargs['thickness_C_inner'] = 0.1 
+            kwargs['thickness_C_outer'] = 0.1 
+
+
+
+        #_Modifies default arguments with given ones, if any
+        for key, value in absco_kwargs.items():
+            kwargs[key] = value
+
+        sampleSignal = self.data.intensities
+        try: #_Tries to extract empty cell intensities, use an array of zeros if no data are found
+            ecSignal     = self.ECData.data.intensities
+
+            xIdx = []
+            for xVal in self.data.X:
+                xIdx.append( np.where( self.ECData.data.X - xVal == min(self.ECData.data.X - xVal) )[0][0] )
+        
+        except AttributeError:
+            ecSignal = np.zeros_like(sampleSignal)
+
+
+
+        for qIdx, angle in enumerate(self.data.qVals):
+            angle = np.arcsin(neutron_wavelength * angle / (4 * np.pi))
+
+            if canType == 'slab':
+                A_S_SC, A_C_SC, A_C_C = py_absco_slab(angle, **kwargs)
+            if canType == 'tube':
+                A_S_SC, A_C_SC, A_C_C = py_absco_tube(angle, **kwargs)
+
+
+            #_Applies correction
+            sampleSignal[:,qIdx] = ( (1 / A_S_SC) * sampleSignal[:,qIdx] 
+                            - A_C_SC / (A_S_SC*A_C_C) * canScaling * ecSignal[qIdx,xIdx] )
+
+
+
+        #_Clean useless values from intensities and errors arrays
+        errors  = self.data.errors
+        np.place(errors, sampleSignal < 0, np.inf)
+        np.place(sampleSignal, sampleSignal < 0, 0)
+        self.data = self.data._replace(intensities = sampleSignal)
+        self.data = self.data._replace(errors = errors)
+
+
+        self.data = self.data._replace( intensities = sampleSignal,
+                                        errors      = errors )
+
+
+
+
+
+
+    def getD2OSignal(self, qIdx=None):
+        """ Computes D2O line shape for each q values.
+            
+            If a qIdx is given, returns D2O signal only for the corresponding q value. """
+
+        D2OSignal = np.array( [ self.D2OData.model(self.D2OData.params[idx].x, self.D2OData, idx, False) 
+                                                                    for idx in self.data.qIdx ] )
+
+        D2OSignal *= self.D2OData.volFraction
+        
+        
+        #_Check for difference in normalization state
+        normF = np.array( [ self.resData.params[qIdx][0][0] for qIdx in self.data.qIdx ] )
+        if self.data.norm and not self.D2OData.data.norm:
+            D2OSignal /= normF[:,np.newaxis]
+        if not self.data.norm and self.D2OData.data.norm:
+            D2OSignal *= normF[:,np.newaxis]
+
+
+        xIdx = []
+        for xVal in self.data.X:
+            xIdx.append( np.where( self.D2OData.data.X - xVal == min(self.D2OData.data.X - xVal) )[0][0] )
+    
+        D2OSignal = D2OSignal[:,xIdx]
+
+
+
+        if qIdx is not None:
+            D2OSignal = D2OSignal[qIdx]
+
+
+        return D2OSignal
+
+
+
+
+
+    def getResFunc(self, withBkgd=False):
+        """ Quick way to obtain the fitted resolution function for this dataset. """
+
+        if withBkgd:
+            params = [ self.resData.params[i][0] for i in range(self.data.qVals.size) ]
+        else:
+            params = [ np.append(self.resData.params[i][0][:-1], 0) for i in range(self.data.qVals.size) ]
+
+
+        if self.data.norm: #_Use normalized resolution function if data were normalized
+            f_res = np.array( [self.resData.model(self.data.X, 1, *params[i][1:]) for i in self.data.qIdx] )
+        else:
+            f_res = np.array( [self.resData.model(self.data.X, *params[i]) for i in self.data.qIdx] )
+
+
+
+        xIdx = []
+        for xVal in self.data.X:
+            xIdx.append( np.where( self.resData.data.X - xVal == min(self.resData.data.X - xVal) )[0][0] )
+    
+        f_res = f_res[:,xIdx]
+
+
+        return f_res
 
 
 

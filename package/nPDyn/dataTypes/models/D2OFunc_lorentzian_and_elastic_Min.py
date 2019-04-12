@@ -4,7 +4,7 @@ from collections import namedtuple
 from scipy import optimize
 
 from ..baseType import BaseType, DataTypeDecorator
-from ...fit.D2OFit import D2OFit as model
+from ...fit.D2OFit import D2OFit_withElastic as model
 from ...fit.D2O_params_from_IN6 import getD2Odata
 
 
@@ -18,7 +18,7 @@ class Model(DataTypeDecorator):
 
         self.model      = model
         self.params     = None
-        self.paramsNames = ["a0"] #_For plotting purpose
+        self.paramsNames = ["a0", "scale"] #_For plotting purpose
 
         self.volFraction= 0.95
         self.getD2OData = getD2Odata
@@ -26,15 +26,18 @@ class Model(DataTypeDecorator):
         self.disp       = True
 
 
+
+
     def qWiseFit(self, p0=None, bounds=None):
         if self.disp:
             print("\nUsing Scipy's minimize to fit data from file: %s" % self.fileName, flush=True)
 
         if not p0: #_Using default initial values
-            p0 = np.array( [0.1] ) 
+            p0 = np.array( [0.2, 0.02] ) 
 
+        maxI = 5 * np.max( self.data.intensities )
         if not bounds: #_Using default bounds
-            bounds = [(0., 10)]
+            bounds = [(0., 1), (0., maxI)]
 
 
         result = []

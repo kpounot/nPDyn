@@ -28,20 +28,16 @@ class FWSPlot(QWidget):
         Analysis    -> plot the different model parameters as a function of q-value
         Resolution  -> plot the fitted model on top of the experimental data for the selected q-value """
 
-    def __init__(self, datasetList):
+    def __init__(self, dataset):
 
         self.app = QApplication(sys.argv)
 
         super().__init__()
 
         #_Dataset related attributes
-        self.dataset = datasetList
+        self.dataset = [dataset]
 
-        try:
-            self.initChecks()
-        except Exception as e:
-            print(e)
-            return
+        self.initChecks()
 
 #--------------------------------------------------
 #_Construction of the GUI
@@ -79,9 +75,9 @@ class FWSPlot(QWidget):
         self.lineEdit = QLineEdit(self) 
         self.lineEdit.setText('0.8')
 
-        self.datasetLabel = QLabel('Data index to plot', self)
-        self.datasetlineEdit = QLineEdit(self) 
-        self.datasetlineEdit.setText('0')
+        self.scanLabel = QLabel('Scan index to plot', self)
+        self.scanLineEdit = QLineEdit(self) 
+        self.scanLineEdit.setText('0')
 
 
         #_Set the layout
@@ -91,8 +87,8 @@ class FWSPlot(QWidget):
         layout.addWidget(self.boxLine)
         layout.addWidget(self.label)
         layout.addWidget(self.lineEdit)
-        layout.addWidget(self.datasetLabel)
-        layout.addWidget(self.datasetlineEdit)
+        layout.addWidget(self.scanLabel)
+        layout.addWidget(self.scanLineEdit)
         layout.addWidget(self.button)
         layout.addWidget(self.plot3DButton)
         layout.addWidget(self.analysisButton)
@@ -126,7 +122,7 @@ class FWSPlot(QWidget):
         """ This is used to plot the experimental data, without any fit. """
 	   
         plt.gcf().clear()     
-        ax = subplotsFormatWithColorBar(self)
+        ax0, ax1 = subplotsFormatWithColorBar(self)
         
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
         qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
@@ -135,25 +131,28 @@ class FWSPlot(QWidget):
 
         cmap=plt.get_cmap('winter')
 
-        for idx, subplot in enumerate(ax[::2]):
-            for tIdx in range(self.dataset[idx].data.intensities.shape[0]):
-                subplot.errorbar(   self.dataset[idx].data.X, 
-                                    self.dataset[idx].data.intensities[tIdx, qValIdx],
-                                    self.dataset[idx].data.errors[tIdx, qValIdx], 
-                                    color=cmap(tIdx / self.dataset[idx].data.intensities.shape[0]),
+        for idx, subplot in enumerate(ax0):
+            for tIdx in range(self.dataset[0].data.intensities.shape[0]):
+                subplot.errorbar(   self.dataset[0].data.X, 
+                                    self.dataset[0].data.intensities[tIdx, qValIdx],
+                                    self.dataset[0].data.errors[tIdx, qValIdx], 
+                                    color=cmap(tIdx / self.dataset[0].data.intensities.shape[0]),
                                     label="Scan %i" % (tIdx + 1),
-                                    fmt='o')
+                                    fmt='-o')
                         
-            #_Creates a custom color bar
-            self.drawCustomColorBar(ax[2*idx+1], cmap, 0, self.dataset[0].data.intensities.shape[0])
-            ax[2*idx+1].set_aspect(15)
-            ax[2*idx+1].set_ylabel('Scan number')
 
-            subplot.set_title(self.dataset[idx].fileName, fontsize=10)
+            subplot.set_title(self.dataset[0].fileName, fontsize=10)
             subplot.set_xlabel(r'$\hslash\omega [\mu eV]$', fontsize=18)
             subplot.set_yscale('log')
             subplot.set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
             subplot.grid()
+
+
+        for ax in ax1:
+            #_Creates a custom color bar
+            self.drawCustomColorBar(ax, cmap, 0, self.dataset[0].data.intensities.shape[0])
+            ax.set_aspect(15)
+            ax.set_ylabel('Scan number')
 
 
         self.figure.tight_layout()
@@ -166,13 +165,13 @@ class FWSPlot(QWidget):
         """ 3D plot of the whole dataset """
 
         plt.gcf().clear()     
-        ax = subplotsFormat(self, False, False, '3d') 
+        ax = subplotsFormat(self, False, False, '3d', FWS=True) 
         
 
-        dIdx = int(self.datasetlineEdit.text()) #_Data index to plot in self.dataset list
+        dIdx = int(self.scanLineEdit.text()) #_Data index to plot in self.dataset[0] list
 
         #_Use a fancy colormap
-        normColors = matplotlib.colors.Normalize(vmin=0, vmax=self.dataset[dIdx].data.intensities.shape[0])
+        normColors = matplotlib.colors.Normalize(vmin=0, vmax=self.dataset[0].data.intensities.shape[0])
         cmapList =  [ matplotlib.cm.get_cmap('winter'),
                       matplotlib.cm.get_cmap('spring'),
                       matplotlib.cm.get_cmap('summer'),
@@ -184,16 +183,16 @@ class FWSPlot(QWidget):
 
         for i, subplot in enumerate(ax):
 
-            maxScan = self.dataset[dIdx].data.intensities.shape[0]
-            qIds = self.dataset[dIdx].data.qIdx
+            maxScan = self.dataset[0].data.intensities.shape[0]
+            qIds = self.dataset[0].data.qIdx
 
-            xx, yy = np.meshgrid(self.dataset[dIdx].data.qVals[qIds], 
-                                 np.arange(self.dataset[dIdx].data.intensities.shape[0]))
+            xx, yy = np.meshgrid(self.dataset[0].data.qVals[qIds], 
+                                 np.arange(self.dataset[0].data.intensities.shape[0]))
 
             subplot.plot_wireframe( xx, 
                                     yy,
-                                    self.dataset[dIdx].data.intensities[:,qIds,i],
-                                    label = '$\\Delta E$ = %.2f $\mu eV$' % self.dataset[dIdx].data.X[i], 
+                                    self.dataset[0].data.intensities[:,qIds,i],
+                                    label = '$\\Delta E$ = %.2f $\mu eV$' % self.dataset[0].data.X[i], 
                                     colors=cmapList[i]( normColors(np.arange(maxScan)) ) )
 
             subplot.set_xlabel(r'$q\ [\AA^{-1}]$')
@@ -217,6 +216,7 @@ class FWSPlot(QWidget):
 
         plt.gcf().clear()     
 
+
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
         qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
         qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
@@ -227,18 +227,15 @@ class FWSPlot(QWidget):
         ax = subplotsFormat(self, sharex=True, params=True)
 
         #_Create 2D numpy array to easily access parameters for each file
-        paramsList = np.column_stack( [data.params[qValIdx].x for data in self.dataset] )
-        errList    = np.column_stack( [ np.sqrt(np.diag(
-                                        data.params[qValIdx].lowest_optimization_result.hess_inv.todense())) 
-                                        for data in self.dataset ] )
+        paramsList  = self.dataset[0].getParams(qValIdx)
+        errList     = self.dataset[0].getParamsErrors(qValIdx)
+        scanNbr     = self.dataset[0].data.intensities.shape[0]
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
-            subplot.errorbar(range(paramsList.shape[1]), paramsList[idx], marker='o')
+            subplot.errorbar(range(scanNbr), paramsList[:,idx], errList[:,idx], marker='o')
             subplot.set_ylabel(self.dataset[0].paramsNames[idx]) 
-            subplot.set_xticks(range(len(self.dataset)))
-            subplot.set_xticklabels([data.fileName for data in self.dataset], 
-                                                                rotation=-45, ha='left', fontsize=8)
+            subplot.set_xlabel('Scan number')
         
         self.canvas.draw()
 
@@ -252,32 +249,32 @@ class FWSPlot(QWidget):
 
         plt.gcf().clear()     
 
-        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]**2
-        qIds  = np.arange(qVals.size)
+        #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
+        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
+        qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
+        qValIdx = int(np.argwhere(qVals == qValToShow)[0])
 
-        ax = self.figure.subplots(len(self.dataset[0].getWeights_and_lorWidths(0)[0]), 2, sharex=True)
+        #_Get parameters for each q-value
+        weights, widths, labels = self.dataset[0].getWeights_and_lorWidths(qValIdx) 
+        weightsErr, widthsErr   = self.dataset[0].getWeights_and_lorErrors(qValIdx)
+        scanNbr                 = self.dataset[0].data.intensities.shape[0]
 
-        for dIdx, dataset in enumerate(self.dataset):
-            #_Get parameters for each q-value
-            paramsList = np.array( [dataset.getWeights_and_lorWidths(idx) for idx in qIds] )
-            errList = np.array( [dataset.getWeights_and_lorErrors(idx) for idx in qIds] ).astype(float)
+        ax = self.figure.subplots(len(labels), 2, sharex=True)
 
-            labels = paramsList[0,-1]                       #_Extracts labels
-            paramsList = paramsList[:,:-1].astype(float)    #_Extracts parameters values 
+        for idx, row in enumerate(ax):
+            row[0].errorbar(range(scanNbr), weights[:,idx], weightsErr[:,idx], marker='o')
+            row[0].set_ylabel('Weight - %s' % labels[idx])
+            row[0].set_xlabel(r'q [$\AA^{-2}$]')
+            row[0].set_ylim(0., 1.2)
 
-
-            for idx, row in enumerate(ax):
-                row[0].errorbar(qVals, paramsList[:,0,idx], errList[:,0,idx], marker='o')
-                row[0].set_ylabel('Weight - %s' % labels[idx])
-                row[0].set_xlabel(r'q [$\AA^{-2}$]')
-                row[0].set_ylim(0., 1.2)
-
-                row[1].errorbar(qVals, paramsList[:,1,idx], errList[:,1,idx], marker='o')
-                row[1].set_ylabel('Width - %s' %labels[idx])
-                row[1].set_xlabel(r'q [$\AA^{-2}$]')
-                row[1].set_ylim(0., 1.2*np.max(paramsList[:,1,idx]))
+            row[1].errorbar(range(scanNbr), widths[:,idx], widthsErr[:,idx], marker='o')
+            row[1].set_ylabel('Width - %s' %labels[idx])
+            row[1].set_xlabel(r'q [$\AA^{-2}$]')
+            row[1].set_ylim(0., 1.2*np.max(widths))
 
         self.canvas.draw()
+
+
 
 
 
@@ -286,7 +283,8 @@ class FWSPlot(QWidget):
         plt.gcf().clear()     
 
         #_Creates as many subplots as there are parameters in the model
-        ax = subplotsFormat(self, sharey=True)
+        ax = subplotsFormat(self, False, False, '3d')
+
 
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
         qIdxList = self.dataset[0].data.qIdx
@@ -294,91 +292,33 @@ class FWSPlot(QWidget):
         qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
         qValIdx = int(np.argwhere(qVals == qValToShow)[0])
 
+
+        scanNbr = self.dataset[0].data.intensities.shape[0]
+
         
-
-
-        #_Plot the datas for selected q value normalized with integrated curves at low temperature
-        for idx, dataset in enumerate(self.dataset):
-            #_Plot the experimental data
-            ax[idx].errorbar(dataset.data.X, 
-                        dataset.data.intensities[dataset.data.qIdx][qValIdx],
-                        dataset.data.errors[dataset.data.qIdx][qValIdx], 
-                        label='Experimental',
-                        zorder=1)
-
-
-
-            #_Plot the background
-            bkgd = dataset.getBackground(qValIdx)
-            if bkgd is not None:
-                ax[idx].axhline(bkgd, label='Background', zorder=2)
-
-
-
-            #_Computes resolution function using parameters corresponding the teh right q-value
-            resParams = [dataset.resData.params[i] for i in dataset.data.qIdx]
-
-            resF = dataset.resData.model(dataset.data.X, *resParams[qValIdx][0][:-1], 0)
-
-            if dataset.data.norm:
-                resF /= resParams[qValIdx][0][0]
-
-            #_Plot the resolution function
-            ax[idx].plot( dataset.data.X, 
-                          resF,
-                          label='Resolution',
-                          ls=':',
-                          zorder=3 )
-
-
-
-
-            #_Plot the D2O signal, if any
-            if dataset.D2OData is not None:
-                temp = dataset.data.temp.mean()
-                gD2O = dataset.D2OData.sD2O(temp, qValToShow)
-                maxD2O = np.max( dataset.D2OData.data.intensities[dataset.data.qIdx][qValIdx])
-
-                if not dataset.data.norm: #_Scale the normalized D2O signal if data were not normalized
-                    maxD2O * normF
-
-                D2OSignal = maxD2O * dataset.D2OData.volFraction * gD2O / (gD2O**2 + dataset.data.X**2) 
-
-                ax[idx].plot(   dataset.data.X,
-                                D2OSignal,
-                                label='D2O',
-                                ls=':',
-                                zorder=4 )
-
-
-
-
-            #_Plot the lorentzians
-            for val in zip( *dataset.getWeights_and_lorWidths(qValIdx) ):
-                ax[idx].plot(   dataset.data.X,
-                                val[0] * val[1] / (val[1]**2 + dataset.data.X**2),
-                                ls='--',
-                                label=val[2],
-                                zorder=5)
-
+        for idx, subplot in enumerate(ax):
+            #_Plot the datas for selected q value normalized with integrated curves at low temperature
+            xx, yy = np.meshgrid(self.dataset[0].data.X, range(scanNbr))
+            subplot.scatter( xx, yy,
+                        self.dataset[idx].data.intensities[:,qIdxList[qValIdx]] )
 
 
             #_Plot the model
-            ax[idx].plot( dataset.data.X,
-                          dataset.model(  dataset.params[qValIdx].x, 
-                                                    dataset,
-                                                    qIdx=qValIdx,
-                                                    returnCost=False),
-                          label='Model',
-                          zorder=6 )
+            params  = self.dataset[idx].params[:,qValIdx]
+            subplot.plot_wireframe(xx, yy,
+                    np.array([self.dataset[0].model(params[sIdx].x, self.dataset[0], 
+                                                    None, qValIdx, False, sIdx )
+                                                    for sIdx in range(scanNbr)]),
+                    label='Model',
+                    color='red',
+                    cstride=0)
 
-            ax[idx].set_title(dataset.fileName, fontsize=10)
-            ax[idx].set_xlabel(r'$\hslash\omega (\mu eV)$')
-            ax[idx].set_yscale('log')
-            ax[idx].set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$')   
-            ax[idx].grid()
-        
-        plt.legend(framealpha=0.5, fontsize=12)
+
+            subplot.set_title(self.dataset[idx].fileName, fontsize=10)
+            subplot.set_xlabel(r'$\hslash\omega (\mu eV)$')
+            subplot.set_ylabel('Scan number')
+            subplot.set_zlabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$')   
+    
         self.canvas.draw()
 
 
@@ -388,12 +328,12 @@ class FWSPlot(QWidget):
     def initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
-        for idx, dataset in enumerate(self.dataset):
-            try: 
-                if not dataset.params:
-                    print("WARNING: no fitted parameters were found for data at index %i.\n" % idx    
-                      + "Some plotting methods might not work properly.\n")
-            except AttributeError:
-                print("No parameters for dataset at index %i were found.\n" % idx 
-                            + "Please assign a model and use a fitting method before plotting.\n")
+        try: 
+            if self.dataset[0].params is None:
+                print("WARNING: no fitted parameters were found for data.\n"     
+                  + "Some plotting methods might not work properly.\n")
+        except AttributeError:
+            print("No parameters for dataset were found.\n" 
+                        + "Please assign a model and use a fitting method before plotting.\n")
+            pass
 

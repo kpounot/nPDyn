@@ -394,6 +394,8 @@ class Window(QDialog):
 
         self.canvas.draw()
 
+
+
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
 
@@ -433,6 +435,9 @@ class Window(QDialog):
 
         plt.tight_layout()
         self.canvas.draw()
+
+
+
 
     def fitPlot(self):
 	   

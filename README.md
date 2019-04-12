@@ -6,6 +6,10 @@ nPDyn makes use of NAMDAnalyzer, which can be obtained at github.com/kpounot/NAM
 Extract the archive in the wanted directory
 
 
+Prior to building, the path to Gnu Scientific Library (GSL) should be given in setup.cfg file
+(required by libabsco)
+
+
 ### Unix
 For installation within your python framework, use:
 

@@ -1,9 +1,10 @@
 import numpy as np
 from collections import namedtuple
 from scipy.signal import fftconvolve, convolve
-from scipy.special import spherical_jn
+from scipy.special import spherical_jn, wofz
 
 
+from ..dataTypes.models import resFunc_gaussian, resFunc_pseudoVoigt
 
 
 def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True):
@@ -121,8 +122,10 @@ def water_powder(params, dataset, qIdx=None, returnCost=True):
 
 
     #_Computes the q-dependent lorentzians (translational motions)
-    lorW = (gt*qVals**2)
-    tLor = lorW / (np.pi * (X**2 + lorW**2)) #_End up with (# qVals, X size) shaped array
+    if qIdx is None:
+        gt = (gt*qVals**2)
+
+    tLor = gt / (np.pi * (X**2 + gt**2)) #_End up with (# qVals, X size) shaped array
 
     model[:,1,:] = st * tLor
 
@@ -172,26 +175,26 @@ def protein_liquid(params, dataset, D2OSignal=None, qIdx=None, returnCost=True):
                 returnCost  -> if True, return the standard deviation of the model to experimental data
                                if False, return only the model """
 
+    g0      = params[0]     #_global diffusion linewidth
+    g1      = params[1]     #_internal diffusion linewidth
+    tau     = params[2]     #_Residence time for jump diffusion model
+    beta    = params[3]     #_contribution factor of protein, same shape as # of q-values used
+    a0      = params[4]     #_contribution factor of EISF
 
-    beta    = params[0]     #_contribution factor of protein
-    g0      = params[1]     #_global diffusion linewidth
-    g1      = params[2]     #_internal diffusion linewidth
-    tau     = params[3]     #_Residence time for jump diffusion model
-    a0      = params[4:]    #_contribution factor of elastic signal (EISF), must be of same shape as number 
-                            #_of q indices used
-    a0      = a0[:,np.newaxis]
+    if params.size != 5:
+        beta    = params[3:3+dataset.data.qIdx.size][:,np.newaxis]
+        a0      = params[3+dataset.data.qIdx.size:][:,np.newaxis]
 
 
     X = dataset.data.X
     qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis] #_Reshape to a column vector
     normF = np.array( [ dataset.resData.params[qIdx][0][0] for qIdx in dataset.data.qIdx ] )
     resFunc = dataset.getResFunc()
-    resBkgd = [ dataset.resData.params[i][0][-1] for i in dataset.data.qIdx ]
 
 
 
     if D2OSignal is None:
-        D2OSignal = dataset.getD2OSignal()
+        D2OSignal =  dataset.getD2OSignal()
 
 
 
@@ -204,14 +207,16 @@ def protein_liquid(params, dataset, D2OSignal=None, qIdx=None, returnCost=True):
         g1 = g1 * qVals**2 / (1 + g1 * qVals**2 * tau)
 
     model[:,0] += a0 * g0 / (X**2 + g0**2) * (1 / np.pi)
-    model[:,1] += (1 - a0) * (g0+g1) / (X**2 + (g0+g1)**2) 
+    model[:,1] += (1 - a0) * (g0+g1) / (X**2 + (g0+g1)**2) * (1 / np.pi) 
 
-    model = np.sum( beta*model, axis=1 ) #_Summing the two lorentzians contributions
+    model = np.sum( model, axis=1 ) #_Summing the two lorentzians contributions
 
 
     #_Performs the convolution for each q-value, instrumental background should be contained in D2O signal
-    for idx in range(model.shape[0]):
-        model[idx] = np.convolve(model[idx], resFunc[idx], mode='same') + D2OSignal[idx]
+    for idx, val in enumerate(model):
+        model[idx] = np.convolve(model[idx], resFunc[idx], mode='same') 
+        
+    model = beta * model + D2OSignal[idx]
     
 
     cost = np.sum( (dataset.data.intensities[dataset.data.qIdx] - model)**2 
@@ -230,5 +235,107 @@ def protein_liquid(params, dataset, D2OSignal=None, qIdx=None, returnCost=True):
         return cost
     else:
         return model
+
+
+
+
+def protein_liquid_analytic_voigt(params, dataset, D2OSignal=None, qIdx=None, returnCost=True, 
+                                                                                scanIdx=slice(0,None)):
+    """ Fitting function for protein in liquid D2O environment.
+
+        This makes uses of an analytic expression for convolution with resolution function, therefore
+        resolution function use should be a sum of two gaussians.
+
+        Input:  params      -> parameters for the model (described below), usually given by scipy's routines
+                dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
+                D2OSignal   -> D2OSignal, fitted or not, to be used in the model (optional, is obtained 
+                                from dataset if None, but this make the whole fitting procedure much slower)
+                qIdx        -> index of the current q-value
+                               if None, a global fit is performed over all q-values
+                returnCost  -> if True, return the standard deviation of the model to experimental data
+                               if False, return only the model 
+                scanIdx     -> only for FWS (or QENS) data series, index of the scan being fitted """
+
+
+    g0      = params[0]     #_global diffusion linewidth
+    g1      = params[1]     #_internal diffusion linewidth
+    tau     = params[2]     #_Residence time for jump diffusion model
+    beta    = params[3]     #_contribution factor of protein, same shape as # of q-values used
+    a0      = params[4]     #_contribution factor of EISF
+
+    if params.size != 5:
+        beta    = params[3:3+dataset.data.qIdx.size][:,np.newaxis]
+        a0      = params[3+dataset.data.qIdx.size:][:,np.newaxis]
+
+
+    X = dataset.data.X
+    qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis] #_Reshape to a column vector
+    resFunc = dataset.getResFunc()
+
+
+    if D2OSignal is None:
+        D2OSignal =  dataset.getD2OSignal()
+
+    if qIdx == None:
+        g0 = qVals**2 * g0
+        g1 = g1 * qVals**2 / (1 + g1 * qVals**2 * tau)
+
+
+
+    #_Computes the different components of the convolution
+    if isinstance(dataset.resData, resFunc_gaussian.Model):
+        resG0 = np.array( [dataset.resData.params[qIdx][0][2] for qIdx in dataset.data.qIdx] )[:,np.newaxis]
+        resG1 = np.array( [dataset.resData.params[qIdx][0][3] for qIdx in dataset.data.qIdx] )[:,np.newaxis]
+        resS  = np.array( [dataset.resData.params[qIdx][0][1] for qIdx in dataset.data.qIdx] )[:,np.newaxis]
+
+        conv_G_resG0 = (g0 + resG0) / (np.pi * (X**2 + (g0 + resG0)**2))
+        conv_G_resG1 = wofz((X + 1j*g0) / (resG1 * np.sqrt(2))).real / (resG1 * np.sqrt(2*np.pi))
+        conv_I_resG0 = (g0 + g1 + resG0) / (np.pi * (X**2 + (g0 + g1 + resG0)**2))
+        conv_I_resG1 = wofz((X + 1j*(g1 + g0)) / (resG1 * np.sqrt(2))).real / (resG1 * np.sqrt(2*np.pi))
+
+
+    elif isinstance(dataset.resData, resFunc_pseudoVoigt.Model):
+        resG0 = np.array( [dataset.resData.params[qIdx][0][2] for qIdx in dataset.data.qIdx] )[:,np.newaxis]
+        resG1 = np.array( [dataset.resData.params[qIdx][0][3] for qIdx in dataset.data.qIdx] )[:,np.newaxis]
+        resS  = np.array( [dataset.resData.params[qIdx][0][1] for qIdx in dataset.data.qIdx] )[:,np.newaxis]
+
+        conv_G_resG0 = wofz((X + 1j*g0) / (resG0 * np.sqrt(2))).real / (resG0 * np.sqrt(2*np.pi))
+        conv_G_resG1 = wofz((X + 1j*g0) / (resG1 * np.sqrt(2))).real / (resG1 * np.sqrt(2*np.pi))
+        conv_I_resG0 = wofz((X + 1j*(g1 + g0)) / (resG0 * np.sqrt(2))).real / (resG0 * np.sqrt(2*np.pi))
+        conv_I_resG1 = wofz((X + 1j*(g1 + g0)) / (resG1 * np.sqrt(2))).real / (resG1 * np.sqrt(2*np.pi))
+
+    else:
+        print("The resolution function model used is not supported by this model.\n"
+                + "Please use either resFunc_pseudoVoigt or resFunc_gaussian.\n")
+        return
+
+
+        
+        
+    model = ( a0 * (resS*conv_G_resG0 + (1-resS)*conv_G_resG1)
+                    + (1-a0) * (resS*conv_I_resG0 + (1-resS)*conv_I_resG1) ) 
+
+
+    model = beta * model + D2OSignal
+    
+
+    cost = np.sum( (dataset.data.intensities[scanIdx][dataset.data.qIdx] - model)**2 
+                                        / dataset.data.errors[scanIdx][dataset.data.qIdx]**2, axis=1) 
+                                   
+
+    if qIdx is not None:
+        cost    = cost[qIdx]
+        model   = model[qIdx]
+    else:
+        cost = np.sum(cost)
+
+
+
+    if returnCost:
+        return cost
+    else:
+        return model
+
+
 
 

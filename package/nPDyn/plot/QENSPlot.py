@@ -216,13 +216,11 @@ class QENSPlot(QWidget):
 
 
         #_Creates as many subplots as there are parameters in the model
-        ax = subplotsFormat(self, sharex=True, params=True)
+        ax = subplotsFormat(self, True, False, None, True)
 
         #_Create 2D numpy array to easily access parameters for each file
-        paramsList = np.column_stack( [data.params[qValIdx].x for data in self.dataset] )
-        errList    = np.column_stack( [ np.sqrt(np.diag(
-                                        data.params[qValIdx].lowest_optimization_result.hess_inv.todense())) 
-                                        for data in self.dataset ] )
+        paramsList = np.column_stack( [ data.getParams(qValIdx) for data in self.dataset ] )
+        errList    = np.column_stack( [ data.getParamsErrors(qValIdx) for data in self.dataset ] )
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
@@ -328,7 +326,7 @@ class QENSPlot(QWidget):
 
             #_Plot the D2O signal, if any
             if dataset.D2OData is not None:
-                D2OSignal = dataset.getD2OSignal(dataset.data.qIdx[qValIdx])
+                D2OSignal = dataset.getD2OSignal(qValIdx)
 
                 ax[idx].plot(   dataset.data.X,
                                 D2OSignal,

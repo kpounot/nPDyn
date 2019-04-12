@@ -127,7 +127,7 @@ class BaseType:
         """ Remove detectors indices.
             The process modifies self.data.qIdx attribute that is used for fitting and plotting. """
 
-        self.data = self.data._replace(qIdx = [val for val in self.data.qIdx if val not in qIdx])
+        self.data = self.data._replace(qIdx = np.array( [val for val in self.data.qIdx if val not in qIdx] ))
 
 
 
@@ -144,9 +144,9 @@ class BaseType:
         """ Quick way to obtain the fitted resolution function for this dataset. """
 
         if withBkgd:
-            params = [ self.resData.params[i][0] for i in self.data.qIdx ]
+            params = [ self.resData.params[i][0] for i in range(self.data.qVals.size) ]
         else:
-            params = [ np.append(self.resData.params[i][0][:-1], 0) for i in self.data.qIdx ]
+            params = [ np.append(self.resData.params[i][0][:-1], 0) for i in range(self.data.qVals.size) ]
 
 
         if self.data.norm: #_Use normalized resolution function if data were normalized
@@ -175,11 +175,9 @@ class BaseType:
             
             If a qIdx is given, returns D2O signal only for the corresponding q value. """
 
-        D2OSignal = np.array( [ self.D2OData.model([0, self.D2OData.params[idx].x[1]], self.D2OData, idx, False) 
+        D2OSignal = np.array( [ self.D2OData.model(self.D2OData.params[idx].x, self.D2OData, idx, False) 
                                                                     for idx in self.data.qIdx ] )
 
-        D2OSignal *= self.D2OData.volFraction
-        
         
         #_Check for difference in normalization state
         normF = np.array( [ self.resData.params[qIdx][0][0] for qIdx in self.data.qIdx ] )
@@ -188,6 +186,9 @@ class BaseType:
         if not self.data.norm and self.D2OData.data.norm:
             D2OSignal *= normF[:,np.newaxis]
 
+
+
+        D2OSignal *= self.D2OData.volFraction
 
 
         if qIdx is not None:
@@ -216,25 +217,34 @@ class BaseType:
 
 
 
-    def absorptionCorrection_slab(self, canScaling=0.9, neutron_wavelength=6.27, absco_kwargs={}):
+    def absorptionCorrection(self, canType='tube', canScaling=0.9, neutron_wavelength=6.27, 
+                                                                                    absco_kwargs={}):
         """ Computes absorption coefficients for sample in a flat can and apply corrections to data,
             for each q-value in self.data.qVals. 
             
-            Input:  canScaling          -> scaling factor for empty can contribution term, set it to 0 to use
+            Input:  canType             -> type of can used, either 'tube' or 'slab'
+                    canScaling          -> scaling factor for empty can contribution term, set it to 0 to use
                                             only correction of sample self-attenuation
                     neutron_wavelength  -> incident neutrons wavelength
                     absco_kwargs        -> geometry arguments for absco library from Joachim Wuttke
                                             see http://apps.jcns.fz-juelich.de/doku/sc/absco """
 
         #_Defining some defaults arguments
-        kwargs = {  'mu_i_S'            : 0.5, 
-                    'mu_f_S'            : 0.5, 
-                    'mu_i_C'            : 0.05,
-                    'mu_f_C'            : 0.05, 
-                    'slab_angle'        : 45, 
-                    'thickness_S'       : 0.03, 
-                    'thickness_C_front' : 0.5, 
-                    'thickness_C_rear'  : 0.5 }
+        kwargs = {  'mu_i_S'            : 0.65, 
+                    'mu_f_S'            : 0.65, 
+                    'mu_i_C'            : 0.147,
+                    'mu_f_C'            : 0.147 }
+
+
+        if canType=='slab':
+            kwargs['slab_angle']        = 45
+            kwargs['thickness_C_front'] = 0.5 
+            kwargs['thickness_C_rear']  = 0.5 
+
+        if canType=='tube':
+            kwargs['radius']            = 2.15
+            kwargs['thickness_C_inner'] = 0.1 
+            kwargs['thickness_C_outer'] = 0.1 
 
 
 
@@ -245,70 +255,62 @@ class BaseType:
         sampleSignal = self.data.intensities
         try: #_Tries to extract empty cell intensities, use an array of zeros if no data are found
             ecSignal     = self.ECData.data.intensities
+
+            xIdx = []
+            for xVal in self.data.X:
+                xIdx.append( np.where( self.ECData.data.X - xVal == min(self.ECData.data.X - xVal) )[0][0] )
+        
         except AttributeError:
             ecSignal = np.zeros_like(sampleSignal)
 
+
+
+
         for qIdx, angle in enumerate(self.data.qVals):
             angle = np.arcsin(neutron_wavelength * angle / (4 * np.pi))
-            A_S_SC, A_C_SC, A_C_C = py_absco_slab(angle, **kwargs)
+
+            if canType == 'slab':
+                A_S_SC, A_C_SC, A_C_C = py_absco_slab(angle, **kwargs)
+            if canType == 'tube':
+                A_S_SC, A_C_SC, A_C_C = py_absco_tube(angle, **kwargs)
+
 
 
             #_Applies correction
             sampleSignal[qIdx] = ( (1 / A_S_SC) * sampleSignal[qIdx] 
                                             - A_C_SC / (A_S_SC*A_C_C) * canScaling * ecSignal[qIdx] )
 
-        self.data = self.data._replace( intensities = sampleSignal  )
+
+
+        #_Clean useless values from intensities and errors arrays
+        errors  = self.data.errors
+        np.place(errors, sampleSignal < 0, np.inf)
+        np.place(sampleSignal, sampleSignal < 0, 0)
+        self.data = self.data._replace(intensities = sampleSignal)
+        self.data = self.data._replace(errors = errors)
+
+
+        self.data = self.data._replace( intensities = sampleSignal,
+                                        errors      = errors )
 
 
 
-
-
-
-
-
-    def absorptionCorrection_tube(self, canScaling=0.9, neutron_wavelength=6.27, absco_kwargs={}):
-        """ Computes absorption coefficients for sample in a flat can and apply corrections to data,
-            for each q-value in self.data.qVals. 
+    def discardOutliers(self, meanScale):
+        """ Discards outliers in experimental based on signal / noise ratio.
             
-            Input:  canScaling          -> scaling factor for empty can contribution term, set it to 0 to use
-                                            only correction of sample self-attenuation
-                    neutron_wavelength  -> incident neutrons wavelength
-                    absco_kwargs        -> geometry arguments for absco library from Joachim Wuttke
-                                            see http://apps.jcns.fz-juelich.de/doku/sc/absco """
-
-        #_Defining some defaults arguments
-        kwargs = {  'mu_i_S'            : 0.4, 
-                    'mu_f_S'            : 0.4, 
-                    'mu_i_C'            : 0.05,
-                    'mu_f_C'            : 0.05, 
-                    'radius'            : 2, 
-                    'thickness_S'       : 0.15,
-                    'thickness_C_inner' : 0.2, 
-                    'thickness_C_outer' : 0.2 }
+            Input: meanScale -> factor by which mean of signal over noise ratio will be 
+                                multiplied. Then, this scaled mean is used as a threshold under which
+                                data errors will be set to infinite so that they won't weigh in the 
+                                fitting procedure. """
 
 
+        sigNoiseR = self.data.intensities / self.data.errors
+        threshold = meanScale * np.mean( sigNoiseR )
 
-        #_Modifies default arguments with given ones, if any
-        for key, value in absco_kwargs.items():
-            kwargs[key] = value
+        errors = self.data.errors
+        np.place(errors, sigNoiseR < threshold, np.inf)
 
-
-        sampleSignal = self.data.intensities
-        try: #_Tries to extract empty cell intensities, use an array of zeros if no data are found
-            ecSignal     = self.ECData.data.intensities
-        except AttributeError:
-            ecSignal = np.zeros_like(sampleSignal)
-
-        for qIdx, angle in enumerate(self.data.qVals):
-            angle = np.arcsin(neutron_wavelength * angle / (4 * np.pi))
-            A_S_SC, A_C_SC, A_C_C = py_absco_tube(angle, **kwargs)
-
-
-            #_Applies correction
-            sampleSignal[qIdx] = ( (1 / A_S_SC) * sampleSignal[qIdx] 
-                                            - A_C_SC / (A_S_SC*A_C_C) * canScaling * ecSignal[qIdx] )
-
-        self.data = self.data._replace( intensities = sampleSignal  )
+        self.data = self.data._replace( errors = errors )
 
 
 
