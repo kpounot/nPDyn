@@ -18,7 +18,7 @@ class Model(DataTypeDecorator):
 
         self.model      = model
         self.params     = None
-        self.paramsNames = ["a0", "scale"] #_For plotting purpose
+        self.paramsNames = ["a0", "a1"] #_For plotting purpose
 
         self.volFraction= 0.95
         self.getD2OData = getD2Odata
@@ -33,11 +33,10 @@ class Model(DataTypeDecorator):
             print("\nUsing Scipy's minimize to fit data from file: %s" % self.fileName, flush=True)
 
         if not p0: #_Using default initial values
-            p0 = np.array( [0.2, 0.02] ) 
+            p0 = np.array( [0.5, 0.5] ) 
 
-        maxI = 5 * np.max( self.data.intensities )
         if not bounds: #_Using default bounds
-            bounds = [(0., 1), (0., maxI)]
+            bounds = [(0., 1), (0., 1)]
 
 
         result = []
@@ -49,6 +48,32 @@ class Model(DataTypeDecorator):
 
         self.params = result
 
+
+    def getD2OContributionFactor(self):
+        """ Returns the contribution factor of D2O lineshape in the model """
+
+        aD2O = np.array([self.params[i].x[1] for i in self.data.qIdx])
+
+
+        return aD2O
+
+
+
+    def getD2OSignal(self):
+        """ Computes D2O line shape for each q values.
+            
+            If a qIdx is given, returns D2O signal only for the corresponding q value. """
+
+        params = np.array([self.params[idx].x for idx in self.data.qIdx])
+        params[:,0] = 0
+
+        D2OSignal = np.array( [ self.model(params[idx], self, idx, False) 
+                                                                    for idx in self.data.qIdx ] )
+
+        D2OSignal *= self.volFraction
+
+
+        return D2OSignal
 
 
 

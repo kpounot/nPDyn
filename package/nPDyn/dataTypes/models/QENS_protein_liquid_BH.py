@@ -32,10 +32,8 @@ class Model(DataTypeDecorator):
             p0 = p0 + [0.2 for i in self.data.qIdx] + [0.2 for i in self.data.qIdx]
 
         if not bounds: #_Using default bounds
-            maxX = 2.5 * np.max( self.data.X )
-            maxI = 1.5 * np.max( self.data.intensities )
-            bounds = ( [(0.5, maxX), (0.5, maxX), (0, 10)]
-                        + [(0., maxI) for i in self.data.qIdx] 
+            bounds = ( [(0.5, np.inf), (0.5, np.inf), (0, np.inf)]
+                        + [(0., np.inf) for i in self.data.qIdx] 
                         + [(0., 1) for i in self.data.qIdx] )
 
 
@@ -73,9 +71,7 @@ class Model(DataTypeDecorator):
             p0 = [0.8, 1, 10, 0.1, 0.5] 
 
         if not bounds: #_Using default bounds
-            maxX = 2.5 * np.max( self.data.X )
-            maxI = 1.5 * np.max( self.data.intensities )
-            bounds = [(0.5, maxX), (0.5, maxX), (0., 100), (0., maxI), (0., 1)] 
+            bounds = [(0.5, np.inf), (0.5, np.inf), (0., np.inf), (0., np.inf), (0., 1)] 
 
 
         #_D2O signal 
@@ -100,6 +96,13 @@ class Model(DataTypeDecorator):
 
 
         self.params = result
+
+
+
+    def getModel(self, qIdx):
+        """ Returns the fitted model for the given q value. """
+
+        return self.model(self.getParams(qIdx), self, self.getD2OSignal(), qIdx, False)
 
 
 

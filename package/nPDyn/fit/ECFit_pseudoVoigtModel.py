@@ -34,13 +34,15 @@ def ECFit(ECData):
         init_normF  = np.mean(ECData.intensities[qIdx]) 
         init_bkgd   = np.min([val for val in ECData.intensities[qIdx] if val > 0])
 
+        maxI = 1.5 * np.max( ECData.intensities )
+
         ECList.append(optimize.curve_fit(   fitFunc, 
                                             ECData.X,
                                             ECData.intensities[qIdx],
                                             sigma=ECData.errors[qIdx],
                                             p0=[init_normF, 0.5, 1, 1, 0.1, init_bkgd],
-                                            #bounds=([0., 0., 0., 0., -10, 0.],  
-                                            #        [np.inf, 1, 100, 100, 10, np.inf]),
+                                            bounds=([0., 0., 0., 0., -10, 0.],  
+                                                    [maxI, 1, np.inf, np.inf, 10, maxI]),
                                             max_nfev=10000000,
                                             method='trf'))
 

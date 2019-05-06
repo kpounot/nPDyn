@@ -91,6 +91,13 @@ class Model(DataTypeDecorator):
         self.params = result
 
 
+    
+    def getModel(self, qIdx):
+        """ Returns the fitted model for the given q value. """
+
+        return self.model(self.getParams(qIdx), self, qIdx, False)
+
+
 #--------------------------------------------------
 #_Parameters accessors
 #--------------------------------------------------

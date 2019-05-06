@@ -48,4 +48,30 @@ class Model(DataTypeDecorator):
 
 
 
+    def getD2OContributionFactor(self):
+        """ Returns the contribution factor of D2O lineshape in the model """
+
+        aD2O = np.array([self.params[i].x[0] for i in self.data.qIdx])
+
+        return aD2O
+
+
+
+    def getD2OSignal(self, qIdx=None):
+        """ Computes D2O line shape for each q values.
+            
+            If a qIdx is given, returns D2O signal only for the corresponding q value. """
+
+        D2OSignal = np.array( [ self.model(self.params[idx].x, self, idx, False) 
+                                                                    for idx in self.data.qIdx ] )
+
+        D2OSignal *= self.volFraction
+
+
+        return D2OSignal
+
+
+
+
+
 

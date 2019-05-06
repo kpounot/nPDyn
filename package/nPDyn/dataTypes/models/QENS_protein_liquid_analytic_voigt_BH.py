@@ -22,18 +22,18 @@ class Model(DataTypeDecorator):
         self.disp       = True
 
 
+
     def fit(self, p0=None, bounds=None):
         print("\nStarting basinhopping fitting for file: %s" % self.fileName, flush=True)
         print(50*"-", flush=True)
 
-        if not p0: #_Using default initial values
+        if p0 is None: #_Using default initial values
             p0 = [2, 20, 0.1] 
             p0 = p0 + [0.2 for i in self.data.qIdx] + [0.2 for i in self.data.qIdx]
 
-        if not bounds: #_Using default bounds
-            maxX = 2.5 * np.max( self.data.X )
+        if bounds is None: #_Using default bounds
             maxI = 1.5 * np.max( self.data.intensities )
-            bounds = ( [(0.5, maxX), (0.5, maxX), (0, 10)]
+            bounds = ( [(0.0, np.inf), (0.0, np.inf), (0, np.inf)]
                         + [(0., maxI) for i in self.data.qIdx] 
                         + [(0., 1) for i in self.data.qIdx] )
 
@@ -47,7 +47,6 @@ class Model(DataTypeDecorator):
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
                                         disp=self.disp,
-                                        stepsize=10,
                                         minimizer_kwargs={ 'args':(self, D2OSignal), 'bounds':bounds } )
 
 
@@ -68,13 +67,12 @@ class Model(DataTypeDecorator):
         print("\nStarting basinhopping fitting for file: %s\n" % self.fileName, flush=True)
         print(50*"-" + "\n", flush=True)
 
-        if not p0: #_Using default initial values
+        if p0 is None: #_Using default initial values
             p0 = [0.8, 1, 10, 0.1, 0.5] 
 
-        if not bounds: #_Using default bounds
-            maxX = 2.5 * np.max( self.data.X )
+        if bounds is None: #_Using default bounds
             maxI = 1.5 * np.max( self.data.intensities )
-            bounds = [(0.5, maxX), (0.5, maxX), (0., 100), (0., maxI), (0., 1)] 
+            bounds = [(0., np.inf), (0., np.inf), (0., np.inf), (0., maxI), (0., 1)] 
 
 
         #_D2O signal 
@@ -84,22 +82,25 @@ class Model(DataTypeDecorator):
         result = []
         for i, qIdx in enumerate(self.data.qIdx):
 
-            if i != 0: #_Use the result from the previous q-value as starting parameters
-                p0 = result[-1].x
-
             print("\nFitting model for q index %i\n" % qIdx, flush=True)
             result.append(optimize.basinhopping( self.model, 
                                         p0,
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
                                         disp=self.disp,
-                                        stepsize=10,
                                         minimizer_kwargs={ 'args':(self, D2OSignal, i), 'bounds':bounds } ))
 
 
 
         self.params = result
 
+
+
+
+    def getModel(self, qIdx):
+        """ Returns the fitted model for the given q value. """
+
+        return self.model(self.getParams(qIdx), self, self.getD2OSignal(), qIdx, False)
 
 
     
@@ -174,6 +175,18 @@ class Model(DataTypeDecorator):
 
         return None
 
+
+    def get_betaSlice(self):
+        """ For global fit, returns the slice corresponding to beta parameter(s) """
+
+        return slice(3, 3+self.data.qIdx.size)
+
+
+
+    def get_a0Slice(self):
+        """ For global fit, returns the slice corresponding to a0 parameter(s) """
+
+        return slice(3+self.data.qIdx.size, None)
 
 
 

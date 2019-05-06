@@ -20,14 +20,18 @@ parser.add_argument("-res", "--resolution", nargs='*',
                                 help="Specify the file(s) to be used for resolution function fitting.")
 parser.add_argument("-ec", "--empty-cell", nargs='?', 
                                 help="Specify the file containing QENS empty cell data")
+parser.add_argument("-fec", "--fixed-empty-cell", nargs='?',
+                                help="Specify the file containing FWS empty cell data")
 parser.add_argument("-d", "--D2O", nargs='?', help="Specify the file containing QENS D2O data")
+parser.add_argument("-fd", "--fixed-D2O", nargs='?', help="Specify the file containing QENS D2O data")
 
 
 args = parser.parse_args()
 
 
 #_Initialize a first instance of Dataset
-data = Dataset(args.QENS, args.FWS, args.TempRamp, args.empty_cell, args.resolution, args.D2O)
+data = Dataset(args.QENS, args.FWS, args.TempRamp, args.empty_cell, args.fixed_empty_cell,
+                                                                args.resolution, args.D2O, args.fixed_D2O)
 
 
 

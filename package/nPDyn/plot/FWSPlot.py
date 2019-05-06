@@ -5,7 +5,7 @@ from collections import namedtuple
 
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
-                             QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
+                             QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame, QCheckBox)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -56,9 +56,6 @@ class FWSPlot(QWidget):
         self.analysisButton = QPushButton('Analysis')
         self.analysisButton.clicked.connect(self.analysisPlot)
 
-        self.qWiseAnalysisButton = QPushButton('q-wise analysis')
-        self.qWiseAnalysisButton.clicked.connect(self.qWiseAnalysis)
-
         self.plot3DButton = QPushButton('3D Plot')
         self.plot3DButton.clicked.connect(self.plot3D)
 
@@ -75,9 +72,7 @@ class FWSPlot(QWidget):
         self.lineEdit = QLineEdit(self) 
         self.lineEdit.setText('0.8')
 
-        self.scanLabel = QLabel('Scan index to plot', self)
-        self.scanLineEdit = QLineEdit(self) 
-        self.scanLineEdit.setText('0')
+        self.errBox = QCheckBox("Plot errors", self)
 
 
         #_Set the layout
@@ -87,12 +82,10 @@ class FWSPlot(QWidget):
         layout.addWidget(self.boxLine)
         layout.addWidget(self.label)
         layout.addWidget(self.lineEdit)
-        layout.addWidget(self.scanLabel)
-        layout.addWidget(self.scanLineEdit)
+        layout.addWidget(self.errBox)
         layout.addWidget(self.button)
         layout.addWidget(self.plot3DButton)
         layout.addWidget(self.analysisButton)
-        layout.addWidget(self.qWiseAnalysisButton)
         layout.addWidget(self.fitButton)
         self.setLayout(layout)
 
@@ -168,8 +161,6 @@ class FWSPlot(QWidget):
         ax = subplotsFormat(self, False, False, '3d', FWS=True) 
         
 
-        dIdx = int(self.scanLineEdit.text()) #_Data index to plot in self.dataset[0] list
-
         #_Use a fancy colormap
         normColors = matplotlib.colors.Normalize(vmin=0, vmax=self.dataset[0].data.intensities.shape[0])
         cmapList =  [ matplotlib.cm.get_cmap('winter'),
@@ -228,12 +219,20 @@ class FWSPlot(QWidget):
 
         #_Create 2D numpy array to easily access parameters for each file
         paramsList  = self.dataset[0].getParams(qValIdx)
-        errList     = self.dataset[0].getParamsErrors(qValIdx)
+
+        if self.errBox.isChecked(): #_Whether or not using error bars
+            errList = self.dataset[0].getParamsErrors(qValIdx)
+        else:
+            errList = np.zeros_like(paramsList)
+
         scanNbr     = self.dataset[0].data.intensities.shape[0]
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
-            subplot.errorbar(range(scanNbr), paramsList[:,idx], errList[:,idx], marker='o')
+            subplot.errorbar(range(scanNbr), 
+                             paramsList[:,idx], 
+                             errList[:,idx],
+                             marker='o')
             subplot.set_ylabel(self.dataset[0].paramsNames[idx]) 
             subplot.set_xlabel('Scan number')
         
@@ -243,46 +242,11 @@ class FWSPlot(QWidget):
 
 
 
-    def qWiseAnalysis(self):
-        """ This method provides a quick way to plot the q-dependence of weight factors and lorentzian
-            widths for each contribution. """
-
-        plt.gcf().clear()     
-
-        #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
-        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
-        qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
-        qValIdx = int(np.argwhere(qVals == qValToShow)[0])
-
-        #_Get parameters for each q-value
-        weights, widths, labels = self.dataset[0].getWeights_and_lorWidths(qValIdx) 
-        weightsErr, widthsErr   = self.dataset[0].getWeights_and_lorErrors(qValIdx)
-        scanNbr                 = self.dataset[0].data.intensities.shape[0]
-
-        ax = self.figure.subplots(len(labels), 2, sharex=True)
-
-        for idx, row in enumerate(ax):
-            row[0].errorbar(range(scanNbr), weights[:,idx], weightsErr[:,idx], marker='o')
-            row[0].set_ylabel('Weight - %s' % labels[idx])
-            row[0].set_xlabel(r'q [$\AA^{-2}$]')
-            row[0].set_ylim(0., 1.2)
-
-            row[1].errorbar(range(scanNbr), widths[:,idx], widthsErr[:,idx], marker='o')
-            row[1].set_ylabel('Width - %s' %labels[idx])
-            row[1].set_xlabel(r'q [$\AA^{-2}$]')
-            row[1].set_ylim(0., 1.2*np.max(widths))
-
-        self.canvas.draw()
-
-
-
-
 
     def fitPlot(self):
 	   
         plt.gcf().clear()     
 
-        #_Creates as many subplots as there are parameters in the model
         ax = subplotsFormat(self, False, False, '3d')
 
 
@@ -303,23 +267,29 @@ class FWSPlot(QWidget):
                         self.dataset[idx].data.intensities[:,qIdxList[qValIdx]] )
 
 
-            #_Plot the model
-            params  = self.dataset[idx].params[:,qValIdx]
-            subplot.plot_wireframe(xx, yy,
-                    np.array([self.dataset[0].model(params[sIdx].x, self.dataset[0], 
-                                                    None, qValIdx, False, sIdx )
-                                                    for sIdx in range(scanNbr)]),
-                    label='Model',
-                    color='red',
-                    cstride=0)
+            try:
+                #_Plot the model
+                params  = self.dataset[idx].getParams(qValIdx)
+                subplot.plot_wireframe(xx, yy,
+                        np.array([self.dataset[idx].getModel(sIdx, qValIdx)
+                                                        for sIdx in range(scanNbr)]),
+                        label='Model',
+                        color='red',
+                        cstride=0)
+            except AttributeError:
+                continue
+            except TypeError:
+                continue
 
 
-            subplot.set_title(self.dataset[idx].fileName, fontsize=10)
-            subplot.set_xlabel(r'$\hslash\omega (\mu eV)$')
-            subplot.set_ylabel('Scan number')
-            subplot.set_zlabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$')   
-    
+        subplot.set_title(self.dataset[idx].fileName, fontsize=10)
+        subplot.set_xlabel(r'$\hslash\omega (\mu eV)$')
+        subplot.set_ylabel('Scan number')
+        subplot.set_zlabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$')   
+
         self.canvas.draw()
+
+
 
 
 #--------------------------------------------------

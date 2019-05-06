@@ -21,8 +21,8 @@ def D2OFit(params, dataset, qIdx=None, returnCost=True):
 
     X = dataset.data.X
     qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis] #_Reshape to a column vector
-    resFunc = dataset.getResFunc(withBkgd=True)
-    resBkgd = [ dataset.resData.params[i][0][-1] for i, val in enumerate(dataset.data.qVals) ]
+    resFunc = dataset.getResFunc()
+    resBkgd = dataset.getResBkgd()
 
 
 
@@ -33,7 +33,7 @@ def D2OFit(params, dataset, qIdx=None, returnCost=True):
 
     model = model + gD2O
 
-    model = a0 * model / (np.pi * (X**2 + gD2O**2)) #_Computes the lorentzian
+    model = a0 * model / (np.pi * (X**2 + model**2)) #_Computes the lorentzian
 
 
     #_Performs the convolution for each q-value
@@ -41,13 +41,8 @@ def D2OFit(params, dataset, qIdx=None, returnCost=True):
         model[idx] = np.convolve(model[idx], resFunc[idx], mode='same') + resBkgd[idx]
 
 
-    #_Discard the elastic peak from the fit
-    corrX = dataset.data.X[ np.abs( dataset.data.X ) > 0.2*np.max( dataset.data.X ) ]
-    corrIdx = np.isin(dataset.data.X, corrX)
-    corrErrors = dataset.data.errors[dataset.data.qIdx]
-    corrErrors[:,corrIdx] = np.inf
-
-    cost = np.sum( (dataset.data.intensities[dataset.data.qIdx] - model)**2 / corrErrors**2, axis=1) 
+    cost = np.sum( ( 1 + np.log((dataset.data.intensities[dataset.data.qIdx] - model)**2) ) 
+                                        / dataset.data.errors[dataset.data.qIdx]**2, axis=1) 
 
 
     if qIdx is not None:
@@ -80,7 +75,7 @@ def D2OFit_withElastic(params, dataset, qIdx=None, returnCost=True):
 
 
     a0      = params[0]  #_contribution factor of elastic peak
-    scale   = params[1]  #_contribution factor of elastic peak
+    a1      = params[1]  #_contribution factor of D2O
 
 
     X = dataset.data.X
@@ -88,7 +83,7 @@ def D2OFit_withElastic(params, dataset, qIdx=None, returnCost=True):
 
     
     resFunc = dataset.getResFunc()
-    resBkgd = [ dataset.resData.params[i][0][-1] for i, val in enumerate(dataset.data.qVals) ]
+    resBkgd = dataset.getResBkgd()[:,np.newaxis]
 
 
     #_Computes D2O linewidth for each q-values
@@ -98,14 +93,14 @@ def D2OFit_withElastic(params, dataset, qIdx=None, returnCost=True):
 
     model = model + gD2O
 
-    model = (1-a0) * model / (np.pi * (X**2 + gD2O**2)) #_Computes the lorentzians
+    model = model / (np.pi * (X**2 + gD2O**2)) #_Computes the lorentzians
 
 
     #_Performs the convolution for each q-value
     for idx in range(model.shape[0]):
-        model[idx] = np.convolve(model[idx], resFunc[idx], mode='same')
+        model[idx] = np.convolve(model[idx], resFunc[idx], mode='same') 
 
-    model = scale * (a0 * resFunc + model)
+    model = a0 * resFunc + a1 * model + resBkgd
 
 
     cost = np.sum( (dataset.data.intensities - model)**2 / dataset.data.errors**2, axis=1) 

@@ -88,6 +88,11 @@ class Model(DataTypeDecorator):
 
 
 
+    def getModel(self, qIdx):
+        """ Returns the fitted model for the given q value. """
+
+        return self.model(self.getParams(qIdx), self, qIdx, False)
+
 
 
 #--------------------------------------------------

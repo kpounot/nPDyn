@@ -3,5 +3,7 @@ __all__ = [ 'baseType',
             'FWSType',
             'TempRampType',
             'ECType',
+            'fECType',
             'D2OType',
+            'fD2OType',
             'resType']

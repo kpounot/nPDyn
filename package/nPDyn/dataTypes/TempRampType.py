@@ -46,7 +46,9 @@ class TempRampType(BaseType):
 
 
 
-    def substractEC(self, scaleFactor=0.8):
+
+
+    def substractEC(self, scaleFactor=0.95):
         """ This method can be used to substract empty cell data from QENS data.
             Empty cell signal is rescaled using the given 'subFactor' prior to substraction. """
 
@@ -74,6 +76,94 @@ class TempRampType(BaseType):
         np.place(S, S < 0, 0)
         self.data = self.data._replace(intensities = S)
         self.data = self.data._replace(errors = errors)
+
+
+
+
+
+
+    def absorptionCorrection(self, canType='tube', canScaling=0.9, neutron_wavelength=6.27, 
+                                                                                    absco_kwargs={}):
+        """ Computes absorption coefficients for sample in a flat can and apply corrections to data,
+            for each q-value in self.data.qVals. 
+            
+            Input:  canType             -> type of can used, either 'tube' or 'slab'
+                    canScaling          -> scaling factor for empty can contribution term, set it to 0 to use
+                                            only correction of sample self-attenuation
+                    neutron_wavelength  -> incident neutrons wavelength
+                    absco_kwargs        -> geometry arguments for absco library from Joachim Wuttke
+                                            see http://apps.jcns.fz-juelich.de/doku/sc/absco """
+
+        #_Defining some defaults arguments
+        kwargs = {  'mu_i_S'            : 0.660, 
+                    'mu_f_S'            : 0.660, 
+                    'mu_i_C'            : 0.147,
+                    'mu_f_C'            : 0.147 }
+
+
+        if canType=='slab':
+            kwargs['slab_angle']        = 45
+            kwargs['thickness_S']       = 0.03 
+            kwargs['thickness_C_front'] = 0.5 
+            kwargs['thickness_C_rear']  = 0.5 
+
+        if canType=='tube':
+            kwargs['radius']            = 2.15
+            kwargs['thickness_S']       = 0.03 
+            kwargs['thickness_C_inner'] = 0.1 
+            kwargs['thickness_C_outer'] = 0.1 
+
+
+
+        #_Modifies default arguments with given ones, if any
+        for key, value in absco_kwargs.items():
+            kwargs[key] = value
+
+        sampleSignal = self.data.intensities
+        try: #_Tries to extract empty cell intensities, use an array of zeros if no data are found
+            #_Compute the fitted Empty Cell function
+            ECFunc = []
+            for qIdx, qVal in enumerate(self.data.qVals):
+                ECFunc.append( self.ECData.model( 0.0, *self.ECData.params[qIdx][0] ) )
+
+            ECFunc = np.array( ECFunc )
+
+        
+        except AttributeError:
+            ECFunc = np.zeros_like(sampleSignal)
+
+        #_If data are normalized, uses the same normalization factor for empty cell data
+        if self.data.norm:
+            normFList = np.mean(self.data.intensities[:,:nbrBins], axis=1)[:,np.newaxis]
+            ECFunc /= normFList
+
+
+
+
+        for qIdx, angle in enumerate(self.data.qVals):
+            angle = np.arcsin(neutron_wavelength * angle / (4 * np.pi))
+
+            if canType == 'slab':
+                A_S_SC, A_C_SC, A_C_C = py_absco_slab(angle, **kwargs)
+            if canType == 'tube':
+                A_S_SC, A_C_SC, A_C_C = py_absco_tube(angle, **kwargs)
+
+
+
+            #_Applies correction
+            sampleSignal[qIdx] = ( (1 / A_S_SC) * sampleSignal[qIdx] 
+                                            - A_C_SC / (A_S_SC*A_C_C) * canScaling * ECFunc[qIdx] )
+
+
+
+        #_Clean useless values from intensities and errors arrays
+        S       = self.data.intensities
+        errors  = self.data.errors
+        np.place(errors, S < 0, np.inf)
+        np.place(S, S < 0, 0)
+        self.data = self.data._replace(intensities = S)
+        self.data = self.data._replace(errors = errors)
+
 
 
 

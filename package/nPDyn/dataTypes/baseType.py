@@ -92,6 +92,7 @@ class BaseType:
         ECFunc = np.array( ECFunc )
 
         #_If data are normalized, uses the same normalization factor for empty cell data
+        normFList = np.array([params[0][0] for params in self.resData.params])[:,np.newaxis]
         if self.data.norm:
             normFList = np.array([params[0][0] for params in self.resData.params])[:,np.newaxis]
             ECFunc /= normFList
@@ -102,8 +103,8 @@ class BaseType:
         #_Clean useless values from intensities and errors arrays
         S       = self.data.intensities
         errors  = self.data.errors
-        np.place(errors, S < 0, np.inf)
         np.place(S, S < 0, 0)
+        np.place(errors, S <= 0, np.inf)
         self.data = self.data._replace(intensities = S)
         self.data = self.data._replace(errors = errors)
 
@@ -134,7 +135,7 @@ class BaseType:
     def resetDetectors(self):
         """ Reset qIdx entry to its original state, with all q values taken into account. """
 
-        self.data = self.data._replace(qIdx = [idx for idx, val in enumerate(self.data.qVals)])
+        self.data = self.data._replace(qIdx = np.array([idx for idx, val in enumerate(self.data.qVals)]))
 
 
 
@@ -160,6 +161,24 @@ class BaseType:
 
 
 
+    def getResBkgd(self):
+        """ Returns the background fitted from resolution function """
+
+
+        bkgd = np.array( [self.resData.params[i][0][-1] for i in self.data.qIdx] )
+
+        #_Use normalized resolution function if data were normalized
+        if not self.data.norm: 
+            bkgd = np.array( [self.resData.params[i][0][-1] * 
+                                        self.resData.params[i][0][0] for i in self.data.qIdx] )
+
+
+        return bkgd
+
+
+
+
+
 
     def assignResData(self, resData):
         """ Sets self.resData attribute to the given one, a ResType instance that can be used by fitting 
@@ -175,10 +194,9 @@ class BaseType:
             
             If a qIdx is given, returns D2O signal only for the corresponding q value. """
 
-        D2OSignal = np.array( [ self.D2OData.model(self.D2OData.params[idx].x, self.D2OData, idx, False) 
-                                                                    for idx in self.data.qIdx ] )
+        D2OSignal = self.D2OData.getD2OSignal()[self.data.qIdx]
 
-        
+
         #_Check for difference in normalization state
         normF = np.array( [ self.resData.params[qIdx][0][0] for qIdx in self.data.qIdx ] )
         if self.data.norm and not self.D2OData.data.norm:
@@ -186,16 +204,11 @@ class BaseType:
         if not self.data.norm and self.D2OData.data.norm:
             D2OSignal *= normF[:,np.newaxis]
 
-
-
-        D2OSignal *= self.D2OData.volFraction
-
-
         if qIdx is not None:
             D2OSignal = D2OSignal[qIdx]
 
-        return D2OSignal
 
+        return D2OSignal
 
 
 
@@ -230,19 +243,21 @@ class BaseType:
                                             see http://apps.jcns.fz-juelich.de/doku/sc/absco """
 
         #_Defining some defaults arguments
-        kwargs = {  'mu_i_S'            : 0.65, 
-                    'mu_f_S'            : 0.65, 
+        kwargs = {  'mu_i_S'            : 0.660, 
+                    'mu_f_S'            : 0.660, 
                     'mu_i_C'            : 0.147,
                     'mu_f_C'            : 0.147 }
 
 
         if canType=='slab':
             kwargs['slab_angle']        = 45
+            kwargs['thickness_S']       = 0.03 
             kwargs['thickness_C_front'] = 0.5 
             kwargs['thickness_C_rear']  = 0.5 
 
         if canType=='tube':
             kwargs['radius']            = 2.15
+            kwargs['thickness_S']       = 0.03 
             kwargs['thickness_C_inner'] = 0.1 
             kwargs['thickness_C_outer'] = 0.1 
 
@@ -254,14 +269,21 @@ class BaseType:
 
         sampleSignal = self.data.intensities
         try: #_Tries to extract empty cell intensities, use an array of zeros if no data are found
-            ecSignal     = self.ECData.data.intensities
+            #_Compute the fitted Empty Cell function
+            ECFunc = []
+            for qIdx, qVal in enumerate(self.data.qVals):
+                ECFunc.append( self.ECData.model( self.data.X, *self.ECData.params[qIdx][0] ) )
 
-            xIdx = []
-            for xVal in self.data.X:
-                xIdx.append( np.where( self.ECData.data.X - xVal == min(self.ECData.data.X - xVal) )[0][0] )
+            ECFunc = np.array( ECFunc )
+
         
         except AttributeError:
-            ecSignal = np.zeros_like(sampleSignal)
+            ECFunc = np.zeros_like(sampleSignal)
+
+        #_If data are normalized, uses the same normalization factor for empty cell data
+        if self.data.norm:
+            normFList = np.array([params[0][0] for params in self.resData.params])[:,np.newaxis]
+            ECFunc /= normFList
 
 
 
@@ -278,14 +300,14 @@ class BaseType:
 
             #_Applies correction
             sampleSignal[qIdx] = ( (1 / A_S_SC) * sampleSignal[qIdx] 
-                                            - A_C_SC / (A_S_SC*A_C_C) * canScaling * ecSignal[qIdx] )
+                                            - A_C_SC / (A_S_SC*A_C_C) * canScaling * ECFunc[qIdx] )
 
 
 
         #_Clean useless values from intensities and errors arrays
         errors  = self.data.errors
-        np.place(errors, sampleSignal < 0, np.inf)
         np.place(sampleSignal, sampleSignal < 0, 0)
+        np.place(errors, sampleSignal <= 0, np.inf)
         self.data = self.data._replace(intensities = sampleSignal)
         self.data = self.data._replace(errors = errors)
 

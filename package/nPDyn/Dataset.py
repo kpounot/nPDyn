@@ -16,10 +16,6 @@ from .plot import *
 
 from .plot.plotMD_MSD import plotMSDSeries
 
-
-
-
-
 class Dataset:
     """ Master class of nPDyn, contains a list of dataFiles, which can be sample, resolution, D2O data or
         anything else as long as the format can be recognized. 
@@ -35,8 +31,8 @@ class Dataset:
                 D2OFiles    -> list of D2O data to be loaded """
 
 
-    def __init__(self, QENSFiles=None, FWSFiles=None, TempRampFiles=None, ECFile=None, resFiles=None, 
-                                                                                            D2OFile=None):
+    def __init__(self, QENSFiles=None, FWSFiles=None, TempRampFiles=None, ECFile=None, fECFile=None,
+                                                                resFiles=None, D2OFile=None, fD2OFile=None):
 
 
         #_Declaring attributes related to samples dataset
@@ -47,38 +43,49 @@ class Dataset:
 
         #_Declaring D2O lineshape related variables
         self.D2OData    = None
+        self.fD2OData   = None
 
         #_Declaring empty cell signal related variables
         self.ECData     = None
+        self.fECData    = None
 
         self.msdSeriesList      = []    #_Used to store msd from trajectories, present here to allow for
                                         #_different psf files loading
 
 
 
-        modelT = namedtuple('models', 'resFunc_pseudoVoigt resFunc_gaussian D2OFunc_sglLorentzian_Min'
+        modelT = namedtuple( 'models', 'resFunc_pseudoVoigt resFunc_gaussian D2OFunc_sglLorentzian_Min'
+                                            + ' ECFunc_pseudoVoigt'
                                             + ' D2OFunc_lorentzian_and_elastic_Min'
                                             + ' QENS_prot_powder_dblLorentzian_BH QENS_water_powder_BH'
                                             + ' QENS_protein_liquid_BH' 
                                             + ' QENS_protein_liquid_analytic_voigt_BH' 
+                                            + ' QENS_protein_liquid_analytic_voigt_CF' 
                                             + ' TempRamp_gaussian TempRamp_q4'
-                                            + ' FWS_protein_liquid_BH')
+                                            + ' FWS_protein_liquid_BH'
+                                            + ' FWS_protein_liquid_CF'
+                            )
 
-        self.models = modelT(  resFunc_pseudoVoigt.Model,
-                                    resFunc_gaussian.Model,
-                                    D2OFunc_singleLorentzian_Min.Model,
-                                    D2OFunc_lorentzian_and_elastic_Min.Model,
-                                    QENS_prot_powder_doubleLorentzian_BH.Model,
-                                    QENS_water_powder_BH.Model,
-                                    QENS_protein_liquid_BH.Model,
-                                    QENS_protein_liquid_analytic_voigt_BH.Model,
-                                    TempRamp_gaussian.Model,
-                                    TempRamp_q4.Model,
-                                    FWS_protein_liquid_BH.Model)
+
+        self.models = modelT(   resFunc_pseudoVoigt.Model,
+                                resFunc_gaussian.Model,
+                                ECFunc_pseudoVoigt.Model,
+                                D2OFunc_singleLorentzian_Min.Model,
+                                D2OFunc_lorentzian_and_elastic_Min.Model,
+                                QENS_prot_powder_doubleLorentzian_BH.Model,
+                                QENS_water_powder_BH.Model,
+                                QENS_protein_liquid_BH.Model,
+                                QENS_protein_liquid_analytic_voigt_BH.Model,
+                                QENS_protein_liquid_analytic_voigt_CF.Model,
+                                TempRamp_gaussian.Model,
+                                TempRamp_q4.Model,
+                                FWS_protein_liquid_BH.Model,
+                                FWS_protein_liquid_CF.Model
+                            )
 
 
         self.importFiles( None, **{ 'QENSFiles':QENSFiles, 'FWSFiles':FWSFiles, 'TempRampFiles':TempRampFiles,
-                                    'ECFile':ECFile, 'resFiles':resFiles, 'D2OFile':D2OFile } )
+            'ECFile':ECFile, 'fECFile':fECFile, 'resFiles':resFiles, 'D2OFile':D2OFile, 'fD2OFile':fD2OFile } )
 
 
         self.resFuncAssign()
@@ -88,7 +95,7 @@ class Dataset:
 
 
     def importFiles(self, fileFormat=None, QENSFiles=None, FWSFiles=None, TempRampFiles=None, 
-                                                                ECFile=None, resFiles=None, D2OFile=None):
+                                    ECFile=None, fECFile=None, resFiles=None, D2OFile=None, fD2OFile=None):
         """ Read and import data from experimental data file.
             If no file format is given, this method tries to identify the file's type automatically, 
             and send an error message in case the file could not be imported. 
@@ -106,10 +113,17 @@ class Dataset:
         if ECFile: 
             data = ECType.ECType(ECFile)
             data.importData(fileFormat=fileFormat)
-            data = resFunc_pseudoVoigt.Model(data)
-            data.fit( bounds=([0.,0.,0.,0.,-10,0.], [np.inf, 1, 10, 10, 10, 10]) )
+            data = ECFunc_pseudoVoigt.Model(data)
+            data.fit()
 
             self.ECData = data
+
+
+        if fECFile:
+            data = fECType.fECType(fECFile)
+            data.importData(fileFormat=fileFormat)
+
+            self.fECData = data
 
 
         if resFiles: 
@@ -127,16 +141,34 @@ class Dataset:
         if D2OFile:
             data = D2OType.D2OType(D2OFile)
             data.importData(fileFormat=fileFormat)
-            data = D2OFunc_singleLorentzian_Min.Model(data)
+            data = D2OFunc_lorentzian_and_elastic_Min.Model(data)
             data.assignECData( self.ECData )
 
             if self.resData != []:
                 data.assignResData(self.resData[0])
                 data.normalize()
-                data.discardOutliers(0.5)
                 data.qWiseFit()
 
             self.D2OData = data
+
+
+
+
+        if fD2OFile:
+            data = fD2OType.fD2OType(fD2OFile)
+            data.importData(fileFormat=fileFormat)
+
+            if self.fECData is not None:
+                data.assignECData( self.fECData )
+            else:
+                data.assignECData( self.ECData )
+
+            if self.resData != []:
+                data.assignResData(self.resData[0])
+
+
+            self.fD2OData = data
+
 
 
 
@@ -148,13 +180,27 @@ class Dataset:
                 data.assignECData( self.ECData )
                 self.dataSetList.append( data )
 
+
         if FWSFiles: 
             for f in FWSFiles:
                 data = FWSType.FWSType(f)
                 data.importData()
-                data.assignD2OData( self.D2OData )
-                data.assignECData( self.ECData )
+
+                if self.fECData is not None:
+                    data.assignECData( self.fECData )
+                else:
+                    data.assignECData( self.ECData )
+
+
+                if self.fD2OData is not None:
+                    data.assignD2OData( self.fD2OData )
+                else:
+                    data.assignD2OData( self.D2OData )
+
+
                 self.dataSetList.append( data )
+
+
 
         if TempRampFiles: 
             for f in TempRampFiles:
@@ -216,6 +262,21 @@ class Dataset:
 
         for idx in fileIdxList:
             self.dataSetList[idx].resetData()
+
+
+
+    def resetAll(self):
+        """ Reset all dataset, as well as resolution D2O and empty cell data to their initial state """
+
+        for dataset in self.dataSetList:
+            dataset.resetData()
+
+        for resData in self.resData:
+            resData.resetData()
+
+        self.D2OData.resetData()
+
+        self.ECData.resetData()
  
 
 
@@ -263,12 +324,13 @@ class Dataset:
 
 
 
-    def absorptionCorrection(self, *fileIdxList, canType='tube', canScaling=0.9, 
-                                                neutron_wavelength=6.27, absco_kwargs={}, D2O=False):
+    def absorptionCorrection(self, *fileIdxList, canType='tube', canScaling=0.95, 
+                                            neutron_wavelength=6.27, absco_kwargs={}, D2O=True, res=True):
         """ Method for quick absorption correction on all selected dataset in fileIdxList.
             
             Same arguments as in baseType class, except D2O, which, if True, involves that corrections are
-            performed on D2O data too. """
+            performed on D2O data too. 
+            Also, if 'res' argument is set to True, correction are done for resolution function data too. """
 
         
         #_If not file indices were given, assumes that all should be use
@@ -280,18 +342,41 @@ class Dataset:
             self.dataSetList[i].absorptionCorrection(canType, canScaling, neutron_wavelength, absco_kwargs)
 
 
+
+
+        if res:
+            try:
+                absco_kwargs['thickness_S'] = 0.05
+                absco_kwargs['mu_i_S'] = 1.673
+                absco_kwargs['mu_f_S'] = 1.673
+                for resData in self.resData:
+                    resData.absorptionCorrection(canType, canScaling, neutron_wavelength, absco_kwargs)
+                    resData.fit()
+            except AttributeError:
+                print("No resolution data were loaded, corrections on these cannot be applied\n")
+                return
+
+
         if D2O:
             try:
                 self.D2OData.absorptionCorrection(canType, canScaling, neutron_wavelength, absco_kwargs)
-            except AttrubuteError:
+                self.D2OData.qWiseFit()
+            except AttributeError:
                 print("No D2O data were loaded, corrections on these cannot be applied\n")
+                return
+            
+            try:
+                self.fD2OData.absorptionCorrection(canType, canScaling, neutron_wavelength, absco_kwargs)
+            except AttributeError:
+                print("No fD2O data were loaded, corrections on these cannot be applied\n")
                 return
 
 
 
 
 
-    def substract_EC(self, *fileIdxList, subFactor=0.9, subD2O=True, subRes=False):
+
+    def substract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True, subRes=True):
         """ This method uses the fitted empty cell function to substract the signal for the selected
             dataSet. 
 
@@ -438,15 +523,11 @@ class Dataset:
 
 
         for idx in fileIdxList:
-            try:
-                if qWise:
-                    self.dataSetList[idx].qWiseFit(p0=p0, bounds=bounds)
-                else:
-                    self.dataSetList[idx].fit(p0=p0, bounds=bounds)
+            if qWise:
+                self.dataSetList[idx].qWiseFit(p0=p0, bounds=bounds)
+            else:
+                self.dataSetList[idx].fit(p0=p0, bounds=bounds)
 
-            except AttributeError:
-                print("No fitting function was found for dataType at index %i in dataSetList.\n" % idx
-                        + "Please assign a model to it prior to call a fitting method.\n")
 
 
 
@@ -620,9 +701,13 @@ if __name__ == '__main__':
                                     help="Specify the file(s) to be used for resolution function fitting.")
     parser.add_argument("-ec", "--empty-cell", nargs='?',
                                     help="Specify the file containing QENS empty cell data")
+    parser.add_argument("-fec", "--fixed-empty-cell", nargs='?',
+                                    help="Specify the file containing FWS empty cell data")
     parser.add_argument("-d", "--D2O", nargs='?', help="Specify the file containing QENS D2O data")
+    parser.add_argument("-fd", "--fixed-D2O", nargs='?', help="Specify the file containing QENS D2O data")
 
 
     args = parser.parse_args()
 
-    data = dataSet(args.QENS, args.FWS, args.TempRamp, args.empty_cell, args.resolution, args.D2O)
+    data = dataSet(args.QENS, args.FWS, args.TempRamp, args.empty_cell, args.fixed_empty_cell,
+                                                                args.resolution, args.D2O, args.fixed_D2O)

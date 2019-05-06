@@ -58,7 +58,7 @@ def py_absco_slab( double scattering_angle, double mu_i_S=0.45, double mu_f_S=0.
 
 
 def py_absco_tube( double scattering_angle, double mu_i_S=0.20, double mu_f_S=0.20, double mu_i_C=0.05, 
-        double mu_f_C=0.05, double radius=20, double thickness_S=0.02, double thickness_C_inner=0.5, 
+        double mu_f_C=0.05, double radius=20, double thickness_S=0.05, double thickness_C_inner=0.5, 
         double thickness_C_outer=0.5 ):
 
     cdef double A_S_SC = 0

@@ -5,7 +5,7 @@ from collections import namedtuple
 
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
-                             QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
+                             QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame, QCheckBox)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -82,6 +82,10 @@ class QENSPlot(QWidget):
         self.lineEdit = QLineEdit(self) 
         self.lineEdit.setText('0.8')
 
+        self.errBox = QCheckBox("Plot errors", self)
+
+
+
         #_Set the layout
         layout = QVBoxLayout()
         layout.addWidget(self.canvas, stretch=1)
@@ -89,6 +93,7 @@ class QENSPlot(QWidget):
         layout.addWidget(self.boxLine)
         layout.addWidget(self.label)
         layout.addWidget(self.lineEdit)
+        layout.addWidget(self.errBox)
         layout.addWidget(self.button)
         layout.addWidget(self.compareButton)
         layout.addWidget(self.plot3DButton)
@@ -220,11 +225,15 @@ class QENSPlot(QWidget):
 
         #_Create 2D numpy array to easily access parameters for each file
         paramsList = np.column_stack( [ data.getParams(qValIdx) for data in self.dataset ] )
-        errList    = np.column_stack( [ data.getParamsErrors(qValIdx) for data in self.dataset ] )
+
+        if self.errBox.isChecked(): #_Whether or not using error bars
+            errList    = np.column_stack( [ data.getParamsErrors(qValIdx) for data in self.dataset ] )
+        else:
+            errList = np.zeros_like(paramsList)
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
-            subplot.errorbar(range(paramsList.shape[1]), paramsList[idx], marker='o')
+            subplot.errorbar(range(paramsList.shape[1]), paramsList[idx], errList[idx], marker='o')
             subplot.set_ylabel(self.dataset[0].paramsNames[idx]) 
             subplot.set_xticks(range(len(self.dataset)))
             subplot.set_xticklabels([data.fileName for data in self.dataset], 
@@ -250,10 +259,14 @@ class QENSPlot(QWidget):
         for dIdx, dataset in enumerate(self.dataset):
             #_Get parameters for each q-value
             paramsList = np.array( [dataset.getWeights_and_lorWidths(idx) for idx in qIds] )
-            errList = np.array( [dataset.getWeights_and_lorErrors(idx) for idx in qIds] ).astype(float)
-
             labels = paramsList[0,-1]                       #_Extracts labels
             paramsList = paramsList[:,:-1].astype(float)    #_Extracts parameters values 
+
+            if self.errBox.isChecked(): #_Whether or not using error bars
+                errList = np.array( [dataset.getWeights_and_lorErrors(idx) for idx in qIds] )
+            else:
+                errList = np.zeros_like(paramsList)
+
 
 
             for idx, row in enumerate(ax):
@@ -349,10 +362,7 @@ class QENSPlot(QWidget):
 
             #_Plot the model
             ax[idx].plot( dataset.data.X,
-                          dataset.model(  dataset.params[qValIdx].x, 
-                                                    dataset,
-                                                    qIdx=qValIdx,
-                                                    returnCost=False),
+                          dataset.getModel(qValIdx), 
                           label='Model',
                           color='red',
                           zorder=7 )

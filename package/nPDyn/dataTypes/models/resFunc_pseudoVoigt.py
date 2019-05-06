@@ -2,7 +2,7 @@ import numpy as np
 
 from collections import namedtuple
 
-from ..baseType import BaseType, DataTypeDecorator
+from ..resType import ResType, DataTypeDecorator
 from ...fit import resFit_pseudoVoigtModel as resModel 
 
 

@@ -5,6 +5,7 @@ from collections import namedtuple
 from .baseType import BaseType
 from ..fileFormatParser import guessFileFormat, readFile, fileImporters
 from ..lib.pyabsco import py_absco_slab, py_absco_tube
+from ..dataTypes import ECType, fECType
 
 
 class FWSType(BaseType):
@@ -64,12 +65,18 @@ class FWSType(BaseType):
             
             Empty cell data are scaled using the given scaleFactor prior to substraction. """
 
-        #_Compute the fitted Empty Cell function
-        ECFunc = []
-        for qIdx, qVal in enumerate(self.data.qVals):
-            ECFunc.append( self.ECData.model( self.data.X, *self.ECData.params[qIdx][0] ) )
+        if isinstance(self.ECData, fECType.fECType):
+            ECFunc = self.ECData.data.intensities
 
-        ECFunc = np.array( ECFunc )
+
+        else: #_Assumes full QENS with fitted model
+            #_Compute the fitted Empty Cell function
+            ECFunc = []
+            for qIdx, qVal in enumerate(self.data.qVals):
+                ECFunc.append( self.ECData.model( self.data.X, *self.ECData.params[qIdx][0] ) )
+
+            ECFunc = np.array( ECFunc )
+
 
         #_If data are normalized, uses the same normalization factor for empty cell data
         if self.data.norm:
@@ -83,8 +90,8 @@ class FWSType(BaseType):
         #_Clean useless values from intensities and errors arrays
         S       = self.data.intensities
         errors  = self.data.errors
-        np.place(errors, S < 0, np.inf)
         np.place(S, S < 0, 0)
+        np.place(errors, S <= 0, np.inf)
         self.data = self.data._replace(intensities = S)
         self.data = self.data._replace(errors = errors)
 
@@ -104,8 +111,8 @@ class FWSType(BaseType):
                                             see http://apps.jcns.fz-juelich.de/doku/sc/absco """
 
         #_Defining some defaults arguments
-        kwargs = {  'mu_i_S'            : 0.65, 
-                    'mu_f_S'            : 0.65, 
+        kwargs = {  'mu_i_S'            : 0.660, 
+                    'mu_f_S'            : 0.660, 
                     'mu_i_C'            : 0.147,
                     'mu_f_C'            : 0.147 }
 
@@ -128,16 +135,30 @@ class FWSType(BaseType):
             kwargs[key] = value
 
         sampleSignal = self.data.intensities
-        try: #_Tries to extract empty cell intensities, use an array of zeros if no data are found
-            ecSignal     = self.ECData.data.intensities
 
-            xIdx = []
-            for xVal in self.data.X:
-                xIdx.append( np.where( self.ECData.data.X - xVal == min(self.ECData.data.X - xVal) )[0][0] )
-        
-        except AttributeError:
-            ecSignal = np.zeros_like(sampleSignal)
+        #_Empty cell data
+        if isinstance(self.ECData, fECType.fECType):
+            ECFunc = self.ECData.data.intensities
 
+        else: #_Assumes full QENS with fitted model
+            try: #_Tries to extract empty cell intensities, use an array of zeros if no data are found
+                #_Compute the fitted Empty Cell function
+                ECFunc = []
+                for qIdx, qVal in enumerate(self.data.qVals):
+                    ECFunc.append( self.ECData.model( self.data.X, *self.ECData.params[qIdx][0] ) )
+
+                ECFunc = np.array( ECFunc )
+
+            
+            except AttributeError:
+                ECFunc = np.zeros_like(sampleSignal)
+
+
+        #_If data are normalized, uses the same normalization factor for empty cell data
+        normFList = np.array([params[0][0] for params in self.resData.params])[:,np.newaxis]
+        if self.data.norm:
+            normFList = np.array([params[0][0] for params in self.resData.params])[:,np.newaxis]
+            ECFunc /= normFList
 
 
         for qIdx, angle in enumerate(self.data.qVals):
@@ -151,14 +172,14 @@ class FWSType(BaseType):
 
             #_Applies correction
             sampleSignal[:,qIdx] = ( (1 / A_S_SC) * sampleSignal[:,qIdx] 
-                            - A_C_SC / (A_S_SC*A_C_C) * canScaling * ecSignal[qIdx,xIdx] )
+                            - A_C_SC / (A_S_SC*A_C_C) * canScaling * ECFunc[qIdx] )
 
 
 
         #_Clean useless values from intensities and errors arrays
         errors  = self.data.errors
-        np.place(errors, sampleSignal < 0, np.inf)
         np.place(sampleSignal, sampleSignal < 0, 0)
+        np.place(errors, sampleSignal <= 0, np.inf)
         self.data = self.data._replace(intensities = sampleSignal)
         self.data = self.data._replace(errors = errors)
 
@@ -176,12 +197,9 @@ class FWSType(BaseType):
             
             If a qIdx is given, returns D2O signal only for the corresponding q value. """
 
-        D2OSignal = np.array( [ self.D2OData.model(self.D2OData.params[idx].x, self.D2OData, idx, False) 
-                                                                    for idx in self.data.qIdx ] )
+        D2OSignal = self.D2OData.getD2OSignal()[self.data.qIdx]
 
-        D2OSignal *= self.D2OData.volFraction
-        
-        
+
         #_Check for difference in normalization state
         normF = np.array( [ self.resData.params[qIdx][0][0] for qIdx in self.data.qIdx ] )
         if self.data.norm and not self.D2OData.data.norm:
@@ -190,6 +208,8 @@ class FWSType(BaseType):
             D2OSignal *= normF[:,np.newaxis]
 
 
+    
+    
         xIdx = []
         for xVal in self.data.X:
             xIdx.append( np.where( self.D2OData.data.X - xVal == min(self.D2OData.data.X - xVal) )[0][0] )
@@ -203,37 +223,6 @@ class FWSType(BaseType):
 
 
         return D2OSignal
-
-
-
-
-
-    def getResFunc(self, withBkgd=False):
-        """ Quick way to obtain the fitted resolution function for this dataset. """
-
-        if withBkgd:
-            params = [ self.resData.params[i][0] for i in range(self.data.qVals.size) ]
-        else:
-            params = [ np.append(self.resData.params[i][0][:-1], 0) for i in range(self.data.qVals.size) ]
-
-
-        if self.data.norm: #_Use normalized resolution function if data were normalized
-            f_res = np.array( [self.resData.model(self.data.X, 1, *params[i][1:]) for i in self.data.qIdx] )
-        else:
-            f_res = np.array( [self.resData.model(self.data.X, *params[i]) for i in self.data.qIdx] )
-
-
-
-        xIdx = []
-        for xVal in self.data.X:
-            xIdx.append( np.where( self.resData.data.X - xVal == min(self.resData.data.X - xVal) )[0][0] )
-    
-        f_res = f_res[:,xIdx]
-
-
-        return f_res
-
-
 
 
 

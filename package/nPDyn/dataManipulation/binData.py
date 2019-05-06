@@ -29,14 +29,18 @@ def binData(data, binS):
             IntSlice = tempIntensities[:,i*binS:i*binS+binS]
             ErrSlice = tempErrors[:,i*binS:i*binS+binS]
             for row in range(IntSlice.shape[0]):
-                tempIntensities[row,i]  = np.mean( IntSlice[row][IntSlice[row]!=0.0]) 
-                tempErrors[row,i]       = np.mean( ErrSlice[row][ErrSlice[row]!=np.inf]) 
+                if IntSlice[row][IntSlice[row]!=0.0].size != 0: 
+                    tempIntensities[row,i]  = np.mean( IntSlice[row][IntSlice[row]!=0.0]) 
+                else:
+                    tempIntensities[row,i]  = 0
 
 
+                if ErrSlice[row][ErrSlice[row]!=np.inf].size != 0: 
+                    tempErrors[row,i]   = np.mean( ErrSlice[row][ErrSlice[row]!=np.inf]) 
+                else:
+                    tempErrors[row,i]   = np.inf
 
-    #_Clean useless values from intensities and errors arrays
-    np.place(tempErrors, np.isnan(tempIntensities), np.inf)
-    np.place(tempIntensities, np.isnan(tempIntensities), 0)
+
 
 
     # Remove unecessary data after binning

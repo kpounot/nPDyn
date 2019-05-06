@@ -29,15 +29,14 @@ class Model(DataTypeDecorator):
 
 
         if not p0: #_Using default initial values
-            p0 = [15, 40, 0.1]  
-            p0 = p0 + [0.2 for i in self.data.qIdx] + [0.2 for i in self.data.qIdx]
+            p0 = [15, 30, 1]  
+            p0 = p0 + [0.2 for i in self.data.qIdx] + [0.8 for i in self.data.qIdx]
 
         if not bounds: #_Using default bounds
-            maxX = 2.5 * np.max( self.data.X )
             maxI = 1.5 * np.max( self.data.intensities )
-            bounds = ( [(0.5, maxX), (0.5, maxX), (0, 10)]
+            bounds = ( [(0., np.inf), (0., np.inf), (0, np.inf)]
                         + [(0., maxI) for i in self.data.qIdx] 
-                        + [(0., 1) for i in self.data.qIdx] )
+                        + [(0., 1.) for i in self.data.qIdx] )
 
 
         #_D2O signal 
@@ -47,18 +46,24 @@ class Model(DataTypeDecorator):
         for tIdx in range(self.data.intensities.shape[0]):
             print("\nFitting model for scan index %i" % tIdx, flush=True)
 
-            if tIdx > 0:
-                p0 = out[-1].x
+            #if tIdx > 0:
+            #    p0 = out[-1].x
 
             result = optimize.basinhopping( self.model, 
                                             p0,
                                             niter = self.BH_iter,
                                             niter_success = 0.5*self.BH_iter,
                                             disp=self.disp,
-                                            stepsize=10,
                                             minimizer_kwargs={ 'args':(self, D2OSignal, None, True, tIdx), 
                                                                'bounds':bounds } ) 
 
+
+
+            r  = "\nFinal result for scan %i:\n" % (tIdx)
+            r += "    g0    = %.2f\n" % result.x[0]
+            r += "    g1    = %.2f\n" % result.x[1]
+            r += "    tau   = %.2f\n" % result.x[2]
+            print(r)
 
 
             #_Creating a list with the same parameters for each q-values (makes code for plotting easier)
@@ -76,12 +81,12 @@ class Model(DataTypeDecorator):
 
 
         if not p0: #_Using default initial values
-            p0 = [15, 40, 10, 0.1, 0.5] 
+            p0 = [15, 30, 1, 0.1, 0.8] 
 
         if not bounds: #_Using default bounds
             maxX = 2.5 * np.max( self.data.X )
             maxI = 1.5 * np.max( self.data.intensities )
-            bounds = [(0.5, maxX), (0.5, maxX), (0., 100), (0., maxI), (0., 1)] 
+            bounds = [(0., np.inf), (0., np.inf), (0., np.inf), (0., maxI), (0., 1)] 
 
 
         #_D2O signal 
@@ -95,7 +100,7 @@ class Model(DataTypeDecorator):
             for i, qIdx in enumerate(self.data.qIdx):
 
                 if tIdx > 0 and qIdx > 0:
-                    p0 = result[-1].x
+                    p0 = result[self.data.qIdx.size*(tIdx-1) + qIdx - 1].x
 
                 print("Fitting model for q index %i\n" % qIdx, flush=True)
                 result.append(optimize.basinhopping( self.model, 
@@ -103,14 +108,28 @@ class Model(DataTypeDecorator):
                                             niter = self.BH_iter,
                                             niter_success = 0.5*self.BH_iter,
                                             disp=self.disp,
-                                            stepsize=10,
                                             minimizer_kwargs={ 'args':(self, D2OSignal, i, True, tIdx), 
                                                                'bounds':bounds } ))
+
+
+                r  = "\nFinal result for scan %i and q-value %i:\n" % (tIdx, qIdx)
+                r += "    g0    = %.2f\n" % result[-1].x[0]
+                r += "    g1    = %.2f\n" % result[-1].x[1]
+                r += "    tau   = %.2f\n" % result[-1].x[2]
+                r += "    beta  = %.2f\n" % result[-1].x[3]
+                r += "    a0    = %.2f\n" % result[-1].x[4]
+                print(r)
 
 
 
         self.params = np.array( result ).reshape( (self.data.intensities.shape[0], self.data.qIdx.size) )
 
+
+    def getModel(self, scanIdx, qIdx):
+        """ Returns the fitted model for the given q value. """
+
+        return self.model(self.getParams(qIdx)[scanIdx], self, self.getD2OSignal(), 
+                                                                        qIdx, False, scanIdx)
 
 
 
@@ -194,7 +213,7 @@ class Model(DataTypeDecorator):
         lorErr      = []
         if len(self.params[0][0].x) == 5:
             for tIdx in range(self.data.intensities.shape[0]):
-                weightsErr.append( [errList[tIdx][4], errList[tIdx][qIdx][4]] )
+                weightsErr.append( [errList[tIdx][4], errList[tIdx][4]] )
                 lorErr.append( errList[tIdx][0:2] )
         else:
             for tIdx in range(self.data.intensities.shape[0]):
@@ -214,3 +233,14 @@ class Model(DataTypeDecorator):
 
 
 
+    def get_betaSlice(self):
+        """ For global fit, returns the slice corresponding to beta parameter(s) """
+
+        return slice(3, 3+self.data.qIdx.size)
+
+
+
+    def get_a0Slice(self):
+        """ For global fit, returns the slice corresponding to a0 parameter(s) """
+
+        return slice(3+self.data.qIdx.size, None)
