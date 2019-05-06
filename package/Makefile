@@ -1,9 +1,10 @@
-all: init nPDyn 
+all: init build 
 
 init:
 	pip3 install -r requirements.txt
 
-nPDyn: setup.py
+
+build: setup.py
 ifeq ($(OS), Windows_NT)
 	python setup.py build --compiler=mingw32
 else
@@ -15,7 +16,7 @@ endif
 .PHONY: install
 install:
 ifeq ($(OS), Windows_NT)
-	python setup.py install --compiler=mingw32
+	python setup.py install 
 else
 	python3 setup.py install
 endif
@@ -23,6 +24,11 @@ endif
 
 .PHONY: clean
 clean:
-	rm -r build
-	cd nPDyn/lib/ && rm *.c 
+ifeq ($(OS), Windows_NT)
+	rmdir /S /Q build  
+	cd nPDyn/lib && del *.c 
+else
+	rm -rf build  
+	rm nPDyn/lib/*.c 
+endif
 
