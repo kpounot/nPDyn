@@ -5,28 +5,20 @@ init:
 
 
 build: setup.py
-ifeq ($(OS), Windows_NT)
-	python setup.py build --compiler=mingw32
-else
-	python3 setup.py build
-endif
+	python setup.py build 
 
 
 
 .PHONY: install
 install:
-ifeq ($(OS), Windows_NT)
 	python setup.py install 
-else
-	python3 setup.py install
-endif
 
 
 .PHONY: clean
 clean:
 ifeq ($(OS), Windows_NT)
 	rmdir /S /Q build  
-	cd nPDyn/lib && del *.c 
+	cd nPDyn/lib && del *.c *.cpp
 else
 	rm -rf build  
 	rm nPDyn/lib/*.c 

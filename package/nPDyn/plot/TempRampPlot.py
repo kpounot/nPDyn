@@ -3,13 +3,13 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
-                             QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
+                             QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame, QCheckBox)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
@@ -26,8 +26,6 @@ class TempRampPlot(QWidget):
         MSD                 -> plot the fitted MSD as a function of temperature """
 
     def __init__(self, datasetList):
-
-        self.app = QApplication(sys.argv)
 
         super().__init__()
 
@@ -49,7 +47,7 @@ class TempRampPlot(QWidget):
         #--------------------------------------------------
 
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -78,6 +76,8 @@ class TempRampPlot(QWidget):
         self.lineEdit = QLineEdit(self) 
         self.lineEdit.setText('300')
 
+        self.errBox = QCheckBox("Plot errors", self)
+
         #_Set the layout
         layout = QVBoxLayout()
         layout.addWidget(self.canvas, stretch=1)
@@ -85,6 +85,7 @@ class TempRampPlot(QWidget):
         layout.addWidget(self.boxLine)
         layout.addWidget(self.label)
         layout.addWidget(self.lineEdit)
+        layout.addWidget(self.errBox)
         layout.addWidget(self.totalScatButton)
         layout.addWidget(self.qWiseScatButton)
         layout.addWidget(self.fitButton)
@@ -115,18 +116,18 @@ class TempRampPlot(QWidget):
     def totalScat(self):
         """ This is used to plot the experimental data, without any fit. """
 
-        plt.gcf().clear()       
+        self.figure.clear()       
         ax = self.figure.add_subplot(111)  
 
         for dataset in self.dataset:
-            ax.plot(dataset.data.X, 
+            ax.errorbar(dataset.data.X, 
                     np.sum(dataset.data.intensities, axis=0),
+                    np.sum(dataset.data.errors, axis=0) if self.errBox.isChecked() else None,
                     label=dataset.fileName)
 
             ax.set_xlabel(r'$Temperature (K)$')
             ax.set_ylabel(r'$Scattering$')
             ax.legend(framealpha=0.5, fontsize=12)
-            ax.grid()
 
         self.canvas.draw()
     
@@ -135,32 +136,37 @@ class TempRampPlot(QWidget):
     def qWiseScat(self):
         """ For each file, plots the temperature of elastic scattering intensity for each q-value. """
 
-        plt.gcf().clear()     
-        ax = subplotsFormatWithColorBar(self)
+        self.figure.clear()     
+        ax0, ax1 = subplotsFormatWithColorBar(self)
 
 
         #_Use a fancy colormap
         normColors = matplotlib.colors.Normalize(vmin=0, vmax=2)
         cmap = matplotlib.cm.get_cmap('winter')
+
+        print(ax0)
+        print(ax1)
     
-        for i, subplot in enumerate(ax[::2]):
+        for i, subplot in enumerate(ax0):
             for qIdx in self.dataset[i].data.qIdx:
                 subplot.plot(self.dataset[i].data.X, 
                              self.dataset[i].data.intensities[qIdx],
                              label=self.dataset[i].data.qVals[qIdx],
                              c=cmap(normColors(self.dataset[i].data.qVals[qIdx])))
 
-            #_Creates a custom color bar
-            qValFirst   = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][0]
-            qValLast    = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][-1]
-            self.drawCustomColorBar(ax[2*i+1], cmap, qValFirst, qValLast)
-            ax[2*i+1].set_aspect(15)
-            ax[2*i+1].set_ylabel('q-values')
-
             subplot.set_title(self.dataset[i].fileName, fontsize=10)
             subplot.set_xlabel(r'$Temperature (K)$')
             subplot.set_ylabel(r'$Scattering$')
             subplot.grid()
+
+        for ax in ax1:
+            #_Creates a custom color bar
+            qValFirst   = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][0]
+            qValLast    = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][-1]
+            self.drawCustomColorBar(ax, cmap, qValFirst, qValLast)
+            ax.set_aspect(15)
+            ax.set_ylabel('q [$\AA^{-2}$]')
+
 
         self.canvas.draw()
     
@@ -169,7 +175,7 @@ class TempRampPlot(QWidget):
     #_Plot of the parameters resulting from the fit procedure
     def fit(self):
 
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, True, True)
 
         for i, subplot in enumerate(ax):
@@ -181,7 +187,7 @@ class TempRampPlot(QWidget):
             #_Plotting experimental data
             subplot.errorbar(   self.dataset[i].data.qVals**2, 
                                 self.dataset[i].data.intensities[:,tempIdx],
-                                self.dataset[i].data.errors[:,tempIdx],
+                                self.dataset[i].data.errors[:,tempIdx] if self.errBox.isChecked() else None,
                                 label="Experimental"   )
     
             #_Adding a transparent blue region to easily locate the fitted data points
@@ -206,14 +212,13 @@ class TempRampPlot(QWidget):
             subplot.set_xlabel(r'$Scattering \ vector \ q \ (\AA^{-2})$')
             subplot.set_ylabel(r'EISF at %d K' % tempToShow)
             subplot.legend(framealpha=0.5, fontsize=12)
-            subplot.grid()
 
         self.canvas.draw()
  
 
     def MSD(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = self.figure.add_subplot(111)  
 
 
@@ -230,9 +235,12 @@ class TempRampPlot(QWidget):
             qMin = dataset.data.qVals[dataset.data.qIdx[0]]
             qMax = dataset.data.qVals[dataset.data.qIdx[-1]]
 
-            #_Computing the errors for each temperature from covariant matrix
-            errList = [np.sqrt(np.diag(dataset.params[tempIdx][1]))[1] for tempIdx, temp 
-                                                                in enumerate(dataset.data.X)]
+            if self.errBox.isChecked():
+                #_Computing the errors for each temperature from covariant matrix
+                errList = [np.sqrt(np.diag(dataset.params[tempIdx][1]))[1] for tempIdx, temp 
+                                                                    in enumerate(dataset.data.X)]
+            else:
+                errList = np.zeros_like(msdList)
 
             #_Plotting the MSD
             ax.errorbar(dataset.data.X[:tempIdx+1], 
@@ -241,10 +249,9 @@ class TempRampPlot(QWidget):
                         marker=markers[i],
                         label = dataset.fileName)
 
-            ax.set_xlabel(r'$Temperature (K)$')
-            ax.set_ylabel(r'$MSD \ (\AA^{2})$ q=%.2f to %.2f ($\AA^{-1})$' % ( qMin, qMax ))
+            ax.set_xlabel(r'$Temperature [K]$')
+            ax.set_ylabel(r'$MSD \ [\AA^{2}]$, q=%.2f to %.2f [$\AA^{-1}]$' % ( qMin, qMax ))
             ax.legend(framealpha=0.5, fontsize=12, loc='upper left')
-            ax.grid()
 
         self.canvas.draw()
 
@@ -257,7 +264,7 @@ class TempRampPlot(QWidget):
         for idx, dataset in enumerate(self.dataset):
             try: 
                 if not dataset.params:
-                    print("WARNING: no fitted parameters were found for data at index %i.\n" % i    
+                    print("WARNING: no fitted parameters were found for data at index %i.\n" % idx    
                       + "Some plotting methods might not work properly.\n")
             except AttributeError:
                 print("No parameters for dataset at index %i were found.\n" % idx 

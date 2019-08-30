@@ -4,7 +4,6 @@ from collections import namedtuple
 
 from .baseType import BaseType
 from ..fileFormatParser import guessFileFormat, readFile, fileImporters
-from ..lib.pyabsco import py_absco_slab, py_absco_tube
 from ..dataTypes import ECType, fECType
 
 
@@ -12,6 +11,11 @@ class FWSType(BaseType):
 
     def __init__(self, fileName, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
+
+
+        self.timestep = None #_Should be given in hours
+
+        self.globalFit = True
 
 
     def importData(self, fileFormat=None):

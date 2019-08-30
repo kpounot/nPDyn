@@ -139,6 +139,11 @@ class Model(DataTypeDecorator):
         return params
 
 
+    def getEISFfactor(self, qIdx):
+        """ Returns the contribution factor - usually called s0 - of the EISF. """
+
+        return self.getParams(qIdx)[0]
+
 
 
     def getWeights_and_lorWidths(self, qIdx):
@@ -180,6 +185,20 @@ class Model(DataTypeDecorator):
     def getBackground(self, qIdx):
 
         return None
+
+
+
+    def getsubCurves(self, qIdx):
+
+        #_D2O signal 
+        D2OSignal = self.getD2OSignal()
+
+        resF, gLor, iLor = self.model(self.data.X, self.getParams(qIdx), self, D2OSignal qIdx, False, 
+                                      returnSubCurves=True)
+        labels      = [r'$L_{\Gamma_{global}}(q, \omega)$', r'$L_{\Gamma_{internal}}(q, \omega)$']
+
+        return resF[qIdx], gLor[qIdx], iLor[qIdx], labels
+
 
 
 

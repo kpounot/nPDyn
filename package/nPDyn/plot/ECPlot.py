@@ -3,13 +3,13 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
@@ -28,8 +28,6 @@ class ECPlot(QWidget):
 
     def __init__(self, dataset):
 
-        self.app = QApplication(sys.argv)
-
         super().__init__()
 
         self.dataset   = dataset
@@ -45,7 +43,7 @@ class ECPlot(QWidget):
         #--------------------------------------------------
 
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -94,7 +92,7 @@ class ECPlot(QWidget):
     def plot(self):
         """ This is used to plot the experimental data, without any fit. """
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, False, True)  
         
         for idx, subplot in enumerate(ax):
@@ -125,7 +123,7 @@ class ECPlot(QWidget):
     def plot3D(self):
         """ 3D plot of the whole dataset. """
 
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         #_Use a fancy colormap
         normColors = matplotlib.colors.Normalize(vmin=0, vmax=2)
@@ -159,7 +157,7 @@ class ECPlot(QWidget):
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
 
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         #_Creates as many subplots as there are parameters in the model
         ax = subplotsFormat(self, True, False, params=True)
@@ -177,7 +175,7 @@ class ECPlot(QWidget):
                 subplot.set_xlabel(r'$q \ (\AA^{-1})$')
                 subplot.grid(True)
 
-        plt.legend(framealpha=0.5, fontsize=10, bbox_to_anchor=(0.3, 2.5))
+        self.figure.legend(framealpha=0.5, fontsize=10, bbox_to_anchor=(0.3, 2.5))
 
         self.canvas.draw()
 
@@ -186,7 +184,7 @@ class ECPlot(QWidget):
 
     def resPlot(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, False, True) 
 
         for idx, subplot in enumerate(ax):

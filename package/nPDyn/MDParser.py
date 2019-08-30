@@ -15,9 +15,12 @@ try:
     from NAMDAnalyzer.Dataset import Dataset as MDDataset
     from NAMDAnalyzer.dataAnalysis.backscatteringDataConvert import BackScatData
 except ImportError:
-    raise ImportError("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was not installed "
-                        + "within your python framework.\n" 
-                        + "MD simulations related methods won't work.\n")
+    class MDDataset: pass
+    class BackScatData: pass
+
+    print("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was not installed "
+           + "within your python framework.\n" 
+           + "MD simulations related methods won't work.\n")
 
 
 class MDData(MDDataset, BackScatData):
@@ -30,7 +33,7 @@ class MDData(MDDataset, BackScatData):
         The getTempRampEISF methods need several .dcd files that will be loaded and unloaded one after 
         the other for each temperature. """
 
-    def __init__(self, expData, fileList=None, stride=1):
+    def __init__(self, expData, fileList, stride=1):
         MDDataset.__init__(self, fileList, stride=stride)
         BackScatData.__init__(self, self)
 
@@ -46,13 +49,6 @@ class MDData(MDDataset, BackScatData):
     def initMD(self, psfFile, stride=1):
         """ Initialize a NAMDAnalyzer instance with the given psf file. """
 
-        try:
-            self.dcdData.dcdData = None #_Free memory
-            self.psfData         = None #_Free memory
-            self.psfFile         = None
-        except AttributeError:
-            pass
-
 
         self.importFile(psfFile)
         self.stride = stride
@@ -62,7 +58,7 @@ class MDData(MDDataset, BackScatData):
 #--------------------------------------------------
 #_Methods to obtain nPDyn like data types that are append to experimental data list
 #--------------------------------------------------
-    def getTempRampEISF(self, dcdFiles, tempList, qVals, dataSetIdx=0, resBkgdIdx=None, converter_kwargs={}):
+    def getTempRampEISF(self, dcdFiles, tempList, dataSetIdx=0, resBkgdIdx=None, converter_kwargs={}):
         """ Calls compScatteringFunc from NAMDAnalyzer for all given dcdFiles, extracts the EISF and
             stores values in a data tuple that can be used directly in nPDyn.
 
@@ -84,11 +80,7 @@ class MDData(MDDataset, BackScatData):
         tempDataSeries  = []
 
         #_Defining some defaults arguments
-        kwargs = {  'qValList'    : qVals,
-                    'resFunc'     : None, 
-                    'selection'   : 'waterH', 
-                    'nbrTimeOri'  : 20,
-                    'frames'      : slice(0, None, 2) }
+        kwargs = { 'qValList': qVals }
 
         #_Modifies default arguments with given ones, if any
         for key, value in converter_kwargs.items():
@@ -111,7 +103,7 @@ class MDData(MDDataset, BackScatData):
 
         #_Gets fitted instrumental background and add it to simulated data
         if resBkgdIdx is not None:
-            bkgd = np.array( [data[0][-1] for data in self.resData[resBkgdIdx].params] )[:, np.newaxis]
+            bkgd = np.array( [data[0][-1] for data in self.expData.resData[resBkgdIdx].params] )[:, np.newaxis]
             
             dataTuple = dataTuple._replace(intensities = dataTuple.intensities + bkgd)
 
@@ -120,22 +112,13 @@ class MDData(MDDataset, BackScatData):
         #_Appends computed temp ramp to dataSetList 
         self.expData.dataSetList.append( TempRampType.TempRampType( self.psfFile, 
                                                             dataTuple,
-                                                            dataTuple,
-                                                            self.D2OData,
-                                                            self.ECData ) )
-
-
-
-        #_Assign first resolution function by default
-        self.expData.dataSetList[-1].assignResData(self.resData[0]) 
-
-        #_Free up memory
-        self.dcdData = None
+                                                            dataTuple ) )
 
 
 
 
-    def getQENS(self, dcdFile, qVals, dataSetIdx=0, resBkgdIdx=None, converter_kwargs={}):
+
+    def getQENS(self, dcdFile, dataSetIdx=0, resBkgdIdx=None, converter_kwargs={}):
         """ This method calls the convertScatFunctoEISF for energy space.
 
             This procedure is done for each dcd file in 'dcdFiles'. It might take some time depending
@@ -145,17 +128,20 @@ class MDData(MDDataset, BackScatData):
             Finally, all the EISF for each temperature are gathered into a single namedtuple similar to the
             one used in nPDyn.
 
-            This namedtuple can be added to the dataSetList of nPDyn and used as any experimental file. """
+            This namedtuple can be added to the dataSetList of nPDyn and used as any experimental file. 
+            
+            Input:  dcdFile             -> list of file path to be used to compute QENS spectra
+                    dataSetIdx          -> index of experimental dataset to be used to extract q-values
+                    resBkgdIdx          -> index of resolution data to be used for background
+                    converter_kwargs    -> arguments to be given to NAMDAnalyzer compScatFunc method """
+        
+
 
 
         qVals = self.expData.dataSetList[dataSetIdx].data.qVals
 
         #_Defining some defaults arguments
-        kwargs = {  'qValList'    : qVals,
-                    'resFunc'     : None, 
-                    'selection'   : 'waterH', 
-                    'nbrTimeOri'  : 20,
-                    'frames'      : slice(0, None, 2) }
+        kwargs = { 'qValList': qVals }
 
         #_Modifies default arguments with given ones, if any
         for key, value in converter_kwargs.items():
@@ -167,30 +153,21 @@ class MDData(MDDataset, BackScatData):
 
         scatF = self.scatFunc
         errors = np.zeros_like(scatF[0])
-        MDDataT = self.MDDataT( qVals, scatF[1], scatF[0], errors, 0, False, np.arang(qVals.size) )
+        MDDataT = self.MDDataT( qVals, scatF[1], scatF[0], errors, 0, False, np.arange(qVals.size) )
 
 
 
         #_Gets fitted instrumental background and add it to simulated data
         if resBkgdIdx is not None:
-            bkgd = np.array( [data[0][-1] for data in self.resData[resBkgdIdx].params] )[:, np.newaxis]
+            bkgd = np.array( [data[0][-1] for data in self.expData.resData[resBkgdIdx].params] )[:, np.newaxis]
             
             MDDataT = MDDataT._replace(intensities = MDDataT.intensities + bkgd)
 
             
 
-        self.expData.dataSetList.append( QENSType.QENSType( self.MDData.psfFile, 
+        self.expData.dataSetList.append( QENSType.QENSType( self.psfFile, 
                                                             MDDataT,
-                                                            MDDataT,
-                                                            self.D2OData,
-                                                            self.ECData ) )
-
-
-        #_Assign first resolution function by default
-        self.expData.dataSetList[-1].assignResData(self.resData[0]) 
-
-        #_Free up memory
-        self.MDData.dcdData = None
+                                                            MDDataT ) )
 
 
 
@@ -223,7 +200,7 @@ class MDData(MDDataset, BackScatData):
 
 
 #--------------------------------------------------
-#_Data corrections method 
+#_Plotting method 
 #--------------------------------------------------
     def plotMSDfromMD(self, tempList, msdIdxList, *fileIdxList):
         """ Plot the given computed MSD alongwith given files in fileIdxList.
@@ -232,13 +209,6 @@ class MDData(MDDataset, BackScatData):
                     msdIdxList  -> indices for msd series in self.MDData.msdSeriesList
                     fileIdxList -> indices for files in self.fileIdxList to be plotted (optional, default all)
                     """
-
-        #_If not file indices were given, assumes that all should be use
-        if not fileIdxList:
-            fileIdxList = range(len(self.expData.dataSetList))
-
-        if fileIdxList == None:
-            fileIdxList = []
 
         datasetList     = [dataset for i, dataset in enumerate(self.expData.dataSetList) if i in fileIdxList] 
         msdSeriesList   = [msd for i, msd in enumerate(self.msdSeriesList) if i in msdIdxList] 

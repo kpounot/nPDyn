@@ -137,6 +137,13 @@ class Model(DataTypeDecorator):
 
 
 
+    def getEISFfactor(self, qIdx):
+        """ Returns the contribution factor - usually called s0 - of the EISF. """
+
+        return self.getParams(qIdx)[0]
+
+
+
 
     def getWeights_and_lorWidths(self, qIdx):
         #_For plotting purpose, gives fitted weights and lorentzian width

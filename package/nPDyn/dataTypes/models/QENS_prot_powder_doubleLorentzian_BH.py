@@ -124,6 +124,11 @@ class Model(DataTypeDecorator):
         return params
 
 
+    def getEISFfactor(self, qIdx):
+        """ Returns the contribution factor - usually called s0 - of the EISF. """
+
+        return self.getParams(qIdx)[0]
+
 
 
 
@@ -131,7 +136,7 @@ class Model(DataTypeDecorator):
         #_For plotting purpose, gives fitted weights and lorentzian width
         weights     = self.params[qIdx].x[1:3]
         lorWidths   = self.params[qIdx].x[3:5] * self.data.qVals[qIdx]**2
-        labels      = [r'$\gamma$0', r'$\gamma$g1']
+        labels      = [r'$\Gamma_{0}$', r'$\Gamma_{1}$']
 
         return weights, lorWidths, labels
 
@@ -155,4 +160,17 @@ class Model(DataTypeDecorator):
             return self.params[qIdx].x[6]
         else:
             return self.params[qIdx].x[6+qIdx]
+
+
+
+    def getSubCurves(self, qIdx):
+        """ Computes the convoluted Lorentzians that are in the model and returns them 
+            individually along with their labels as the last argument. 
+            They can be directly plotted as a function of energies. """
+
+        resF, lor1, lor2 = self.model(self.getParams(qIdx), self, qIdx, False, True)
+        labels      = [r'$L_{\Gamma_{1}}(q, \omega)$', r'$L_{\Gamma_{2}}(q, \omega)$']
+
+        return resF[qIdx], lor1[qIdx], lor2[qIdx], labels
+
 

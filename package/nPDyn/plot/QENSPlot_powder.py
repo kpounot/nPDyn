@@ -210,7 +210,9 @@ class QENSPlot_powder(QWidget):
                         zorder=1)
 
             #_Plot the background
-            subplot.axhline(self.resParams[idx][qValIdx][0][-1], label='Background', zorder=2)
+            bkgd = dataset.getBackground(qValIdx)
+            if bkgd is not None:
+                ax[idx].axhline(bkgd, label='Background', zorder=2)
 
             #_Plot the resolution function
             resF = self.resFunc[idx](self.dataSetList[idx].X, *self.resParams[idx][qValIdx][0][:-1], 0)

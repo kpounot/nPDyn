@@ -3,12 +3,12 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
 from PyQt5 import QtGui
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
@@ -25,11 +25,9 @@ class plotMSDSeries(QWidget):
 
     def __init__(self, msdSeriesList, tempList, datasetList=[]):
 
-        self.app = QApplication(sys.argv)
-
         super().__init__()
 
-        self.tempList   = tempList
+        self.tempList   = np.array(tempList)
         self.dataset    = datasetList
         self.msdSeries  = msdSeriesList
 
@@ -46,7 +44,7 @@ class plotMSDSeries(QWidget):
         #--------------------------------------------------
 
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -87,17 +85,16 @@ class plotMSDSeries(QWidget):
 
     def MSD(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = self.figure.add_subplot(111)  
 
         #_Plot the mean-squared displacement as a function of temperature for each file
         for dataset in self.dataset:
             #_Obtaining the temperature to plot as being the closest one to the number entered by the user 
-            tempToShow = min(dataset.data.X, key = lambda x : abs(float(self.lineEdit.text()) - x))
-            tempIdx = int(np.argwhere(dataset.data.X == tempToShow)[0])
+            tempIdx = int(np.argwhere(dataset.data.X <= float(self.lineEdit.text()))[-1])
 
             #_Extracting the MSD from parameters for each temperature
-            msdList = [dataset.params[tempIdx][0][1] for tempIdx, temp in enumerate(dataset.data.X)]
+            msdList = [dataset.params[idx][0][1] for idx, temp in enumerate(dataset.data.X) if idx <= tempIdx]
             qMin = dataset.data.qVals[dataset.data.qIdx[0]]
             qMax = dataset.data.qVals[dataset.data.qIdx[-1]]
 
@@ -105,15 +102,18 @@ class plotMSDSeries(QWidget):
             errList = [np.sqrt(np.diag(dataset.params[tempIdx][1]))[1] for tempIdx, temp 
                                                                 in enumerate(dataset.data.X)]
             #_Plotting the experimental MSD
-            ax.errorbar(dataset.data.X[:tempIdx+1], 
-                        msdList[:tempIdx+1],
-                        errList[:tempIdx+1], 
+            ax.errorbar(dataset.data.X[:tempIdx], 
+                        msdList[:tempIdx],
+                        errList[:tempIdx], 
                         label = dataset.fileName)
 
         for i in range(len(self.msdSeries)):
             
+            tempIdx = int(np.argwhere(self.tempList <= float(self.lineEdit.text()))[-1])
+
             #_Plotting the MSD from simulation
-            ax.errorbar(self.tempList, self.msdSeries[i][:,0], self.msdSeries[i][:,1], label="Simulated MSD")
+            ax.errorbar(self.tempList, self.msdSeries[i][:tempIdx,0], 
+                        self.msdSeries[i][:tempIdx,1], label="Simulated MSD")
 
             ax.set_xlabel(r'$Temperature (K)$')
             ax.set_ylabel(r'$MSD \ (\AA^{2})$')

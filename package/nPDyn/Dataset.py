@@ -6,6 +6,9 @@ import re
 
 from collections import namedtuple
 
+import matplotlib
+matplotlib.use('Qt5Agg')
+
 from PyQt5.QtWidgets import QApplication
 
 from . import fileFormatParser
@@ -32,8 +35,10 @@ class Dataset:
 
 
     def __init__(self, QENSFiles=None, FWSFiles=None, TempRampFiles=None, ECFile=None, fECFile=None,
-                                                                resFiles=None, D2OFile=None, fD2OFile=None):
+                                                tECFile=None, resFiles=None, D2OFile=None, fD2OFile=None):
 
+
+        self.app = QApplication(sys.argv)
 
         #_Declaring attributes related to samples dataset
         self.dataSetList    = []
@@ -48,6 +53,7 @@ class Dataset:
         #_Declaring empty cell signal related variables
         self.ECData     = None
         self.fECData    = None
+        self.tECData    = None
 
         self.msdSeriesList      = []    #_Used to store msd from trajectories, present here to allow for
                                         #_different psf files loading
@@ -57,8 +63,9 @@ class Dataset:
         modelT = namedtuple( 'models', 'resFunc_pseudoVoigt resFunc_gaussian D2OFunc_sglLorentzian_Min'
                                             + ' ECFunc_pseudoVoigt'
                                             + ' D2OFunc_lorentzian_and_elastic_Min'
-                                            + ' QENS_prot_powder_dblLorentzian_BH QENS_water_powder_BH'
-                                            + ' QENS_protein_liquid_BH' 
+                                            + ' QENS_prot_powder_dblLorentzian_BH'
+                                            + ' QENS_prot_powder_sglLorentzian_BH'
+                                            + ' QENS_water_powder_BH'
                                             + ' QENS_protein_liquid_analytic_voigt_BH' 
                                             + ' QENS_protein_liquid_analytic_voigt_CF' 
                                             + ' TempRamp_gaussian TempRamp_q4'
@@ -73,8 +80,8 @@ class Dataset:
                                 D2OFunc_singleLorentzian_Min.Model,
                                 D2OFunc_lorentzian_and_elastic_Min.Model,
                                 QENS_prot_powder_doubleLorentzian_BH.Model,
+                                QENS_prot_powder_singleLorentzian_BH.Model,
                                 QENS_water_powder_BH.Model,
-                                QENS_protein_liquid_BH.Model,
                                 QENS_protein_liquid_analytic_voigt_BH.Model,
                                 QENS_protein_liquid_analytic_voigt_CF.Model,
                                 TempRamp_gaussian.Model,
@@ -85,7 +92,8 @@ class Dataset:
 
 
         self.importFiles( None, **{ 'QENSFiles':QENSFiles, 'FWSFiles':FWSFiles, 'TempRampFiles':TempRampFiles,
-            'ECFile':ECFile, 'fECFile':fECFile, 'resFiles':resFiles, 'D2OFile':D2OFile, 'fD2OFile':fD2OFile } )
+            'ECFile':ECFile, 'fECFile':fECFile, 'tECFile':tECFile, 
+            'resFiles':resFiles, 'D2OFile':D2OFile, 'fD2OFile':fD2OFile } )
 
 
         self.resFuncAssign()
@@ -95,7 +103,7 @@ class Dataset:
 
 
     def importFiles(self, fileFormat=None, QENSFiles=None, FWSFiles=None, TempRampFiles=None, 
-                                    ECFile=None, fECFile=None, resFiles=None, D2OFile=None, fD2OFile=None):
+                        ECFile=None, fECFile=None, tECFile=None, resFiles=None, D2OFile=None, fD2OFile=None):
         """ Read and import data from experimental data file.
             If no file format is given, this method tries to identify the file's type automatically, 
             and send an error message in case the file could not be imported. 
@@ -124,6 +132,13 @@ class Dataset:
             data.importData(fileFormat=fileFormat)
 
             self.fECData = data
+
+
+        if tECFile:
+            data = TempRampType.TempRampType(tECFile)
+            data.importData(fileFormat=fileFormat)
+
+            self.tECData = data
 
 
         if resFiles: 
@@ -207,7 +222,12 @@ class Dataset:
                 data = TempRampType.TempRampType(f)
                 data.importData(fileFormat=fileFormat)
                 data.assignD2OData( self.D2OData )
-                data.assignECData( self.ECData )
+                
+                if self.tECData is not None:
+                    data.assignECData( self.tECData )
+                else:
+                    data.assignECData( self.ECData )
+
                 self.dataSetList.append( data )
 
 
@@ -274,10 +294,20 @@ class Dataset:
         for resData in self.resData:
             resData.resetData()
 
-        self.D2OData.resetData()
+        if self.D2OData:
+            self.D2OData.resetData()
 
-        self.ECData.resetData()
+        if self.fD2OData:
+            self.fD2OData.resetData()
+
+        if self.ECData:
+            self.ECData.resetData()
  
+        if self.fECData:
+            self.fECData.resetData()
+
+        if self.tECData:
+            self.tECData.resetData()
 
 
 #--------------------------------------------------
@@ -492,6 +522,20 @@ class Dataset:
         for idx in fileIdxList:
             self.dataSetList[idx].resetDetectors()
 
+
+    def setQRange(self, minQ, maxQ, *fileIdxList):
+        """ Defines a q-range within which detectors are not discarded.
+            
+            Input:  minQ -> minimum q-value to keep
+                    maxQ -> maximum q-value to keep """
+
+        #_If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.dataSetList))
+
+        for idx in fileIdxList:
+            self.dataSetList[idx].setQRange(minQ, maxQ)
+
             
 
 
@@ -575,6 +619,9 @@ class Dataset:
 
         if self.ECData:
             self.ECData.binData(binS)
+
+        if self.tECData:
+            self.tECData.binData(binS)
 
         if self.D2OData:
             self.D2OData.binData(binS)
@@ -703,6 +750,8 @@ if __name__ == '__main__':
                                     help="Specify the file containing QENS empty cell data")
     parser.add_argument("-fec", "--fixed-empty-cell", nargs='?',
                                     help="Specify the file containing FWS empty cell data")
+    parser.add_argument("-tec", "--TempRamp-empty-cell", nargs='?',
+                                    help="Specify the file containing temperature ramp empty cell data")
     parser.add_argument("-d", "--D2O", nargs='?', help="Specify the file containing QENS D2O data")
     parser.add_argument("-fd", "--fixed-D2O", nargs='?', help="Specify the file containing QENS D2O data")
 
@@ -710,4 +759,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data = dataSet(args.QENS, args.FWS, args.TempRamp, args.empty_cell, args.fixed_empty_cell,
-                                                                args.resolution, args.D2O, args.fixed_D2O)
+                                        args.TempRanp_empty_cell, args.resolution, args.D2O, args.fixed_D2O)

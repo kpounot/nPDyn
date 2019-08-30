@@ -3,13 +3,13 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame, QCheckBox)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
@@ -30,8 +30,6 @@ class FWSPlot(QWidget):
 
     def __init__(self, dataset):
 
-        self.app = QApplication(sys.argv)
-
         super().__init__()
 
         #_Dataset related attributes
@@ -43,7 +41,7 @@ class FWSPlot(QWidget):
 #_Construction of the GUI
 #--------------------------------------------------
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -114,7 +112,7 @@ class FWSPlot(QWidget):
     def plot(self):
         """ This is used to plot the experimental data, without any fit. """
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax0, ax1 = subplotsFormatWithColorBar(self)
         
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
@@ -142,10 +140,20 @@ class FWSPlot(QWidget):
 
 
         for ax in ax1:
+            
+            #_Chech if timestep is given
+            if self.dataset[0].timestep is not None:
+                yy = self.dataset[0].timestep * np.arange(self.dataset[0].data.intensities.shape[0])
+                ylabel = 'Time [h]'
+            else:
+                yy = np.arange(self.dataset[0].data.intensities.shape[0])
+                ylabel = 'Scan number'
+
+
             #_Creates a custom color bar
-            self.drawCustomColorBar(ax, cmap, 0, self.dataset[0].data.intensities.shape[0])
+            self.drawCustomColorBar(ax, cmap, yy[0], yy[-1])
             ax.set_aspect(15)
-            ax.set_ylabel('Scan number')
+            ax.set_ylabel(ylabel)
 
 
         self.figure.tight_layout()
@@ -157,7 +165,7 @@ class FWSPlot(QWidget):
     def plot3D(self):
         """ 3D plot of the whole dataset """
 
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, False, False, '3d', FWS=True) 
         
 
@@ -177,8 +185,16 @@ class FWSPlot(QWidget):
             maxScan = self.dataset[0].data.intensities.shape[0]
             qIds = self.dataset[0].data.qIdx
 
-            xx, yy = np.meshgrid(self.dataset[0].data.qVals[qIds], 
-                                 np.arange(self.dataset[0].data.intensities.shape[0]))
+            #_Chech if timestep is given
+            if self.dataset[0].timestep is not None:
+                yy = self.dataset[0].timestep * np.arange(self.dataset[0].data.intensities.shape[0])
+                ylabel = 'Time [h]'
+            else:
+                yy = np.arange(self.dataset[0].data.intensities.shape[0])
+                ylabel = 'Scan number'
+
+
+            xx, yy = np.meshgrid(self.dataset[0].data.qVals[qIds], yy)
 
             subplot.plot_wireframe( xx, 
                                     yy,
@@ -187,7 +203,7 @@ class FWSPlot(QWidget):
                                     colors=cmapList[i]( normColors(np.arange(maxScan)) ) )
 
             subplot.set_xlabel(r'$q\ [\AA^{-1}]$')
-            subplot.set_ylabel(r'$Scan \ number$')
+            subplot.set_ylabel(ylabel)
             subplot.set_zlabel(r'$S(q, \Delta E)$')
             subplot.legend(framealpha=0.5)
             subplot.grid()
@@ -205,7 +221,7 @@ class FWSPlot(QWidget):
             There is one parameter list for each file, which consists in a q-wise list of scipy's
             OptimizeResult instance. Parameters are retrieved using OptimizeResults.x attribute. """ 
 
-        plt.gcf().clear()     
+        self.figure.clear()     
 
 
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
@@ -225,16 +241,22 @@ class FWSPlot(QWidget):
         else:
             errList = np.zeros_like(paramsList)
 
-        scanNbr     = self.dataset[0].data.intensities.shape[0]
+        #_Chech if timestep is given
+        if self.dataset[0].timestep is not None:
+            X = self.dataset[0].timestep * np.arange(self.dataset[0].data.intensities.shape[0])
+            xlabel = 'Time [h]'
+        else:
+            X = np.arange(self.dataset[0].data.intensities.shape[0])
+            xlabel = 'Scan number'
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
-            subplot.errorbar(range(scanNbr), 
+            subplot.errorbar(X, 
                              paramsList[:,idx], 
                              errList[:,idx],
                              marker='o')
             subplot.set_ylabel(self.dataset[0].paramsNames[idx]) 
-            subplot.set_xlabel('Scan number')
+            subplot.set_xlabel(xlabel)
         
         self.canvas.draw()
 
@@ -245,7 +267,7 @@ class FWSPlot(QWidget):
 
     def fitPlot(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         ax = subplotsFormat(self, False, False, '3d')
 
@@ -261,8 +283,17 @@ class FWSPlot(QWidget):
 
         
         for idx, subplot in enumerate(ax):
+
+            #_Chech if timestep is given
+            if self.dataset[0].timestep is not None:
+                yy = self.dataset[0].timestep * np.arange(self.dataset[0].data.intensities.shape[0])
+                ylabel = 'Time [h]'
+            else:
+                yy = np.arange(self.dataset[0].data.intensities.shape[0])
+                ylabel = 'Scan number'
+
             #_Plot the datas for selected q value normalized with integrated curves at low temperature
-            xx, yy = np.meshgrid(self.dataset[0].data.X, range(scanNbr))
+            xx, yy = np.meshgrid(self.dataset[0].data.X, yy)
             subplot.scatter( xx, yy,
                         self.dataset[idx].data.intensities[:,qIdxList[qValIdx]] )
 
@@ -284,7 +315,7 @@ class FWSPlot(QWidget):
 
         subplot.set_title(self.dataset[idx].fileName, fontsize=10)
         subplot.set_xlabel(r'$\hslash\omega (\mu eV)$')
-        subplot.set_ylabel('Scan number')
+        subplot.set_ylabel(ylabel)
         subplot.set_zlabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$')   
 
         self.canvas.draw()
