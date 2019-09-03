@@ -17,7 +17,7 @@ class Model(DataTypeDecorator):
 
         self.model          = model
         self.params         = None
-        self.paramsNames    = ['s0', 's1', 'g1', 'msd', 'bkgd'] #_For plotting purpose
+        self.paramsNames    = ['s0', 's1', 'g1', 'msd', 'tau', 'bkgd'] #_For plotting purpose
         self.BH_iter        = 50
         self.disp           = True
 
@@ -27,12 +27,12 @@ class Model(DataTypeDecorator):
         print(50*"-", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.4, 0.6, 2, 1] + [0.001 for i in range(len(self.data.qIdx))]
+            p0 = [0.4, 0.6, 2, 1, 2] + [0.001 for i in range(len(self.data.qIdx))]
 
         if not bounds: #_Using default bounds
             minData = 1.5 * np.min( self.data.intensities ) #_To restrict background below experimental data
 
-            bounds = [(0., 1), (0., 1), (0., 30), (0., 10)]
+            bounds = [(0., 1), (0., 1), (0., 30), (0., 10), (0., 2)]
             bounds += [(0., minData) for i in range(len(self.data.qIdx))]
 
 
@@ -64,12 +64,12 @@ class Model(DataTypeDecorator):
         print(50*"-" + "\n", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.6, 0.2, 5, 1, 0.001]
+            p0 = [0.6, 0.2, 5, 1, 2, 0.001]
 
         if not bounds: #_Using default bounds
             minData = np.min( self.data.intensities ) #_To restrict background below experimental data
 
-            bounds = [(0., 1), (0., 1), (0., 1000), (0., 10), (0., minData)] 
+            bounds = [(0., 1), (0., 1), (0., 1000), (0., 10), (0., 2), (0., minData)] 
 
 
         result = []
@@ -104,7 +104,7 @@ class Model(DataTypeDecorator):
         if len(self.params[0].x) == len(self.paramsNames):
             params = self.params[qIdx].x
         else:
-            params = self.params[qIdx].x[ [0,1,2,3,4+qIdx] ]
+            params = self.params[qIdx].x[ [0,1,2,3,4,5+qIdx] ]
 
         return params
 
@@ -119,7 +119,7 @@ class Model(DataTypeDecorator):
         else:
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
-            params = params[ [0,1,2,3,4+qIdx] ]
+            params = params[ [0,1,2,3,4,5+qIdx] ]
 
         return params
 
@@ -134,7 +134,7 @@ class Model(DataTypeDecorator):
 
     def getWeights_and_lorWidths(self, qIdx):
         #_For plotting purpose, gives fitted weights and lorentzian width
-        weights     = self.params[qIdx].x[[1]]
+        weights     = self.params[qIdx].x[[1]] / self.params[qIdx].x[:2].sum()
         lorWidths   = self.params[qIdx].x[[2]] * self.data.qVals[qIdx]**2
         labels      = [r'$\Gamma$']
 
@@ -157,9 +157,9 @@ class Model(DataTypeDecorator):
     def getBackground(self, qIdx):
 
         if len(self.params[0].x) == len(self.paramsNames):
-            return self.params[qIdx].x[4]
+            return self.params[qIdx].x[5]
         else:
-            return self.params[qIdx].x[4+qIdx]
+            return self.params[qIdx].x[5+qIdx]
 
 
 

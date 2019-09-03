@@ -193,7 +193,7 @@ class Model(DataTypeDecorator):
         #_D2O signal 
         D2OSignal = self.getD2OSignal()
 
-        resF, gLor, iLor = self.model(self.data.X, self.getParams(qIdx), self, D2OSignal qIdx, False, 
+        resF, gLor, iLor = self.model(self.data.X, self.getParams(qIdx), self, D2OSignal, qIdx, False, 
                                       returnSubCurves=True)
         labels      = [r'$L_{\Gamma_{global}}(q, \omega)$', r'$L_{\Gamma_{internal}}(q, \omega)$']
 

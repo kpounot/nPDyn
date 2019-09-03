@@ -363,7 +363,6 @@ class QENSPlot(QWidget):
             ax[idx].set_xlabel(r'$\hslash\omega [\mu eV]$')
             ax[idx].set_yscale('log')
             ax[idx].set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$')   
-            ax[idx].grid()
 
 
             #_Set some limits on axis
