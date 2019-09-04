@@ -133,7 +133,8 @@ def protein_powder_1Lorentzian(params, dataset, qIdx=None, returnCost=True, retu
     resS  = np.array( [dataset.resData.params[qIdx][0][1] for qIdx in dataset.data.qIdx] )[:,np.newaxis]
 
     if qIdx is None:
-        g1 = g1 * qVals**2
+        #g1 = g1 * qVals**2
+        g1 = g1 * qVals**2 / (1 + g1 * qVals**2 * tau)
 
     if isinstance(dataset.resData, resFunc_pseudoVoigt.Model):
         conv_1_resG0 = (g1 + resG0) / (np.pi * (X**2 + (g1 + resG0)**2))
@@ -245,7 +246,8 @@ def water_powder(params, dataset, qIdx=None, returnCost=True, returnSubCurves=Fa
 
     #_Computes the q-dependent lorentzians (translational motions)
     if qIdx is None:
-        gt = (gt*qVals**2)
+        #gt = (gt*qVals**2)
+        gt = gt * qVals**2 / (1 + gt * qVals**2 * tau)
 
     if isinstance(dataset.resData, resFunc_pseudoVoigt.Model):
         conv_resG0 = (gt + resG0) / (np.pi * (X**2 + (gt + resG0)**2))
@@ -396,7 +398,7 @@ def protein_liquid_analytic_voigt(params, dataset, D2OSignal=None, qIdx=None, re
     elif returnSubCurves:
         res  = resFunc
         gLor = beta * a0 * ( resS*conv_G_resG0 + (1-resS)*conv_G_resG1 )
-        iLor = beta * (1-a0) * ( resS*conv_I_resG0 + (1-resS)*conv_I_resG1) ) 
+        iLor = beta * (1-a0) * ( resS*conv_I_resG0 + (1-resS)*conv_I_resG1)  
 
         return res, gLor, iLor
 
@@ -497,7 +499,7 @@ def protein_liquid_analytic_voigt_CF(X, params, dataset, D2OSignal=None, qIdx=No
     if returnSubCurves:
         res  = resFunc
         gLor = beta * a0 * ( resS*conv_G_resG0 + (1-resS)*conv_G_resG1 )
-        iLor = beta * (1-a0) * ( resS*conv_I_resG0 + (1-resS)*conv_I_resG1) ) 
+        iLor = beta * (1-a0) * ( resS*conv_I_resG0 + (1-resS)*conv_I_resG1) 
 
         return res, gLor, iLor
 
