@@ -10,7 +10,7 @@ Prior to building, the path to Gnu Scientific Library (GSL) should be given in s
 (required by libabsco)
 
 
-### Unix
+### Unix and Windows
 For installation within your python framework, use:
 
     make 
@@ -18,14 +18,9 @@ For installation within your python framework, use:
 
 or
 
-    python3 setup.py build
-    python3 setup.py install
+    python setup.py build
+    python setup.py install
 
-### Windows
-It's recommended to use MinGW or similar tools. Then, the package can be installed using:
-
-    mingw32-make.exe
-    mingw32-make.exe install
 
 ### Use with ipython
 The package can be directly imported in python or a session can be started with IPython using the following:
