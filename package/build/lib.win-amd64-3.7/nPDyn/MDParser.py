@@ -15,9 +15,12 @@ try:
     from NAMDAnalyzer.Dataset import Dataset as MDDataset
     from NAMDAnalyzer.dataAnalysis.backscatteringDataConvert import BackScatData
 except ImportError:
-    raise ImportError("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was not installed "
-                        + "within your python framework.\n" 
-                        + "MD simulations related methods won't work.\n")
+    class MDDataset: pass
+    class BackScatData: pass
+
+    print("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was not installed "
+           + "within your python framework.\n" 
+           + "MD simulations related methods won't work.\n")
 
 
 class MDData(MDDataset, BackScatData):
@@ -55,7 +58,8 @@ class MDData(MDDataset, BackScatData):
 #--------------------------------------------------
 #_Methods to obtain nPDyn like data types that are append to experimental data list
 #--------------------------------------------------
-    def getTempRampEISF(self, dcdFiles, tempList, dataSetIdx=0, resBkgdIdx=None, converter_kwargs={}):
+    def getTempRampEISF(self, dcdFiles, tempList, dataSetIdx=0, resBkgdIdx=None, bkgdIdx=None, 
+                        converter_kwargs={}):
         """ Calls compScatteringFunc from NAMDAnalyzer for all given dcdFiles, extracts the EISF and
             stores values in a data tuple that can be used directly in nPDyn.
 
@@ -72,7 +76,8 @@ class MDData(MDDataset, BackScatData):
 
             This namedtuple can be added to the dataSetList of nPDyn and used as any experimetal file. """
 
-        qVals = self.expData.dataSetList[dataSetIdx].data.qVals
+        qIdx  = self.expData.dataSetList[dataSetIdx].data.qIdx
+        qVals = self.expData.dataSetList[dataSetIdx].data.qVals[qIdx]
 
         tempDataSeries  = []
 
@@ -94,16 +99,23 @@ class MDData(MDDataset, BackScatData):
         errors      = 1e-6 * np.ones_like(intensities)
 
         dataTuple = self.MDDataT( qVals, np.array(tempList).astype('f'), intensities, errors, 0, False,
-                                                                                        np.arange(qVals.size) )
+                                                                                np.arange(qVals.size) )
 
 
 
         #_Gets fitted instrumental background and add it to simulated data
         if resBkgdIdx is not None:
-            bkgd = np.array( [data[0][-1] for data in self.expData.resData[resBkgdIdx].params] )[:, np.newaxis]
+            bkgd = np.array( [data[0][-1] for data 
+                             in self.expData.resData[resBkgdIdx].params] )[qIdx, np.newaxis]
             
             dataTuple = dataTuple._replace(intensities = dataTuple.intensities + bkgd)
 
+        #_Gets fitted dataset background and add it to simulated data
+        if bkgdIdx is not None:
+            bkgd = np.array( [self.expData.dataSetList[bkgdIdx].getBackground(qIdx) 
+                for qIdx, val in enumerate(self.expData.dataSetList[bkgdIdx].data.qIdx)] )[:,np.newaxis]
+
+            MDDataT = MDDataT._replace(intensities = MDDataT.intensities + bkgd)
 
 
         #_Appends computed temp ramp to dataSetList 
@@ -115,7 +127,8 @@ class MDData(MDDataset, BackScatData):
 
 
 
-    def getQENS(self, dcdFile, dataSetIdx=0, resBkgdIdx=None, converter_kwargs={}):
+    def getQENS(self, dcdFile, dataSetIdx=0, resBkgdIdx=None, bkgdIdx=None,
+                converter_kwargs={}):
         """ This method calls the convertScatFunctoEISF for energy space.
 
             This procedure is done for each dcd file in 'dcdFiles'. It might take some time depending
@@ -135,7 +148,8 @@ class MDData(MDDataset, BackScatData):
 
 
 
-        qVals = self.expData.dataSetList[dataSetIdx].data.qVals
+        qIdx  = self.expData.dataSetList[dataSetIdx].data.qIdx
+        qVals = self.expData.dataSetList[dataSetIdx].data.qVals[qIdx]
 
         #_Defining some defaults arguments
         kwargs = { 'qValList': qVals }
@@ -156,8 +170,16 @@ class MDData(MDDataset, BackScatData):
 
         #_Gets fitted instrumental background and add it to simulated data
         if resBkgdIdx is not None:
-            bkgd = np.array( [data[0][-1] for data in self.expData.resData[resBkgdIdx].params] )[:, np.newaxis]
+            bkgd = np.array( [data[0][-1] for data 
+                             in self.expData.resData[resBkgdIdx].params] )[qIdx, np.newaxis]
             
+            MDDataT = MDDataT._replace(intensities = MDDataT.intensities + bkgd)
+
+        #_Gets fitted dataset background and add it to simulated data
+        if bkgdIdx is not None:
+            bkgd = np.array( [self.expData.dataSetList[bkgdIdx].getBackground(qIdx) 
+                for qIdx, val in enumerate(self.expData.dataSetList[bkgdIdx].data.qIdx)] )[:,np.newaxis]
+
             MDDataT = MDDataT._replace(intensities = MDDataT.intensities + bkgd)
 
             

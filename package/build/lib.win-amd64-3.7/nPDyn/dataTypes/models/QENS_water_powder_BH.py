@@ -3,6 +3,8 @@ import numpy as np
 from collections import namedtuple
 from scipy import optimize
 
+from scipy.special import spherical_jn
+
 from ..QENSType import DataTypeDecorator
 from ...fit.fitQENS_models import water_powder as model
 
@@ -17,7 +19,7 @@ class Model(DataTypeDecorator):
 
         self.model          = model
         self.params         = None
-        self.paramsNames    = ['s0', 'sr', 'st', 'rotational', 'translational', 'msd', 'bkgd'] 
+        self.paramsNames    = ['s0', 'sr', 'st', 'rotational', 'translational', 'msd', 'tau', 'bkgd'] 
         self.BH_iter        = 50
         self.disp           = True
 
@@ -27,12 +29,12 @@ class Model(DataTypeDecorator):
         print(50*"-", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.6, 0.2, 0.2, 2, 15, 1] + [0.001 for i in range(len(self.data.qIdx))]
+            p0 = [0.1, 0.5, 0.4, 2, 15, 1, 2] + [0.001 for i in range(len(self.data.qIdx))]
 
         if not bounds: #_Using default bounds
             minData = 1.5 * np.min( self.data.intensities ) #_To restrict background below experimental data
 
-            bounds = [(0., 1), (0., 1), (0., 1), (0., 60), (0., 60), (0., 10)]
+            bounds = [(0.0, 1), (0.0, 1), (0.0, 1), (0., 60), (0., 60), (0., 10), (0., 2)]
             bounds += [(0., minData) for i in range(len(self.data.qIdx))]
 
 
@@ -57,6 +59,7 @@ class Model(DataTypeDecorator):
 
         self.params = out    
 
+        self.globalFit = True
 
 
 
@@ -65,12 +68,12 @@ class Model(DataTypeDecorator):
         print(50*"-" + "\n", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.6, 0.2, 0.2, 5, 5, 1, 0.001]
+            p0 = [0.1, 0.5, 0.4, 5, 5, 1, 2, 0.001]
 
         if not bounds: #_Using default bounds
             minData = np.min( self.data.intensities ) #_To restrict background below experimental data
 
-            bounds = [(0., 1), (0., 1), (0., 1), (0., 60), (0., 60), (0., 10), (0., minData)] 
+            bounds = [(0., 1), (0., 1), (0., 1), (0., 60), (0., 60), (0., 10), (0, 2), (0., minData)] 
 
 
         result = []
@@ -90,6 +93,8 @@ class Model(DataTypeDecorator):
 
         self.params = result
 
+        self.globalFit = False
+
 
     
     def getModel(self, qIdx):
@@ -104,10 +109,10 @@ class Model(DataTypeDecorator):
     def getParams(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == 7:
+        if len(self.params[0].x) == len(self.paramsNames):
             params = self.params[qIdx].x
         else:
-            params = self.params[qIdx].x[ [0,1,2,3,4,5,6+qIdx] ]
+            params = self.params[qIdx].x[ [0,1,2,3,4,5,6,7+qIdx] ]
 
         return params
 
@@ -116,26 +121,24 @@ class Model(DataTypeDecorator):
     def getParamsErrors(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == 7:
+        if len(self.params[0].x) == len(self.paramsNames):
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
         else:
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
-            params = params[ [0,1,2,3,4,5,6+qIdx] ]
+            params = params[ [0,1,2,3,4,5,6,7+qIdx] ]
 
         return params
-
-
 
 
 
     def getWeights_and_lorWidths(self, qIdx):
         #_For plotting purpose, gives fitted weights and lorentzian width
 
-        rotational = np.sum( [l*(l+1) * self.params[qIdx].x[3] for l in range(1,3)] )
+        rotational = np.sum( [l*(l+1) * self.params[qIdx].x[3] for l in range(1,5)] )
 
-        weights     = self.params[qIdx].x[1:3]
+        weights     = self.params[qIdx].x[1:3] / self.params[qIdx].x[:3].sum()
         lorWidths   = [rotational, self.params[qIdx].x[4] * self.data.qVals[qIdx]**2]
         labels      = ['Rotational', 'Translational']
 
@@ -158,8 +161,21 @@ class Model(DataTypeDecorator):
 
     def getBackground(self, qIdx):
 
-        if len(self.params[0].x) == 7:
-            return self.params[qIdx].x[6]
+        if len(self.params[0].x) == len(self.paramsNames):
+            return self.params[qIdx].x[7]
         else:
-            return self.params[qIdx].x[6+qIdx]
+            return self.params[qIdx].x[7+qIdx]
+
+
+
+    def getSubCurves(self, qIdx):
+        """ Computes the convoluted Lorentzians that are in the model and returns them 
+            individually along with their labels as the last argument. 
+            They can be directly plotted as a function of energies. """
+
+        resF, rot, trans = self.model(self.getParams(qIdx), self, qIdx, False, True)
+        labels      = ['Rotational', 'Translational']
+
+        return resF[qIdx], rot[qIdx], trans[qIdx], labels
+
 

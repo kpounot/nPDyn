@@ -3,13 +3,13 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame, QCheckBox)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
@@ -30,8 +30,6 @@ class FWSPlot(QWidget):
 
     def __init__(self, dataset):
 
-        self.app = QApplication(sys.argv)
-
         super().__init__()
 
         #_Dataset related attributes
@@ -43,7 +41,7 @@ class FWSPlot(QWidget):
 #_Construction of the GUI
 #--------------------------------------------------
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -114,7 +112,7 @@ class FWSPlot(QWidget):
     def plot(self):
         """ This is used to plot the experimental data, without any fit. """
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax0, ax1 = subplotsFormatWithColorBar(self)
         
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
@@ -167,7 +165,7 @@ class FWSPlot(QWidget):
     def plot3D(self):
         """ 3D plot of the whole dataset """
 
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, False, False, '3d', FWS=True) 
         
 
@@ -223,7 +221,7 @@ class FWSPlot(QWidget):
             There is one parameter list for each file, which consists in a q-wise list of scipy's
             OptimizeResult instance. Parameters are retrieved using OptimizeResults.x attribute. """ 
 
-        plt.gcf().clear()     
+        self.figure.clear()     
 
 
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
@@ -269,7 +267,7 @@ class FWSPlot(QWidget):
 
     def fitPlot(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         ax = subplotsFormat(self, False, False, '3d')
 

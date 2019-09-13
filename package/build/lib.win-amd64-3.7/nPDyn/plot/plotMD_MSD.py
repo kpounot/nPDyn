@@ -3,12 +3,12 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
 from PyQt5 import QtGui
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
@@ -24,8 +24,6 @@ class plotMSDSeries(QWidget):
 
 
     def __init__(self, msdSeriesList, tempList, datasetList=[]):
-
-        self.app = QApplication(sys.argv)
 
         super().__init__()
 
@@ -46,7 +44,7 @@ class plotMSDSeries(QWidget):
         #--------------------------------------------------
 
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -87,7 +85,7 @@ class plotMSDSeries(QWidget):
 
     def MSD(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = self.figure.add_subplot(111)  
 
         #_Plot the mean-squared displacement as a function of temperature for each file

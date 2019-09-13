@@ -3,7 +3,6 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame, QCheckBox)
 from PyQt5 import QtGui
@@ -11,6 +10,7 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.gridspec as gridspec
+from matplotlib.figure import Figure
 import matplotlib
 
 from .subPlotsFormat import subplotsFormat
@@ -30,7 +30,6 @@ class QENSPlot(QWidget):
 
     def __init__(self, datasetList):
 
-        self.app = QApplication(sys.argv)
 
         super().__init__()
 
@@ -47,7 +46,7 @@ class QENSPlot(QWidget):
 #_Construction of the GUI
 #--------------------------------------------------
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -109,7 +108,7 @@ class QENSPlot(QWidget):
     def plot(self):
         """ This is used to plot the experimental data, without any fit. """
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, True, True)
         
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
@@ -129,7 +128,6 @@ class QENSPlot(QWidget):
             subplot.set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
             subplot.grid()
 
-        self.figure.tight_layout()
         self.canvas.draw()
 
 
@@ -138,7 +136,7 @@ class QENSPlot(QWidget):
     def compare(self):
         """ This is used to plot the experimental data, without any fit. """
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         
         ax = self.figure.add_subplot(111)
 
@@ -170,7 +168,6 @@ class QENSPlot(QWidget):
         ax.set_ylim(0.5*minData, 1.2*maxData)
 
 
-        self.figure.tight_layout()
         self.canvas.draw()
 
 
@@ -180,7 +177,7 @@ class QENSPlot(QWidget):
     def plot3D(self):
         """ 3D plot of the whole dataset """
 
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, False, False, '3d') 
 
         #_Use a fancy colormap
@@ -212,7 +209,7 @@ class QENSPlot(QWidget):
             There is one parameter list for each file, which consists in a q-wise list of scipy's
             OptimizeResult instance. Parameters are retrieved using OptimizeResults.x attribute. """ 
 
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
         qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
@@ -249,12 +246,13 @@ class QENSPlot(QWidget):
         """ This method provides a quick way to plot the q-dependence of weight factors and lorentzian
             widths for each contribution. """
 
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]**2
         qIds  = np.arange(qVals.size)
 
         ax = self.figure.subplots(len(self.dataset[0].getWeights_and_lorWidths(0)[0]), 2, sharex=True)
+        ax = ax.reshape(len(self.dataset[0].getWeights_and_lorWidths(0)[0]), 2)
 
         for dIdx, dataset in enumerate(self.dataset):
             #_Get parameters for each q-value
@@ -273,12 +271,11 @@ class QENSPlot(QWidget):
                 row[0].errorbar(qVals, paramsList[:,0,idx], errList[:,0,idx], marker='o')
                 row[0].set_ylabel('Weight - %s' % labels[idx])
                 row[0].set_xlabel(r'q [$\AA^{-2}$]')
-                row[0].set_ylim(0., 1.2)
+                row[0].set_ylim(0,1)
 
                 row[1].errorbar(qVals, paramsList[:,1,idx], errList[:,1,idx], marker='o')
                 row[1].set_ylabel('Width - %s' %labels[idx])
                 row[1].set_xlabel(r'q [$\AA^{-2}$]')
-                row[1].set_ylim(0., 1.2*np.max(paramsList[:,1,idx]))
 
         self.canvas.draw()
 
@@ -286,7 +283,7 @@ class QENSPlot(QWidget):
 
     def fitPlot(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         #_Creates as many subplots as there are parameters in the model
         ax = subplotsFormat(self, sharey=True)
@@ -296,8 +293,6 @@ class QENSPlot(QWidget):
         qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
         qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
         qValIdx = int(np.argwhere(qVals == qValToShow)[0])
-
-        
 
 
         #_Plot the datas for selected q value normalized with integrated curves at low temperature
@@ -319,13 +314,8 @@ class QENSPlot(QWidget):
 
 
 
-            #_Computes resolution function using parameters corresponding the teh right q-value
-            resParams = [dataset.resData.params[i] for i in dataset.data.qIdx]
-
-            resF = dataset.resData.model(dataset.data.X, *resParams[qValIdx][0][:-1], 0)
-
-            if dataset.data.norm:
-                resF /= resParams[qValIdx][0][0]
+            #_Computes resolution function using parameters corresponding the right q-value
+            resF = dataset.getSubCurves(qValIdx)[0]
 
             #_Plot the resolution function
             ax[idx].plot( dataset.data.X, 
@@ -351,12 +341,13 @@ class QENSPlot(QWidget):
 
 
             #_Plot the lorentzians
-            for val in zip( *dataset.getWeights_and_lorWidths(qValIdx) ):
-                ax[idx].plot(   dataset.data.X,
-                                val[0] * val[1] / (val[1]**2 + dataset.data.X**2),
-                                ls='--',
-                                label=val[2],
-                                zorder=6)
+            lorArrays = dataset.getSubCurves(qValIdx)[1:]
+            for lorId, val in enumerate(lorArrays[:-1]):
+                ax[idx].plot( dataset.data.X,
+                              val,
+                              ls='--',
+                              label=lorArrays[-1][lorId],
+                              zorder=6 )
 
 
 
@@ -372,19 +363,19 @@ class QENSPlot(QWidget):
             ax[idx].set_xlabel(r'$\hslash\omega [\mu eV]$')
             ax[idx].set_yscale('log')
             ax[idx].set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$')   
-            ax[idx].grid()
 
 
             #_Set some limits on axis
-            minData = np.min(dataset.data.intensities[dataset.data.qIdx][qValIdx])
-            maxData = np.max(dataset.data.intensities[dataset.data.qIdx][qValIdx])
+            qData   = dataset.data.intensities[dataset.data.qIdx][qValIdx]
+            minData = np.min(qData[qData > 0])
+            maxData = np.max(qData)
             maxX    = dataset.data.X[-1]
 
             ax[idx].set_xlim(-1.1*maxX, 1.1*maxX)
             ax[idx].set_ylim(0.5*minData, 1.2*maxData)
 
         
-        plt.legend(framealpha=0.5, fontsize=12)
+        ax[-1].legend(framealpha=0.5, fontsize=12)
         self.canvas.draw()
 
 

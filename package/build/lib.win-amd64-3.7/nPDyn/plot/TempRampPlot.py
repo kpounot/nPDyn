@@ -3,13 +3,13 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame, QCheckBox)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
@@ -26,8 +26,6 @@ class TempRampPlot(QWidget):
         MSD                 -> plot the fitted MSD as a function of temperature """
 
     def __init__(self, datasetList):
-
-        self.app = QApplication(sys.argv)
 
         super().__init__()
 
@@ -49,7 +47,7 @@ class TempRampPlot(QWidget):
         #--------------------------------------------------
 
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -118,7 +116,7 @@ class TempRampPlot(QWidget):
     def totalScat(self):
         """ This is used to plot the experimental data, without any fit. """
 
-        plt.gcf().clear()       
+        self.figure.clear()       
         ax = self.figure.add_subplot(111)  
 
         for dataset in self.dataset:
@@ -138,13 +136,16 @@ class TempRampPlot(QWidget):
     def qWiseScat(self):
         """ For each file, plots the temperature of elastic scattering intensity for each q-value. """
 
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax0, ax1 = subplotsFormatWithColorBar(self)
 
 
         #_Use a fancy colormap
         normColors = matplotlib.colors.Normalize(vmin=0, vmax=2)
         cmap = matplotlib.cm.get_cmap('winter')
+
+        print(ax0)
+        print(ax1)
     
         for i, subplot in enumerate(ax0):
             for qIdx in self.dataset[i].data.qIdx:
@@ -167,7 +168,6 @@ class TempRampPlot(QWidget):
             ax.set_ylabel('q [$\AA^{-2}$]')
 
 
-        plt.tight_layout()
         self.canvas.draw()
     
 
@@ -175,7 +175,7 @@ class TempRampPlot(QWidget):
     #_Plot of the parameters resulting from the fit procedure
     def fit(self):
 
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, True, True)
 
         for i, subplot in enumerate(ax):
@@ -218,7 +218,7 @@ class TempRampPlot(QWidget):
 
     def MSD(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = self.figure.add_subplot(111)  
 
 

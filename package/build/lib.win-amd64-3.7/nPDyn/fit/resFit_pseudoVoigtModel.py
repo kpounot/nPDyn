@@ -15,8 +15,8 @@ def resFunc(x, normF, S, lorW, gauW, shift, bkgd):
                 bkgd    -> background term """
 
     return  (normF * (S * lorW/(lorW**2 + (x-shift)**2) / np.pi 
-            + (1-S) * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi)) 
-            + bkgd))
+            + (1-S) * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi))) 
+            + bkgd)
 
  
 

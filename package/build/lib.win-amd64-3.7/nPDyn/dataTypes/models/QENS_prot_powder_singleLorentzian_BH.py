@@ -4,7 +4,7 @@ from collections import namedtuple
 from scipy import optimize
 
 from ..QENSType import DataTypeDecorator
-from ...fit.fitQENS_models import protein_liquid as model
+from ...fit.fitQENS_models import protein_powder_1Lorentzian as model
 
 
 
@@ -15,12 +15,11 @@ class Model(DataTypeDecorator):
     def __init__(self, dataType):
         super().__init__(dataType)
 
-        self.model      = model
-        self.params     = None
-        self.paramsNames = ['g0', 'g1', 'tau', 'beta', 'a0'] 
-        self.BH_iter    = 20
-        self.disp       = True
-
+        self.model          = model
+        self.params         = None
+        self.paramsNames    = ['s0', 's1', 'g1', 'msd', 'tau', 'bkgd'] #_For plotting purpose
+        self.BH_iter        = 50
+        self.disp           = True
 
 
     def fit(self, p0=None, bounds=None):
@@ -28,26 +27,25 @@ class Model(DataTypeDecorator):
         print(50*"-", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [2, 20, 0.1] 
-            p0 = p0 + [0.2 for i in self.data.qIdx] + [0.2 for i in self.data.qIdx]
+            p0 = [0.4, 0.6, 2, 1, 2] + [0.001 for i in range(len(self.data.qIdx))]
 
         if not bounds: #_Using default bounds
-            bounds = ( [(0.5, np.inf), (0.5, np.inf), (0, np.inf)]
-                        + [(0., np.inf) for i in self.data.qIdx] 
-                        + [(0., 1) for i in self.data.qIdx] )
+            minData = 1.5 * np.min( self.data.intensities ) #_To restrict background below experimental data
 
-
-        #_D2O signal 
-        D2OSignal = self.getD2OSignal()
+            bounds = [(0., 1), (0., 1), (0., 30), (0., 10), (0., 2)]
+            bounds += [(0., minData) for i in range(len(self.data.qIdx))]
 
 
         result = optimize.basinhopping( self.model, 
                                         p0,
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
+                                        interval=25,
                                         disp=self.disp,
-                                        stepsize=10,
-                                        minimizer_kwargs={ 'args':(self, D2OSignal), 'bounds':bounds } )
+                                        minimizer_kwargs={  'args':(self,), 
+                                                            'bounds':bounds,
+                                                            'options': {'maxcor': 100,
+                                                                        'maxfun': 200000}})
 
 
 
@@ -61,37 +59,28 @@ class Model(DataTypeDecorator):
 
 
 
-
-
     def qWiseFit(self, p0=None, bounds=None):
         print("\nStarting basinhopping fitting for file: %s\n" % self.fileName, flush=True)
         print(50*"-" + "\n", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.8, 1, 10, 0.1, 0.5] 
+            p0 = [0.6, 0.2, 5, 1, 2, 0.001]
 
         if not bounds: #_Using default bounds
-            bounds = [(0.5, np.inf), (0.5, np.inf), (0., np.inf), (0., np.inf), (0., 1)] 
+            minData = np.min( self.data.intensities ) #_To restrict background below experimental data
 
-
-        #_D2O signal 
-        D2OSignal = self.getD2OSignal()
+            bounds = [(0., 1), (0., 1), (0., 1000), (0., 10), (0., 2), (0., minData)] 
 
 
         result = []
         for i, qIdx in enumerate(self.data.qIdx):
-
-            if i != 0: #_Use the result from the previous q-value as starting parameters
-                p0 = result[-1].x
-
             print("\nFitting model for q index %i\n" % qIdx, flush=True)
             result.append(optimize.basinhopping( self.model, 
                                         p0,
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
                                         disp=self.disp,
-                                        stepsize=10,
-                                        minimizer_kwargs={ 'args':(self, D2OSignal, i), 'bounds':bounds } ))
+                                        minimizer_kwargs={ 'args':(self, i), 'bounds':bounds } ))
 
 
 
@@ -102,21 +91,20 @@ class Model(DataTypeDecorator):
     def getModel(self, qIdx):
         """ Returns the fitted model for the given q value. """
 
-        return self.model(self.getParams(qIdx), self, self.getD2OSignal(), qIdx, False)
+        return self.model(self.getParams(qIdx), self, qIdx, False)
 
 
 
-    
 #--------------------------------------------------
 #_Parameters accessors
 #--------------------------------------------------
     def getParams(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == 5:
+        if len(self.params[0].x) == len(self.paramsNames):
             params = self.params[qIdx].x
         else:
-            params = self.params[qIdx].x[ [0,1,2,3+qIdx,3+self.data.qIdx.size+qIdx] ]
+            params = self.params[qIdx].x[ [0,1,2,3,4,5+qIdx] ]
 
         return params
 
@@ -125,16 +113,15 @@ class Model(DataTypeDecorator):
     def getParamsErrors(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == 5:
+        if len(self.params[0].x) == len(self.paramsNames):
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
         else:
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
-            params = params[ [0,1,2,3+qIdx,3+self.data.qIdx.size+qIdx] ]
+            params = params[ [0,1,2,3,4,5+qIdx] ]
 
         return params
-
 
 
     def getEISFfactor(self, qIdx):
@@ -147,20 +134,11 @@ class Model(DataTypeDecorator):
 
     def getWeights_and_lorWidths(self, qIdx):
         #_For plotting purpose, gives fitted weights and lorentzian width
-        if len(self.params[0].x) == 5:
-            weights     = [self.params[qIdx].x[4], 1 - self.params[qIdx].x[4]]
-            beta        = self.params[qIdx].x[3]
-        else:
-            weights     = [self.params[qIdx].x[3+self.data.qIdx.size+qIdx], 
-                                                    1 - self.params[qIdx].x[3+self.data.qIdx.size+qIdx]]
-            beta        = self.params[qIdx].x[3+qIdx]
-        
-        weights = np.array(weights) * beta
-        lorWidths   = self.params[qIdx].x[0:2]
-        labels      = ['Global', 'Internal']
+        weights     = self.params[qIdx].x[[1]] / self.params[qIdx].x[:2].sum()
+        lorWidths   = self.params[qIdx].x[[2]] * self.data.qVals[qIdx]**2
+        labels      = [r'$\Gamma$']
 
         return weights, lorWidths, labels
-
 
 
 
@@ -168,20 +146,31 @@ class Model(DataTypeDecorator):
         #_For plotting purpose, gives fitted weights and lorentzian errors
         errList = np.array( [ np.sqrt(np.diag( params.lowest_optimization_result.hess_inv.todense())) 
                                                                                  for params in self.params ] )
-        if len(self.params[0].x) == 5:
-            weightsErr     = [errList[qIdx][4], errList[qIdx][4]]
-        else:
-            weightsErr     = [errList[qIdx][3+self.data.qIdx.size+qIdx], 
-                                                    errList[qIdx][3+self.data.qIdx.size+qIdx]]
- 
-        lorErr = errList[qIdx,0:2]
+
+        weightsErr = errList[qIdx,[1]]
+        lorErr = errList[qIdx,[2]]
 
         return weightsErr, lorErr
 
 
 
-
     def getBackground(self, qIdx):
 
-        return None
+        if len(self.params[0].x) == len(self.paramsNames):
+            return self.params[qIdx].x[5]
+        else:
+            return self.params[qIdx].x[5+qIdx]
+
+
+
+    def getSubCurves(self, qIdx):
+        """ Computes the convoluted Lorentzians that are in the model and returns them 
+            individually along with their labels as the last argument. 
+            They can be directly plotted as a function of energies. """
+
+        resF, lor1 = self.model(self.getParams(qIdx), self, qIdx, False, True)
+        labels     = [r'$L_{\Gamma}(q, \omega)$']
+
+        return resF[qIdx], lor1[qIdx], labels
+
 

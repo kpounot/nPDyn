@@ -3,13 +3,13 @@ import numpy as np
 
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame)
 from PyQt5 import QtGui
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
@@ -29,8 +29,6 @@ class D2OPlot(QWidget):
 
     def __init__(self, datasetList):
 
-        self.app = QApplication(sys.argv)
-        
         super().__init__()
 
         #_Dataset related attributes
@@ -46,7 +44,7 @@ class D2OPlot(QWidget):
 #_Construction of the GUI
 #--------------------------------------------------
         #_A figure instance to plot on
-        self.figure = plt.figure()
+        self.figure = Figure()
 
         #_This is the Canvas Widget that displays the `figure`
         #_it takes the `figure` instance as a parameter to __init__
@@ -95,7 +93,7 @@ class D2OPlot(QWidget):
     def plot(self):
         """ This is used to plot the experimental data, without any fit. """
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, True, True)
         
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
@@ -124,7 +122,7 @@ class D2OPlot(QWidget):
     def compare(self):
         """ This is used to plot the experimental data, without any fit. """
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
         
         ax = self.figure.add_subplot(111)
 
@@ -156,7 +154,7 @@ class D2OPlot(QWidget):
     def plot3D(self):
         """ 3D plot of the whole dataset """
 
-        plt.gcf().clear()     
+        self.figure.clear()     
         ax = subplotsFormat(self, False, False, '3d') 
 
         #_Use a fancy colormap
@@ -188,7 +186,7 @@ class D2OPlot(QWidget):
             There is one parameter list for each file, which consists in a q-wise list of scipy's
             OptimizeResult instance. Parameters are retrieved using OptimizeResults.x attribute. """ 
 
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
         qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
@@ -216,7 +214,7 @@ class D2OPlot(QWidget):
 
     def fitPlot(self):
 	   
-        plt.gcf().clear()     
+        self.figure.clear()     
 
         #_Creates as many subplots as there are parameters in the model
         ax = subplotsFormat(self, sharey=True)
@@ -269,7 +267,7 @@ class D2OPlot(QWidget):
             ax[idx].set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$')   
             ax[idx].grid()
         
-        plt.legend(framealpha=0.5, fontsize=12)
+        self.figure.legend(framealpha=0.5, fontsize=12)
         self.canvas.draw()
 
 

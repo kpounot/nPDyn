@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -26,37 +25,42 @@ def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=F
 
     #_Generating the subplots
     if listSize == 1:
-        ax = np.array([caller.figure.subplots(1, listSize, sharex, sharey,
-                                                subplot_kw={'projection':projection})])
+        caller.figure.subplots(1, listSize, sharex, sharey,
+                                                subplot_kw={'projection':projection})
 
     if listSize !=1 and listSize < 4:
-        ax = caller.figure.subplots(1, listSize, sharex, sharey,
+        caller.figure.subplots(1, listSize, sharex, sharey,
                                                 subplot_kw={'projection':projection})
 
     if listSize == 4:
-        ax = caller.figure.subplots(2, 2, sharex, sharey, subplot_kw={'projection':projection}).flatten()
+        caller.figure.subplots(2, 2, sharex, sharey, subplot_kw={'projection':projection})
 
     if listSize > 4 and listSize <= 9:
-        ax = caller.figure.subplots(int(np.ceil(listSize / 3)), 3, sharex, sharey, 
-                                                            subplot_kw={'projection':projection}).flatten()
+        caller.figure.subplots(int(np.ceil(listSize / 3)), 3, sharex, sharey, 
+                                                           subplot_kw={'projection':projection})
 
 
     if listSize > 9 and listSize <= 12:
-        ax = caller.figure.subplots(int(np.ceil(listSize / 4)), 4, sharex, sharey, 
-                                                            subplot_kw={'projection':projection}).flatten()
+        caller.figure.subplots(int(np.ceil(listSize / 4)), 4, sharex, sharey, 
+                                                            subplot_kw={'projection':projection})
 
 
     if listSize > 12:
-        ax = caller.figure.subplots(int(np.ceil(listSize / 5)), 5, sharex, sharey, 
-                                                            subplot_kw={'projection':projection}).flatten()
+        caller.figure.subplots(int(np.ceil(listSize / 5)), 5, sharex, sharey, 
+                                                            subplot_kw={'projection':projection})
     
 
     #_Removing unecessary axes
-    for idx, subplot in enumerate(ax):
+    for idx, subplot in enumerate(caller.figure.axes):
         if idx >= listSize:
             caller.figure.delaxes(subplot)
 
-    return caller.figure.axes
+    ax = caller.figure.axes
+
+    if listSize == 1:
+        ax = np.array(ax)
+
+    return ax
 
 
 
@@ -85,60 +89,52 @@ def subplotsFormatWithColorBar(caller, sharex=False, sharey=False, projection=No
 
     #_Generating the subplots
     if listSize == 1:
-        ax = np.array([caller.figure.subplots(1, 2, sharex, sharey,
+        caller.figure.subplots(1, 2, sharex, sharey,
                                         subplot_kw={'projection':projection},
-                                        gridspec_kw={'width_ratios':[5,1]} )])
-        ax0 = ax[:,0]
-        ax1 = ax[:,1]
+                                        gridspec_kw={'width_ratios':[5,1]} )
 
     if listSize !=1 and listSize < 4:
-        ax = caller.figure.subplots(1, 6, sharex, sharey,
+        caller.figure.subplots(1, 2*listSize, sharex, sharey,
                                                 subplot_kw={'projection':projection},
                                                 gridspec_kw={'width_ratios':3*[5,1]} )
-        ax0 = ax[:,::2]
-        ax1 = ax[:,1::2]
 
     if listSize == 4:
-        ax = caller.figure.subplots(2, 4, sharex, sharey, 
+        caller.figure.subplots(2, 4, sharex, sharey, 
                                                         subplot_kw={'projection':projection},
                                                         gridspec_kw={'width_ratios':2*[5,1]} )
 
-        ax0 = ax[:,::2]
-        ax1 = ax[:,1::2]
-
-
     if listSize > 4 and listSize <= 9:
         nbrRows = int(np.ceil(listSize / 3))
-        ax = caller.figure.subplots(nbrRows, 6, sharex, sharey, 
+        caller.figure.subplots(nbrRows, 6, sharex, sharey, 
                                                         subplot_kw={'projection':projection},
                                                         gridspec_kw={'width_ratios':3*[5,1]} )
-        ax0 = ax[:,::2]
-        ax1 = ax[:,1::2]
-
 
     if listSize > 9 and listSize <= 12:
         nbrRows = int(np.ceil(listSize / 4))
-        ax = caller.figure.subplots(nbrRows, 8, sharex, sharey, 
+        caller.figure.subplots(nbrRows, 8, sharex, sharey, 
                                                         subplot_kw={'projection':projection},
                                                         gridspec_kw={'width_ratios':4*[5,1]} )
-        ax0 = ax[:,::2]
-        ax1 = ax[:,1::2]
-
 
     if listSize > 12:
         nbrRows = int(np.ceil(listSize / 5))
-        ax = caller.figure.subplots(nbrRows, 10, sharex, sharey, 
+        caller.figure.subplots(nbrRows, 10, sharex, sharey, 
                                                         subplot_kw={'projection':projection},
                                                         gridspec_kw={'width_ratios':5*[5,1]} )
-        ax0 = ax[:,::2]
-        ax1 = ax[:,1::2]
-    
 
     #_Removing unecessary axes
-    for idx, subplot in enumerate(ax.flatten()):
+    for idx, subplot in enumerate(caller.figure.axes):
         if idx >= 2*listSize:
             caller.figure.delaxes(subplot)
 
-    return ax0.flatten()[:listSize], ax1.flatten()[:listSize]
+    ax = caller.figure.axes
+
+    if listSize > 1:
+        ax0 = ax[::2]
+        ax1 = ax[1::2]
+    else:
+        ax0 = ax[[0]]
+        ax1 = ax[[1]]
+
+    return ax0, ax1
 
 

@@ -38,6 +38,8 @@ class Dataset:
                                                 tECFile=None, resFiles=None, D2OFile=None, fD2OFile=None):
 
 
+        self.app = QApplication(sys.argv)
+
         #_Declaring attributes related to samples dataset
         self.dataSetList    = []
 
@@ -61,8 +63,9 @@ class Dataset:
         modelT = namedtuple( 'models', 'resFunc_pseudoVoigt resFunc_gaussian D2OFunc_sglLorentzian_Min'
                                             + ' ECFunc_pseudoVoigt'
                                             + ' D2OFunc_lorentzian_and_elastic_Min'
-                                            + ' QENS_prot_powder_dblLorentzian_BH QENS_water_powder_BH'
-                                            + ' QENS_protein_liquid_BH' 
+                                            + ' QENS_prot_powder_dblLorentzian_BH'
+                                            + ' QENS_prot_powder_sglLorentzian_BH'
+                                            + ' QENS_water_powder_BH'
                                             + ' QENS_protein_liquid_analytic_voigt_BH' 
                                             + ' QENS_protein_liquid_analytic_voigt_CF' 
                                             + ' TempRamp_gaussian TempRamp_q4'
@@ -77,8 +80,8 @@ class Dataset:
                                 D2OFunc_singleLorentzian_Min.Model,
                                 D2OFunc_lorentzian_and_elastic_Min.Model,
                                 QENS_prot_powder_doubleLorentzian_BH.Model,
+                                QENS_prot_powder_singleLorentzian_BH.Model,
                                 QENS_water_powder_BH.Model,
-                                QENS_protein_liquid_BH.Model,
                                 QENS_protein_liquid_analytic_voigt_BH.Model,
                                 QENS_protein_liquid_analytic_voigt_CF.Model,
                                 TempRamp_gaussian.Model,

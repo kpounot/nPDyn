@@ -14,6 +14,8 @@ class QENSType(BaseType):
         self.BH_iter    = 100
         self.disp       = True
 
+        self.globalFit  = True
+
 
 class DataTypeDecorator(QENSType):
 

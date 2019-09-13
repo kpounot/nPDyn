@@ -15,6 +15,8 @@ class FWSType(BaseType):
 
         self.timestep = None #_Should be given in hours
 
+        self.globalFit = True
+
 
     def importData(self, fileFormat=None):
         """ Extract data from file and store them in self.data and self.rawData attributes.
