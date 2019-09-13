@@ -187,28 +187,28 @@ Examples of plotting window:
 <table>
     <tr>
         <td>
-            <img src="/doc/fig/tempRamp_01.png" width="150">
+            <img src="/doc/fig/tempRamp_01.PNG" width="150">
         </td>
         <td>
-            <img src="/doc/fig/tempRamp_02.png" width="150">
+            <img src="/doc/fig/tempRamp_02.PNG" width="150">
         </td>
         <td>
-            <img src="/doc/fig/tempRamp_03.png" width="150">
+            <img src="/doc/fig/tempRamp_03.PNG" width="150">
         </td>
         <td>
-            <img src="/doc/fig/qens_01.png" width="150">
+            <img src="/doc/fig/qens_01.PNG" width="150">
         </td>
         <td>
-            <img src="/doc/fig/qens_02.png" width="150">
+            <img src="/doc/fig/qens_02.PNG" width="150">
         </td>
         <td>
-            <img src="/doc/fig/qens_03.png" width="150">
+            <img src="/doc/fig/qens_03.PNG" width="150">
         </td>
         <td>
-            <img src="/doc/fig/fws_01.png" width="150">
+            <img src="/doc/fig/fws_01.PNG" width="150">
         </td>
         <td>
-            <img src="/doc/fig/fws_02.png" width="150">
+            <img src="/doc/fig/fws_02.PNG" width="150">
         </td>
     </tr>
 </table>
