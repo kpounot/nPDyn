@@ -141,13 +141,14 @@ class TempRampPlot(QWidget):
 
 
         #_Use a fancy colormap
-        normColors = matplotlib.colors.Normalize(vmin=0, vmax=2)
         cmap = matplotlib.cm.get_cmap('winter')
 
-        print(ax0)
-        print(ax1)
-    
         for i, subplot in enumerate(ax0):
+
+            qValFirst   = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][0]
+            qValLast    = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][-1]
+            normColors = matplotlib.colors.Normalize(vmin=qValFirst, vmax=qValLast)
+
             for qIdx in self.dataset[i].data.qIdx:
                 subplot.plot(self.dataset[i].data.X, 
                              self.dataset[i].data.intensities[qIdx],
