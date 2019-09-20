@@ -96,7 +96,7 @@ def subplotsFormatWithColorBar(caller, sharex=False, sharey=False, projection=No
     if listSize !=1 and listSize < 4:
         caller.figure.subplots(1, 2*listSize, sharex, sharey,
                                                 subplot_kw={'projection':projection},
-                                                gridspec_kw={'width_ratios':3*[5,1]} )
+                                                gridspec_kw={'width_ratios':listSize*[5,1]} )
 
     if listSize == 4:
         caller.figure.subplots(2, 4, sharex, sharey, 
@@ -132,8 +132,8 @@ def subplotsFormatWithColorBar(caller, sharex=False, sharey=False, projection=No
         ax0 = ax[::2]
         ax1 = ax[1::2]
     else:
-        ax0 = ax[[0]]
-        ax1 = ax[[1]]
+        ax0 = [ax[0]]
+        ax1 = [ax[1]]
 
     return ax0, ax1
 

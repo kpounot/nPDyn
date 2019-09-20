@@ -120,7 +120,7 @@ class FWSPlot(QWidget):
         qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
         qValIdx = int(np.argwhere(qVals == qValToShow)[0])
 
-        cmap=plt.get_cmap('winter')
+        cmap=matplotlib.cm.get_cmap('winter')
 
         for idx, subplot in enumerate(ax0):
             for tIdx in range(self.dataset[0].data.intensities.shape[0]):

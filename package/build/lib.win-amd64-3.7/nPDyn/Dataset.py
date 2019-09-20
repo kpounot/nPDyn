@@ -753,7 +753,7 @@ if __name__ == '__main__':
     parser.add_argument("-tec", "--TempRamp-empty-cell", nargs='?',
                                     help="Specify the file containing temperature ramp empty cell data")
     parser.add_argument("-d", "--D2O", nargs='?', help="Specify the file containing QENS D2O data")
-    parser.add_argument("-fd", "--fixed-D2O", nargs='?', help="Specify the file containing QENS D2O data")
+    parser.add_argument("-fd", "--fixed-D2O", nargs='?', help="Specify the file containing FWS D2O data")
 
 
     args = parser.parse_args()

@@ -1,12 +1,28 @@
-import os
+import os, sys
 
 from distutils.core import setup, Extension
+from distutils.dist import Distribution
 from Cython.Build import cythonize
 
 
 
 with open('../README.md', 'r') as f:
     description = f.read()
+
+
+if 'win32' in sys.platform:
+    #_Check for GSL on windows
+    dist = Distribution()
+    dist.parse_config_files()
+    dist.parse_command_line()
+
+    gsl_lib = dist.get_option_dict('build_ext')['library_dirs'][1]
+
+    if 'gsl.lib' in os.listdir(gsl_lib) and 'gslcblas.lib' in os.listdir(gsl_lib):
+            gsl_lib = ['gsl', 'gslcblas']
+
+    else:
+            gsl_lib = []
 
 
 
@@ -29,7 +45,7 @@ pyabsco_ext = Extension( "nPDyn.lib.pyabsco",
 
 
 setup(  name='nPDyn',
-        version='alpha',
+        version='1.0',
         description=description,
         author='Kevin Pounot',
         author_email='kpounot@hotmail.fr',
