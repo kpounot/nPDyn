@@ -1,6 +1,3 @@
-nPDyn
-=====
-
 Work still ongoing, not all features might be fully functional or present at the moment.
 
 Installation/Usage:
@@ -208,28 +205,28 @@ Examples of plotting window:
     <table>
         <tr>
             <td>
-                <img src="/docs/fig/tempRamp_01.PNG">
+                <img src="../fig/tempRamp_01.PNG">
             </td>
             <td>
-                <img src="/docs/fig/tempRamp_02.PNG">
+                <img src="../fig/tempRamp_02.PNG">
             </td>
             <td>
-                <img src="/docs/fig/tempRamp_03.PNG">
+                <img src="../fig/tempRamp_03.PNG">
             </td>
             <td>
-                <img src="/docs/fig/qens_01.PNG">
+                <img src="../fig/qens_01.PNG">
             </td>
             <td>
-                <img src="/docs/fig/qens_02.PNG">
+                <img src="../fig/qens_02.PNG">
             </td>
             <td>
-                <img src="/docs/fig/qens_03.PNG">
+                <img src="../fig/qens_03.PNG">
             </td>
             <td>
-                <img src="/docs/fig/fws_01.PNG">
+                <img src="../fig/fws_01.PNG">
             </td>
             <td>
-                <img src="/docs/fig/fws_02.PNG">
+                <img src="../fig/fws_02.PNG">
             </td>
         </tr>
     </table>
