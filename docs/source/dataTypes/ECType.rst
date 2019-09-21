@@ -8,5 +8,5 @@ ECType
    models/ECFunc_pseudoVoigt.rst
    
 
-.. automodule:: resType
+.. automodule:: ECType
    :members:

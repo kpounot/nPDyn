@@ -6,15 +6,15 @@ def convert(datafile, FWS=None):
     """ This method take a single dataFile as argument and return the corresponding dataSet.
 
         The dataset is a namedtuple containing the following entries:
-            qVals       -> list of momentum transfer (q) values (in inverse Angström)
-            X           -> list of energy transfers (in micro eV, for QENS) or other x-axis parameter
-                           (e.g. temperature for elastic temperature ramp)
-            intensities -> 2D numpy array with energy transfer dependant scattering intensities (axis 1),
-                           for each q-value (axis 0)
-            errors      -> same as intensities but this one contains the experimental errors
-            temp        -> not used with .inx files, present here for consistency with hdf5 files 
-            norm        -> boolean, wether data were normalized or not 
-            qIdx        -> list of indices of q-value, used for fitting and plotting 
+            - qVals       - list of momentum transfer (q) values (in inverse Angström)
+            - X           - list of energy transfers (in micro eV, for QENS) or other x-axis parameter
+                                (e.g. temperature for elastic temperature ramp)
+            - intensities - 2D numpy array with energy transfer dependant scattering intensities (axis 1),
+                                for each q-value (axis 0)
+            - errors      - same as intensities but this one contains the experimental errors
+            - temp        - not used with .inx files, present here for consistency with hdf5 files 
+            - norm        - boolean, wether data were normalized or not 
+            - qIdx        - list of indices of q-value, used for fitting and plotting 
 
     """
 
