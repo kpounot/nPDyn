@@ -14,7 +14,9 @@ fileImporters = {   'inx'   : inxConvert.convert,
 def readFile(fileFormat, dataFile, FWS=False):
     """ Extract data from file using the given file format. 
         
-        fileFormat can be 'hdf5' or 'inx' (other to come later) """
+        fileFormat can be 'hdf5' or 'inx' (other to come later) 
+
+    """
 
     try:
         data = fileImporters[fileFormat](dataFile, FWS)
@@ -27,7 +29,10 @@ def readFile(fileFormat, dataFile, FWS=False):
 
 def guessFileFormat(dataFile, FWS=False):
     """ Tries to guess file format based on file name.
-        In case it cannot be guessed, the default try is hdf5 format. """
+
+        In case it cannot be guessed, the default try is hdf5 format. 
+
+    """
 
 
     if re.search('.inx', dataFile):

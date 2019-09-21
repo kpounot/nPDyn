@@ -1,10 +1,3 @@
-"""
-
-Classes
-^^^^^^^
-
-"""
-
 import sys, os
 import numpy as np
 import h5py as h5
@@ -127,6 +120,7 @@ class Dataset:
     def importFiles(self, fileFormat=None, QENSFiles=None, FWSFiles=None, TempRampFiles=None, 
                         ECFile=None, fECFile=None, tECFile=None, resFiles=None, D2OFile=None, fD2OFile=None):
         """ Read and import data from experimental data file.
+
             If no file format is given, this method tries to identify the file's type automatically, 
             and send an error message in case the file could not be imported. 
             It can be used to import .inx file or QENS/FWS from hdf5 files for now.

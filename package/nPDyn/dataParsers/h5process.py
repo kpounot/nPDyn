@@ -4,8 +4,8 @@ import h5py as h5
 from collections import namedtuple
 
 def processData(dataFile, FWS=False, averageTemp=True):
-    """ This script is meant to be used with IN16B data pre-processed 
-        (reduction, (EC correction) and vanadium centering) with Mantid. 
+    """ This script is meant to be used with IN16B data pre-processed (reduction, (EC correction) 
+            and vanadium centering) with Mantid. 
 
         It can handle both QENS and fixed-window scans.
 

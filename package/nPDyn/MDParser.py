@@ -1,10 +1,3 @@
-"""
-
-Classes
-^^^^^^^
-
-"""
-
 import sys, os
 
 from collections import namedtuple
@@ -67,7 +60,7 @@ class MDData(MDDataset, BackScatData):
 #--------------------------------------------------
     def getTempRampEISF(self, dcdFiles, tempList, dataSetIdx=0, resBkgdIdx=None, bkgdIdx=None, 
                         converter_kwargs={}):
-        """ Calls [compScatteringFunc]_ from NAMDAnalyzer for all given dcdFiles, extracts the EISF and
+        """ Calls ``compScatteringFunc`` from NAMDAnalyzer for all given dcdFiles, extracts the EISF and
             stores values in a data tuple that can be used directly in nPDyn.
 
             :arg dcdFiles:         list of dcd files corresponding to each temperature
@@ -84,7 +77,8 @@ class MDData(MDDataset, BackScatData):
             The result is added to *dataSetList* in :class:`Dataset` class. 
 
 
- .. [compScatteringFunc] https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert`
+            For NAMDAnalyzer BackScatData module, see:
+            https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert
 
         """
 
@@ -141,7 +135,7 @@ class MDData(MDDataset, BackScatData):
 
     def getQENS(self, dcdFile, dataSetIdx=0, resBkgdIdx=None, bkgdIdx=None,
                 converter_kwargs={}):
-        """ This method calls the [compScatteringFunc]_ from NAMDAnalyzer package.
+        """ This method calls the ``compScatteringFunc`` from NAMDAnalyzer package.
 
             :arg dcdFile:          list of file path to be used to compute QENS spectra
             :arg dataSetIdx:       index of experimental dataset to be used to extract q-values
@@ -151,8 +145,8 @@ class MDData(MDDataset, BackScatData):
 
             The result is added to nPDyn *dataSetList* attribute in :class:`Dataset` class.
 
-
- .. [compScatteringFunc] https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert`
+            For NAMDAnalyzer BackScatData module, see:
+            https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert
 
         """
         
@@ -206,9 +200,10 @@ class MDData(MDDataset, BackScatData):
     def getMSDfromMD(self, dcdFiles, converter_kwargs={}):
         """ For each dcd file in dcdFiles, import it, compute the MSD directly from the trajectories. 
 
-            This makes use of the [compMSD]_ method from NAMDAnalyzer BackScatData module
+            This makes use of the ``compMSD`` method from NAMDAnalyzer BackScatData module
 
-            .. [compMSD] https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert`
+            For NAMDAnalyzer BackScatData module, see:
+            https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert
 
         """
 

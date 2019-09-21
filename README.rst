@@ -58,6 +58,11 @@ Options:
 Starting the API using this method creates a instance of Dataset class in a variable called 'data'.
 
 
+Full documentation
+------------------
+
+See https://npdyn.readthedocs.io/en/latest/
+
 
 Usage 
 -----

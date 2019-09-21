@@ -10,7 +10,7 @@ from nPDyn.dataTypes.models import resFunc_gaussian, resFunc_pseudoVoigt
 def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True, returnSubCurves=False):
     """ This class can be used to fit data from powder protein samples - q-wise or globally -
         using two lorentzians, which is the number that should be used to fit QENS data. Indeed,
-        considering the work of D.S. Sivia [1]_ on bayesian analysis of QENS data fitting, it appears
+        considering the work of D.S. Sivia on bayesian analysis of QENS data fitting, it appears
         clearly that using more lorentzians just results in overfitting.
 
         :arg params:          parameters for the model (described below), usually given by scipy's routines
@@ -24,8 +24,8 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True, ret
 
         References:
         
-        .. [1] D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
-            quasi-elastic neutron scattering data. Physica B, 182, 341-348 
+            - D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
+                quasi-elastic neutron scattering data. Physica B, 182, 341-348 
 
     """
 
@@ -106,7 +106,7 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True, ret
 def protein_powder_1Lorentzian(params, dataset, qIdx=None, returnCost=True, returnSubCurves=False):
     """ This class can be used to fit data from powder protein samples - q-wise or globally -
         using one lorentzians, which is the number that should be used to fit QENS data. Indeed,
-        considering the work of D.S. Sivia [1]_ on bayesian analysis of QENS data fitting, it appears
+        considering the work of D.S. Sivia on bayesian analysis of QENS data fitting, it appears
         clearly that using more lorentzians just results in overfitting.
 
         :arg params:          parameters for the model (described below), usually given by scipy's routines
@@ -118,10 +118,10 @@ def protein_powder_1Lorentzian(params, dataset, qIdx=None, returnCost=True, retu
         :arg returnSubCurves: if True, returns each individual component of the model after convolution
                                
 
-        Reference :
+        References:
         
-        .. [1] D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
-            quasi-elastic neutron scattering data. Physica B, 182, 341-348 
+            - D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
+                quasi-elastic neutron scattering data. Physica B, 182, 341-348 
 
     """
 
