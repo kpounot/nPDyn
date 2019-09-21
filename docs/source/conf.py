@@ -12,7 +12,13 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../../package/nPDyn'))
+sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataManipulation'))
+sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataParsers'))
+sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataTypes'))
+sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataTypes/models'))
+sys.path.insert(0, os.path.abspath('../../package/nPDyn/fit'))
+sys.path.insert(0, os.path.abspath('../../package/nPDyn/plot'))
 
 
 # -- Project information -----------------------------------------------------

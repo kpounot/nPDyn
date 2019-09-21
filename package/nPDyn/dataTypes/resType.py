@@ -1,11 +1,21 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import numpy as np
 
 from collections import namedtuple
 
-from .baseType import BaseType
+from nPDyn.dataTypes.baseType import BaseType
 
 
 class ResType(BaseType):
+    """ This class inherits from :class:`baseType` class.
+
+    """
 
     def __init__(self, fileName=None, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
@@ -14,7 +24,9 @@ class ResType(BaseType):
     def substractEC(self, scaleFactor=0.95):
         """ Use the assigned empty cell data for substraction to loaded data.
             
-            Empty cell data are scaled using the given scaleFactor prior to substraction. """
+            Empty cell data are scaled using the given scaleFactor prior to substraction. 
+
+        """
 
         #_Compute the fitted Empty Cell function
         ECFunc = []
@@ -43,15 +55,15 @@ class ResType(BaseType):
 
     def absorptionCorrection(self, canType='tube', canScaling=0.9, neutron_wavelength=6.27, 
                                                                                     absco_kwargs={}):
-        """ Computes absorption coefficients for sample in a flat can and apply corrections to data,
-            for each q-value in self.data.qVals. 
+        """ Computes absorption coefficients for sample in a flat or tubular can and apply corrections 
+            to data, for each q-value in *data.qVals* attribute. 
             
-            Input:  canType             -> type of can used, either 'tube' or 'slab'
-                    canScaling          -> scaling factor for empty can contribution term, set it to 0 to use
-                                            only correction of sample self-attenuation
-                    neutron_wavelength  -> incident neutrons wavelength
-                    absco_kwargs        -> geometry arguments for absco library from Joachim Wuttke
-                                            see http://apps.jcns.fz-juelich.de/doku/sc/absco """
+            :arg canType:             type of can used, either 'tube' or 'slab'
+            :arg canScaling:          scaling factor for empty can contribution term, set it to 0 to use
+                                        only correction of sample self-attenuation
+            :arg neutron_wavelength:  incident neutrons wavelength
+            :arg absco_kwargs:        geometry arguments for absco library from Joachim Wuttke
+                                        see http://apps.jcns.fz-juelich.de/doku/sc/absco """
 
         #_Defining some defaults arguments
         kwargs = {  'mu_i_S'            : 0.65, 

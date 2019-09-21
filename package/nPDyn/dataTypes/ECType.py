@@ -1,11 +1,21 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import numpy as np
 
 from collections import namedtuple
 
-from .baseType import BaseType
+from nPDyn.dataTypes.baseType import BaseType
 
 
 class ECType(BaseType):
+    """ This class inherits from :class:`baseType` class.
+
+    """
 
     def __init__(self, fileName=None, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
@@ -17,8 +27,10 @@ class ECType(BaseType):
         """ Can be used to set to zero in intensity the region that does not pertain to the elastic
             peak. This can be useful for proper empty cell signal substraction.
 
-            Input: deltaE -> energy offset corresponding to the end of the elastic peak, everything that
-                             is beyond + or - deltaE will be set to zero. """
+            :arg deltaE: energy offset corresponding to the end of the elastic peak, everything that
+                         is beyond + or - deltaE will be set to zero. 
+
+        """
 
 
         toDiscard = np.where( np.abs(self.data.X) > deltaE)

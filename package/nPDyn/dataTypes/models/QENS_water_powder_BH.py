@@ -5,14 +5,48 @@ from scipy import optimize
 
 from scipy.special import spherical_jn
 
-from ..QENSType import DataTypeDecorator
-from ...fit.fitQENS_models import water_powder as model
+from nPDyn.dataTypes.QENSType import DataTypeDecorator
+from nPDyn.fit.fitQENS_models import water_powder as model
 
 
 
 class Model(DataTypeDecorator):
-    """ This class stores data as resolution function related. It allows to perform a fit using a 
-        pseudo-voigt profile as a model for instrument resolution. """
+    """ This class provides a model for water dynamics for powder samples with QENS data.
+
+        The model (:py:func:`~fitQENS_models.water_powder`) is given by:
+
+        .. math::
+
+            S(q, \\omega) = e^{ -q^{2} \\langle u^{2} \\rangle / 3}
+                            R(q, \\omega ) \\otimes \\left[ a_{0} \\delta(\\omega ) 
+                                + a_{r} \\mathcal{L}_{\\Gamma_{r} }
+                                + a_{t} \\mathcal{L}_{\\Gamma_{t} } \\right] + bkgd
+
+        where, q is the scattering angle, 
+        :math:`\\langle u^{2} \\rangle` is the mean-squared displacement, 
+        R is the resolution function,
+        :math:`a_{0}` is the EISF given by :math:`a_{i} + j_{0}^{2}(qd)` where j is the 
+        spherical bessel function, d the water O-H distance set to 0.96 angstrom,
+        :math:`a_{i}` account for apparent immobile water molecules fraction,
+        and :math:`a_{r}` accounts for fraction of waters undergoing rotational motions,
+        :math:`\\omega` is the energy offset, 
+        :math:`\\mathcal{L}_{\\Gamma_{r}}` accounts for rotations and is given by:
+
+        .. math::
+
+           \\mathcal{L}_{\\Gamma_{r}} = \\sum_{k=1}^{4} (2k+1) j_{k}^{2}(qd) 
+                                    \\frac{ k(k+1)\\Gamma_{r} }{ \\omega^{2} + (k(k+1)\\Gamma_{r})^{2} }
+
+        :math:`\\mathcal{L}_{\\Gamma_{t}}` is a Lorentzian of width obeying jump diffusion model as 
+        decribed by Singwi and Sjölander [#]_ and accounts for translational motions.
+
+        The Scipy basinhopping routine is used.
+
+        References:
+
+        .. [#] https://journals.aps.org/pr/abstract/10.1103/PhysRev.119.863
+
+    """  
 
     def __init__(self, dataType):
         super().__init__(dataType)
@@ -25,6 +59,8 @@ class Model(DataTypeDecorator):
 
 
     def fit(self, p0=None, bounds=None):
+        """ Global fit """
+
         print("\nStarting basinhopping fitting for file: %s" % self.fileName, flush=True)
         print(50*"-", flush=True)
 
@@ -64,6 +100,8 @@ class Model(DataTypeDecorator):
 
 
     def qWiseFit(self, p0=None, bounds=None):
+        """ q-wise fit """
+
         print("\nStarting basinhopping fitting for file: %s\n" % self.fileName, flush=True)
         print(50*"-" + "\n", flush=True)
 
@@ -134,7 +172,7 @@ class Model(DataTypeDecorator):
 
 
     def getWeights_and_lorWidths(self, qIdx):
-        #_For plotting purpose, gives fitted weights and lorentzian width
+        """ Accessor for weights/contribution factors and width of model Lorentzians """
 
         rotational = np.sum( [l*(l+1) * self.params[qIdx].x[3] for l in range(1,5)] )
 
@@ -147,7 +185,8 @@ class Model(DataTypeDecorator):
 
 
     def getWeights_and_lorErrors(self, qIdx):
-        #_For plotting purpose, gives fitted weights and lorentzian errors
+        """ Accessor for weights/contribution factors errors and width errors of model Lorentzians """
+
         errList = np.array( [ np.sqrt(np.diag( params.lowest_optimization_result.hess_inv.todense())) 
                                                                                  for params in self.params ] )
 
@@ -160,6 +199,7 @@ class Model(DataTypeDecorator):
 
 
     def getBackground(self, qIdx):
+        """ Accessor for background term, None for this model. """
 
         if len(self.params[0].x) == len(self.paramsNames):
             return self.params[qIdx].x[7]
@@ -171,7 +211,9 @@ class Model(DataTypeDecorator):
     def getSubCurves(self, qIdx):
         """ Computes the convoluted Lorentzians that are in the model and returns them 
             individually along with their labels as the last argument. 
-            They can be directly plotted as a function of energies. """
+            They can be directly plotted as a function of energies. 
+
+        """
 
         resF, rot, trans = self.model(self.getParams(qIdx), self, qIdx, False, True)
         labels      = ['Rotational', 'Translational']

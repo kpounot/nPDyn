@@ -8,8 +8,10 @@ def binData(data, binS):
     """ This method takes a dataSet, and return the binned one.
         Attention, this cannot be used with FWS data processed from hdf5 files.
 
-        Input:  data    -> dataSet to be binned
-                binS    -> bin size to reduce the dataset """
+        :arg data: dataSet to be binned
+        :arg binS: bin size to reduce the dataset 
+
+    """
 
     binS = int(binS)
 

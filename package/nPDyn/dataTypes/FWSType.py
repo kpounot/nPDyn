@@ -1,13 +1,23 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import numpy as np
 
 from collections import namedtuple
 
-from .baseType import BaseType
-from ..fileFormatParser import guessFileFormat, readFile, fileImporters
-from ..dataTypes import ECType, fECType
+from nPDyn.dataTypes.baseType import BaseType
+from nPDyn.fileFormatParser import guessFileFormat, readFile, fileImporters
+from nPDyn.dataTypes import ECType, fECType
 
 
 class FWSType(BaseType):
+    """ This class inherits from :class:`baseType` class.
+
+    """
 
     def __init__(self, fileName, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
@@ -19,9 +29,13 @@ class FWSType(BaseType):
 
 
     def importData(self, fileFormat=None):
-        """ Extract data from file and store them in self.data and self.rawData attributes.
+        """ Extract data from file and store them in *data* and *rawData* attributes.
 
-            If no fileFormat is given, tries to guess it, try hdf5 format if format cannot be guessed. """
+            If no fileFormat is given, tries to guess it, try hdf5 format if format cannot be guessed.
+
+            This is redefined from :class:`baseType`, to take into account FWS data specificities.
+
+        """
 
         if fileFormat:
             data = readFile(fileFormat, self.fileName, True)
@@ -50,7 +64,9 @@ class FWSType(BaseType):
     def normalize(self):
         """ Normalizes data using a list of scaling factors from resolution function fit.
             It assumes that the scaling factor is in first position in the model parameters.
-            There should be as many normalization factors as q-values in data. """
+            There should be as many normalization factors as q-values in data. 
+
+        """
 
         normFList = np.array( [params[0][0] for params in self.resData.params] )
 
@@ -67,7 +83,9 @@ class FWSType(BaseType):
     def substractEC(self, scaleFactor=0.8):
         """ Use the assigned empty cell data for substraction to loaded data.
             
-            Empty cell data are scaled using the given scaleFactor prior to substraction. """
+            Empty cell data are scaled using the given scaleFactor prior to substraction. 
+
+        """
 
         if isinstance(self.ECData, fECType.fECType):
             ECFunc = self.ECData.data.intensities
@@ -104,15 +122,17 @@ class FWSType(BaseType):
 
     def absorptionCorrection(self, canType='tube', canScaling=0.9, neutron_wavelength=6.27, 
                                                                                     absco_kwargs={}):
-        """ Computes absorption coefficients for sample in a flat can and apply corrections to data,
-            for each q-value in self.data.qVals. 
+        """ Computes absorption coefficients for sample in a flat or tubular can and apply corrections 
+            to data, for each q-value in *data.qVals* attribute. 
             
-            Input:  canType             -> type of can used, either 'tube' or 'slab'
-                    canScaling          -> scaling factor for empty can contribution term, set it to 0 to use
-                                            only correction of sample self-attenuation
-                    neutron_wavelength  -> incident neutrons wavelength
-                    absco_kwargs        -> geometry arguments for absco library from Joachim Wuttke
-                                            see http://apps.jcns.fz-juelich.de/doku/sc/absco """
+            :arg canType:            type of can used, either 'tube' or 'slab'
+            :arg canScaling:         scaling factor for empty can contribution term, set it to 0 to use
+                                        only correction of sample self-attenuation
+            :arg neutron_wavelength: incident neutrons wavelength
+            :arg absco_kwargs:       geometry arguments for absco library from Joachim Wuttke
+                                        see http://apps.jcns.fz-juelich.de/doku/sc/absco 
+
+        """
 
         #_Defining some defaults arguments
         kwargs = {  'mu_i_S'            : 0.660, 
@@ -199,7 +219,9 @@ class FWSType(BaseType):
     def getD2OSignal(self, qIdx=None):
         """ Computes D2O line shape for each q values.
             
-            If a qIdx is given, returns D2O signal only for the corresponding q value. """
+            If a qIdx is given, returns D2O signal only for the corresponding q value. 
+
+        """
 
         D2OSignal = self.D2OData.getD2OSignal()[self.data.qIdx]
 

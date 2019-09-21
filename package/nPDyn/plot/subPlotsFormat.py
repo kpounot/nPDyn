@@ -4,14 +4,17 @@ import numpy as np
 def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=False, FWS=False):
     """ This method is used to try to determine the best number of rows and columns for plotting.
         Depending on the size of the fileIdxList, the plot will have a maximum of subplots per row,
-        typically around 4-5 and the required number of columns.
+        typically around 4-5 and the required number of rows.
 
-        Input: sharex       -> matplotlib's parameter for x-axis sharing
-               sharey       -> matplotlib's parameter for y-axis sharing
-               projection   -> projection type for subplots (None, '3d',...) (optional, default None)
-               params       -> if True, use size of paramsNames instead of fileIdxList
+        :arg sharex:     matplotlib's parameter for x-axis sharing
+        :arg sharey:     matplotlib's parameter for y-axis sharing
+        :arg projection: projection type for subplots (None, '3d',...) (optional, default None)
+        :arg params:     if True, use size of paramsNames instead of fileIdxList
+        :arg FWS:        if True, use numbers of energy offsets in fixed-window scans instead
         
-        Output: axis list from figure.subplots method of matplotlib """
+        :returns: axis list from figure.subplots method of matplotlib 
+
+    """
 
 
     #_Getting number of necessary subplots
@@ -71,14 +74,19 @@ def subplotsFormat(caller, sharex=False, sharey=False, projection=None, params=F
 def subplotsFormatWithColorBar(caller, sharex=False, sharey=False, projection=None, params=False):
     """ This method is used to try to determine the best number of rows and columns for plotting.
         Depending on the size of the fileIdxList, the plot will have a maximum of subplots per row,
-        typically around 4-5 and the required number of columns.
+        typically around 4-5 and the required number of rows.
 
-        Input: sharex       -> matplotlib's parameter for x-axis sharing
-               sharey       -> matplotlib's parameter for y-axis sharing
-               projection   -> projection type for subplots (None, '3d',...) (optional, default None)
-               params       -> if True, use size of paramsNames instead of fileIdxList
+        Axes are added to plot colorbars as well, so that the number of columns will be twice the 
+        number required initially by the data.
+
+        :arg sharex:     matplotlib's parameter for x-axis sharing
+        :arg sharey:     matplotlib's parameter for y-axis sharing
+        :arg projection: projection type for subplots (None, '3d',...) (optional, default None)
+        :arg params:     if True, use size of paramsNames instead of fileIdxList
         
-        Output: axis list from figure.subplots method of matplotlib """
+        :returns: axis list from figure.subplots method of matplotlib 
+
+    """
 
     #_Getting number of necessary subplots
     if params:

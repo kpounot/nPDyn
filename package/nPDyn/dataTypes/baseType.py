@@ -1,11 +1,18 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import numpy as np
 
 from collections import namedtuple
 
 from itertools import count
 
-from ..dataManipulation.binData import binData
-from ..fileFormatParser import guessFileFormat, readFile, fileImporters
+from nPDyn.dataManipulation.binData import binData
+from nPDyn.fileFormatParser import guessFileFormat, readFile, fileImporters
 
 try:
     from ..lib.pyabsco import py_absco_slab, py_absco_tube
@@ -17,14 +24,23 @@ except ImportError:
 
 
 class BaseType:
+    """ Initialize a base type that will be inherited by all other 
+        specialized types through its decorator. 
+    
+        :arg fileName: name of the file being read
+        :arg data:     resulting namedtuple from data parsers 
+        :arg rawData:  used by the decorator 
+        :arg resData:  data for resolution function
+        :type resData: :class:`resType`
+        :arg D2OData:  D2O data if needed
+        :type D2OData: :class:`D2OType`
+        :arg ECData:   empty cell measurement data
+        :type ECData:  :class:`ECType`
+
+    """
+
 
     def __init__(self, fileName=None, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
-        """ Initialize a base type that will be inherited by all other specialized types through its decorator. 
-        
-            Input:  fileName    -> name of the file being read
-                    data        -> resulting namedtuple from data parsers 
-                    rawData     -> used by the decorator """
-
         self.fileName   = fileName
         self.data       = data 
         self.rawData    = rawData #_Used to reset data to its initial state
@@ -36,9 +52,11 @@ class BaseType:
 
 
     def importData(self, fileFormat=None):
-        """ Extract data from file and store them in self.data and self.rawData attributes.
+        """ Extract data from file and store them in *data* and *rawData* attributes.
 
-            If no fileFormat is given, tries to guess it, try hdf5 format if format cannot be guessed. """
+            If no fileFormat is given, tries to guess it, try hdf5 format if format cannot be guessed. 
+
+        """
 
         if fileFormat:
             data = readFile(fileFormat, self.fileName)
@@ -57,7 +75,7 @@ class BaseType:
 
 
     def binData(self, binSize):
-        """ Bin self.data attribute using the given binSize. """
+        """ Bin *data* attribute using the given *binSize*. """
 
         self.data = binData(self.data, binSize)
 
@@ -65,8 +83,11 @@ class BaseType:
 
     def normalize(self):
         """ Normalizes data using a list of scaling factors from resolution function fit.
+
             It assumes that the scaling factor is in first position in the model parameters.
-            There should be as many normalization factors as q-values in data. """
+            There should be as many normalization factors as q-values in data. 
+
+        """
 
         normFList = np.array( [params[0][0] for params in self.resData.params] )
 
@@ -89,7 +110,9 @@ class BaseType:
     def substractEC(self, scaleFactor=0.95):
         """ Use the assigned empty cell data for substraction to loaded data.
             
-            Empty cell data are scaled using the given scaleFactor prior to substraction. """
+            Empty cell data are scaled using the given *scaleFactor* prior to substraction. 
+
+        """
 
         #_Compute the fitted Empty Cell function
         ECFunc = []
@@ -118,7 +141,7 @@ class BaseType:
 
 
     def resetData(self):
-        """ Reset self.data to its initial state by copying rawData attribute. """
+        """ Reset *data* attrbute to its initial state by copying *rawData* attribute. """
 
         self.data = self.data._replace( qVals       = np.copy(self.rawData.qVals),
                                         X           = np.copy(self.rawData.X),
@@ -132,14 +155,17 @@ class BaseType:
 
     def discardDetectors(self, *qIdx):
         """ Remove detectors indices.
-            The process modifies self.data.qIdx attribute that is used for fitting and plotting. """
+
+            The process modifies *data.qIdx* attribute that is used for fitting and plotting. 
+
+        """
 
         self.data = self.data._replace(qIdx = np.array( [val for val in self.data.qIdx if val not in qIdx] ))
 
 
 
     def resetDetectors(self):
-        """ Reset qIdx entry to its original state, with all q values taken into account. """
+        """ Reset *data.qIdx* entry to its original state, with all q values taken into account. """
 
         self.data = self.data._replace(qIdx = np.array([idx for idx, val in enumerate(self.data.qVals)]))
 
@@ -187,8 +213,10 @@ class BaseType:
 
 
     def assignResData(self, resData):
-        """ Sets self.resData attribute to the given one, a ResType instance that can be used by fitting 
-            functions in QENS or FWS types. """
+        """ Sets *resData* attribute to the given one, a ResType instance that can be used by fitting 
+            functions in QENS or FWS types. 
+
+        """
 
         self.resData = resData
 
@@ -198,7 +226,9 @@ class BaseType:
     def getD2OSignal(self, qIdx=None):
         """ Computes D2O line shape for each q values.
             
-            If a qIdx is given, returns D2O signal only for the corresponding q value. """
+            If a *data.qIdx* is given, returns D2O signal only for the corresponding q value. 
+
+        """
 
         D2OSignal = self.D2OData.getD2OSignal()[self.data.qIdx]
 
@@ -220,15 +250,19 @@ class BaseType:
 
 
     def assignD2OData(self, D2OData):
-        """ Sets self.D2OData attribute to the given one, a D2OType instance that can be used by fitting
-            functions in QENS or FWS types. """
+        """ Sets *D2OData* attribute to the given one, a :class:`D2OType` instance that can be used 
+            by fitting functions in QENS or FWS types. 
+
+        """
 
         self.D2OData = D2OData
  
 
     def assignECData(self, ECData):
-        """ Sets self.ECData attribute to the given one, a ECType instance that can be used by fitting
-            functions in QENS or FWS types. """
+        """ Sets *ECData* attribute to the given one, a :class:`ECType` instance 
+            that can be used by fitting functions in QENS or FWS types. 
+
+        """
 
         self.ECData = ECData
 
@@ -238,15 +272,17 @@ class BaseType:
 
     def absorptionCorrection(self, canType='tube', canScaling=0.9, neutron_wavelength=6.27, 
                                                                                     absco_kwargs={}):
-        """ Computes absorption coefficients for sample in a flat can and apply corrections to data,
-            for each q-value in self.data.qVals. 
+        """ Computes absorption coefficients for sample in a flat or tubular can and apply corrections 
+            to data, for each q-value in *data.qVals* attribute. 
             
-            Input:  canType             -> type of can used, either 'tube' or 'slab'
-                    canScaling          -> scaling factor for empty can contribution term, set it to 0 to use
-                                            only correction of sample self-attenuation
-                    neutron_wavelength  -> incident neutrons wavelength
-                    absco_kwargs        -> geometry arguments for absco library from Joachim Wuttke
-                                            see http://apps.jcns.fz-juelich.de/doku/sc/absco """
+            :arg canType:           type of can used, either 'tube' or 'slab'
+            :arg canScaling:        scaling factor for empty can contribution term, set it to 0 to use
+                                        only correction of sample self-attenuation
+            :arg neutron_wavelength: incident neutrons wavelength
+            :arg absco_kwargs:       geometry arguments for absco library from Joachim Wuttke
+                                        see http://apps.jcns.fz-juelich.de/doku/sc/absco 
+
+        """
 
         #_Defining some defaults arguments
         kwargs = {  'mu_i_S'            : 0.660, 
@@ -326,10 +362,12 @@ class BaseType:
     def discardOutliers(self, meanScale):
         """ Discards outliers in experimental based on signal / noise ratio.
             
-            Input: meanScale -> factor by which mean of signal over noise ratio will be 
-                                multiplied. Then, this scaled mean is used as a threshold under which
-                                data errors will be set to infinite so that they won't weigh in the 
-                                fitting procedure. """
+            :arg meanScale: factor by which mean of signal over noise ratio will be 
+                            multiplied. Then, this scaled mean is used as a threshold under which
+                            data errors will be set to infinite so that they won't weigh in the 
+                            fitting procedure. 
+
+        """
 
 
         sigNoiseR = self.data.intensities / self.data.errors
@@ -344,8 +382,10 @@ class BaseType:
     def setQRange(self, minQ, maxQ):
         """ Discard detectors that do not lie inside required q-range
             
-            Input:  minQ -> minimum wanted q-value
-                    maxQ -> maximum wanted q-value """
+            :arg minQ: minimum wanted q-value
+            :arg maxQ: maximum wanted q-value 
+
+        """
 
         #_In case some detectors were already discarded, put qIdx list back to its original state
         self.resetDetectors()

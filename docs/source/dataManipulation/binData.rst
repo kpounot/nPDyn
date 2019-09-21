@@ -1,0 +1,5 @@
+binData
+=======
+
+.. automodule:: binData
+   :members:

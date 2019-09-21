@@ -3,14 +3,37 @@ import numpy as np
 from collections import namedtuple
 from scipy import optimize
 
-from ..FWSType import DataTypeDecorator
-from ...fit.fitQENS_models import protein_liquid_analytic_voigt_CF as model
+from nPDyn.dataTypes.FWSType import DataTypeDecorator
+from nPDyn.fit.fitQENS_models import protein_liquid_analytic_voigt_CF as model
 
 
 
 class Model(DataTypeDecorator):
-    """ This class stores data as resolution function related. It allows to perform a fit using a 
-        pseudo-voigt profile as a model for instrument resolution. """
+    """ This class provides a model for protein dynamics in liquid state for fixed-window scans data.
+
+        The model (:py:func:`~fitQENS_models.protein_liquid_analytic_voigt`) is given by:
+
+        .. math::
+
+            S(q, \\omega) = R(q, \\omega ) \\otimes \\left[ \\beta ( a_{0} \\mathcal{L}_{\\gamma }
+                                    + (1 - a_{0}) \\mathcal{L}_{\\Gamma } ) \\right]
+                                    + \\beta_{D_{2}O} \\mathcal{L}_{D_{2}O}
+
+        where, R is the resolution function, q is the scattering angle, :math:`\\omega` the energy offset, 
+        :math:`\\mathcal{L}_{\\gamma}` is a single Lorentzian accounting for global diffusion motions,
+        :math:`\\mathcal{L}_{\\Gamma}` is a Lorentzian of width obeying jump diffusion model as 
+        decribed by Singwi and Sjölander [#]_ ,
+        :math:`\\mathcal{L}_{D_{2}O}` is the :math:`D_{2}O` lineshape, :math:`a_{0}` acts as an EISF,
+        and :math:`\\beta` and :math:`\\beta_{D_{2}O}` are scalars.
+
+        The Scipy *curve_fit* routine is used.
+
+        References:
+
+        .. [#] https://journals.aps.org/pr/abstract/10.1103/PhysRev.119.863
+
+    """
+
 
     def __init__(self, dataType):
         super().__init__(dataType)
@@ -24,6 +47,7 @@ class Model(DataTypeDecorator):
 
 
     def fit(self, p0=None, bounds=None):
+        """ Global fit of data using Scipy *curve_fit* routine. """
         print("\nStarting basinhopping fitting for file: %s" % self.fileName, flush=True)
         print(50*"-", flush=True)
 
@@ -78,6 +102,7 @@ class Model(DataTypeDecorator):
 
 
     def qWiseFit(self, p0=None, bounds=None):
+        """ q-wise data fit using Scipy *curve_fit* routine. """
         print("\nStarting basinhopping fitting for file: %s\n" % self.fileName, flush=True)
         print(50*"-" + "\n", flush=True)
 
@@ -182,6 +207,8 @@ class Model(DataTypeDecorator):
 
 
     def getWeights_and_lorWidths(self, qIdx):
+        """ Accessor for weights/contribution factors and width of model Lorentzians """
+
         #_For plotting purpose, gives fitted weights and lorentzian width
         outWeights   = []
         lorWidths = []
@@ -215,6 +242,8 @@ class Model(DataTypeDecorator):
 
 
     def getWeights_and_lorErrors(self, qIdx):
+        """ Accessor for weights/contribution factors errors and width errors of model Lorentzians """
+
         #_For plotting purpose, gives fitted weights and lorentzian errors
         errList = np.array( [ np.sqrt(np.diag( params[qIdx][1] )) for params in self.params ] )
         weightsErr  = []
@@ -236,6 +265,7 @@ class Model(DataTypeDecorator):
 
 
     def getBackground(self, qIdx):
+        """ Accessor for background term, None for this model. """
 
         return None
 

@@ -1,0 +1,5 @@
+subPlotsFormat
+==============
+
+.. automodule:: subPlotsFormat
+   :members:

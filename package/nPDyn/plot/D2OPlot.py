@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import sys, os
 import numpy as np
 
@@ -13,19 +20,21 @@ from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
-from .subPlotsFormat import subplotsFormat
+from nPDyn.plot.subPlotsFormat import subplotsFormat
  
 
 
 class D2OPlot(QWidget):
-    """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
+    """ This class creates a PyQt widget containing a matplotlib canvas to draw the plots,
         a lineedit widget to allow the user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
 
-        Plot        -> plot the normalized experimental data for the selected q-value
-        3D Plot     -> plot the whole normalized dataSet
-        Analysis    -> plot the different model parameters as a function of q-value
-        Resolution  -> plot the fitted model on top of the experimental data for the selected q-value """
+            - Plot        - plot the normalized experimental data for the selected q-value
+            - Analysis    - plot the different model parameters as a function of q-value
+            - 3D Plot     - plot the whole normalized dataset
+            - Fit         - plot the fitted model on top of the experimental data for the selected q-value 
+
+    """
 
     def __init__(self, datasetList):
 
@@ -35,7 +44,7 @@ class D2OPlot(QWidget):
         self.dataset = datasetList
 
         try:
-            self.initChecks()
+            self._initChecks()
         except Exception as e:
             print(e)
             return
@@ -119,38 +128,6 @@ class D2OPlot(QWidget):
 
 
 
-    def compare(self):
-        """ This is used to plot the experimental data, without any fit. """
-	   
-        self.figure.clear()     
-        
-        ax = self.figure.add_subplot(111)
-
-        #_Obtaining the q-value to plot as being the closest one to the number entered by the user 
-        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
-        qValToShow = min(qVals, key = lambda x : abs(float(self.lineEdit.text()) - x))
-        qValIdx = int(np.argwhere(qVals == qValToShow)[0])
-
-        for dataset in self.dataset:
-            ax.errorbar(dataset.data.X, 
-                        dataset.data.intensities[qValIdx],
-                        dataset.data.errors[qValIdx], 
-                        label=dataset.fileName,
-                        fmt='o')
-            
-            ax.set_xlabel(r'$\hslash\omega (\mu eV)$', fontsize=18)
-            ax.set_yscale('log')
-            ax.set_ylabel(r'$S(' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
-            ax.legend(framealpha=0.5)
-            ax.grid()
-
-        self.figure.tight_layout()
-        self.canvas.draw()
-
-
-
-
-
     def plot3D(self):
         """ 3D plot of the whole dataset """
 
@@ -183,8 +160,10 @@ class D2OPlot(QWidget):
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
         """ This method plots the fitted parameters for each file.
-            There is one parameter list for each file, which consists in a q-wise list of scipy's
-            OptimizeResult instance. Parameters are retrieved using OptimizeResults.x attribute. """ 
+            There is one parameter list for each file, which consists in a q-wise list of Scipy's
+            OptimizeResult instance. Parameters are retrieved using *OptimizeResults.x* attribute. 
+
+        """ 
 
         self.figure.clear()     
 
@@ -213,6 +192,7 @@ class D2OPlot(QWidget):
 
 
     def fitPlot(self):
+        """ Plot of the fitted model. """
 	   
         self.figure.clear()     
 
@@ -274,7 +254,7 @@ class D2OPlot(QWidget):
 #--------------------------------------------------
 #_Initialization checks and others
 #--------------------------------------------------
-    def initChecks(self):
+    def _initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
         for idx, dataset in enumerate(self.dataset):

@@ -3,14 +3,34 @@ import numpy as np
 from collections import namedtuple
 from scipy import optimize
 
-from ..QENSType import DataTypeDecorator
-from ...fit.fitQENS_models import protein_powder_1Lorentzian as model
+from nPDyn.dataTypes.QENSType import DataTypeDecorator
+from nPDyn.fit.fitQENS_models import protein_powder_1Lorentzian as model
 
 
 
 class Model(DataTypeDecorator):
-    """ This class stores data as resolution function related. It allows to perform a fit using a 
-        pseudo-voigt profile as a model for instrument resolution. """
+    """ This class provides a model for protein dynamics in powder state using one Lorentzians.
+
+        The model (:py:func:`~fitQENS_models.protein_powder_1Lorentzian`) is given by:
+
+        .. math::
+
+            S(q, \\omega) = e^{ -q^{2} \\langle u^{2} \\rangle / 3}
+                            R(q, \\omega ) \\otimes \\left[ a_{0} \\delta(\\omega ) 
+                                + a_{1} \\mathcal{L}_{\\Gamma } \\right] + bkgd
+
+        where, q is the scattering angle, 
+        :math:`\\langle u^{2} \\rangle` is the mean-squared displacement, 
+        R is the resolution function,
+        :math:`\\omega` the energy offset, 
+        :math:`\\mathcal{L}_{\\Gamma}` is a single Lorentzian accounting for global diffusion motions,
+        and :math:`a_{1}` is scalars.
+
+        The Scipy basinhopping routine is used.
+
+
+    """  
+
 
     def __init__(self, dataType):
         super().__init__(dataType)
@@ -23,6 +43,8 @@ class Model(DataTypeDecorator):
 
 
     def fit(self, p0=None, bounds=None):
+        """ Global fit """
+
         print("\nStarting basinhopping fitting for file: %s" % self.fileName, flush=True)
         print(50*"-", flush=True)
 
@@ -60,6 +82,8 @@ class Model(DataTypeDecorator):
 
 
     def qWiseFit(self, p0=None, bounds=None):
+        """ q-wise fit """
+
         print("\nStarting basinhopping fitting for file: %s\n" % self.fileName, flush=True)
         print(50*"-" + "\n", flush=True)
 
@@ -133,6 +157,8 @@ class Model(DataTypeDecorator):
 
 
     def getWeights_and_lorWidths(self, qIdx):
+        """ Accessor for weights/contribution factors and width of model Lorentzians """
+
         #_For plotting purpose, gives fitted weights and lorentzian width
         weights     = self.params[qIdx].x[[1]] / self.params[qIdx].x[:2].sum()
         lorWidths   = self.params[qIdx].x[[2]] * self.data.qVals[qIdx]**2
@@ -143,6 +169,8 @@ class Model(DataTypeDecorator):
 
 
     def getWeights_and_lorErrors(self, qIdx):
+        """ Accessor for weights/contribution factors errors and width errors of model Lorentzians """
+
         #_For plotting purpose, gives fitted weights and lorentzian errors
         errList = np.array( [ np.sqrt(np.diag( params.lowest_optimization_result.hess_inv.todense())) 
                                                                                  for params in self.params ] )
@@ -155,6 +183,7 @@ class Model(DataTypeDecorator):
 
 
     def getBackground(self, qIdx):
+        """ Accessor for background term, None for this model. """
 
         if len(self.params[0].x) == len(self.paramsNames):
             return self.params[qIdx].x[5]
@@ -166,7 +195,9 @@ class Model(DataTypeDecorator):
     def getSubCurves(self, qIdx):
         """ Computes the convoluted Lorentzians that are in the model and returns them 
             individually along with their labels as the last argument. 
-            They can be directly plotted as a function of energies. """
+            They can be directly plotted as a function of energies. 
+
+        """
 
         resF, lor1 = self.model(self.getParams(qIdx), self, qIdx, False, True)
         labels     = [r'$L_{\Gamma}(q, \omega)$']

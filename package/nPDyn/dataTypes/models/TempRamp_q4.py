@@ -4,14 +4,31 @@ from collections import namedtuple
 
 from scipy.optimize import curve_fit
 
-from ..TempRampType import DataTypeDecorator
-from ...fit import fitENS_models as models 
+from nPDyn.dataTypes.TempRampType import DataTypeDecorator
+from nPDyn.fit import fitENS_models as models 
 
 
 
 class Model(DataTypeDecorator):
-    """ This class stores data as resolution function related. It allows to perform a fit using a 
-        pseudo-voigt profile as a model for instrument resolution. """
+    """ This class provides a model to fit q-dependent elastic signal measured during as a series, 
+        during a temperature ramp for instance. 
+
+        The model used is given by [#]_ :
+
+        .. math::
+
+           S(q, \\omega = 0) = e^{ -\\frac{q^{2} \\langle u^{2} \\rangle }{6} }
+                            \\left[ 1 + e^{ - \\frac{q^{4} \\sigma^{2}}{72} } \\right]
+
+        where q is the scattering angle, :math:`\\omega` the energy offset, 
+        :math:`\\langle u^{2} \\rangle` the mean-squared displacement,
+        and :math:`\\sigma` the second moment of mean-squared displacement distribution.
+
+        References:
+
+        .. [#] http://doi.org/10.1021/jp2102868
+
+    """
 
     def __init__(self, dataType):
         super().__init__(dataType)
@@ -27,6 +44,7 @@ class Model(DataTypeDecorator):
 
 
     def fit(self, p0=None, bounds=None):
+        """ Fitting procedure that makes use of Scipy *curve_fit*. """
 
         if not bounds:
             bounds = self.defaultBounds

@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import sys, os
 import numpy as np
 
@@ -13,18 +20,20 @@ from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
-from .subPlotsFormat import subplotsFormat
+from nPDyn.plot.subPlotsFormat import subplotsFormat
 
  
 class ECPlot(QWidget):
-    """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
+    """ This class creates a PyQt widget containing a matplotlib canvas to draw the plots,
         a lineedit widget to allow the user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
 
-        Plot        -> plot the normalized experimental data for the selected q-value
-        3D Plot     -> plot the whole normalized dataSet
-        Analysis    -> plot the different model parameters as a function of q-value
-        Resolution  -> plot the fitted model on top of the experimental data for the selected q-value """
+            - Plot        - plot the normalized experimental data for the selected q-value
+            - 3D Plot     - plot the whole normalized dataSet
+            - Analysis    - plot the different model parameters as a function of q-value
+            - Fit         - plot the fitted model on top of the experimental data for the selected q-value 
+
+    """
 
     def __init__(self, dataset):
 
@@ -33,7 +42,7 @@ class ECPlot(QWidget):
         self.dataset   = dataset
 
         try:
-            self.initChecks()
+            self._initChecks()
         except Exception as e:
             print(e)
             return
@@ -156,6 +165,7 @@ class ECPlot(QWidget):
 
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
+        """ Plots the fitted parameters. """
 
         self.figure.clear()     
 
@@ -183,6 +193,7 @@ class ECPlot(QWidget):
 
 
     def resPlot(self):
+        """ Plots the fitted empty cell signal. """
 	   
         self.figure.clear()     
         ax = subplotsFormat(self, False, True) 
@@ -218,7 +229,7 @@ class ECPlot(QWidget):
         self.canvas.draw()
 
 
-    def initChecks(self):
+    def _initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
         if self.dataset == None:

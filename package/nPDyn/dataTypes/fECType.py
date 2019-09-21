@@ -1,12 +1,22 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import numpy as np
 
 from collections import namedtuple
 
-from .baseType import BaseType
-from ..fileFormatParser import guessFileFormat, readFile, fileImporters
+from nPDyn.dataTypes.baseType import BaseType
+from nPDyn.fileFormatParser import guessFileFormat, readFile, fileImporters
 
 
 class fECType(BaseType):
+    """ This class inherits from :class:`baseType` class.
+
+    """
 
     def __init__(self, fileName=None, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
@@ -14,9 +24,11 @@ class fECType(BaseType):
 
 
     def importData(self, fileFormat=None):
-        """ Extract data from file and store them in self.data and self.rawData attributes.
+        """ Extract data from file and store them in *data* and *rawData* attributes.
 
-            If no fileFormat is given, tries to guess it, try hdf5 format if format cannot be guessed. """
+            If no fileFormat is given, tries to guess it, try hdf5 format if format cannot be guessed. 
+
+        """
 
         if fileFormat:
             data = readFile(fileFormat, self.fileName, True)
@@ -49,7 +61,9 @@ class fECType(BaseType):
 
     def discardNonElastic(self):
         """ Can be used to set to zero in intensity the region that does not pertain to the elastic
-            peak. This can be useful for proper empty cell signal substraction. """
+            peak. This can be useful for proper empty cell signal substraction. 
+
+        """
 
 
         toDiscard = np.where( self.data.X != 0.0)

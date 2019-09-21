@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import sys, os
 import numpy as np
 import h5py as h5
@@ -11,27 +18,42 @@ matplotlib.use('Qt5Agg')
 
 from PyQt5.QtWidgets import QApplication
 
-from . import fileFormatParser
-from .dataTypes import *
-from .dataTypes.models import *
-from .fit import *
-from .plot import *
+from nPDyn import fileFormatParser
+from nPDyn.dataTypes import *
+from nPDyn.dataTypes.models import *
+from nPDyn.fit import *
+from nPDyn.plot import *
 
-from .plot.plotMD_MSD import plotMSDSeries
+from nPDyn.plot.plotMD_MSD import plotMSDSeries
 
 class Dataset:
     """ Master class of nPDyn, contains a list of dataFiles, which can be sample, resolution, D2O data or
         anything else as long as the format can be recognized. 
 
         For call with ipython, the dataSet can be initialized directly from command line using the 
-        following: 'ipython -i Dataset.py -- [dataSet related optional arguments]'
+        following: ``ipython -i Dataset.py -- [dataSet related optional arguments]``
         
-        Input:  QENSFiles   ->  list of Quasi-Elastic Neutron Scattering data files to be loaded (optional)
-                FWSFiles    ->  list of Fixed Window Scans data files to be loaded (optional)
-                TempRampFiles   ->  list of temperature ramps data files to be loaded (optional)
-                ECFile      -> Empty cell data to be loaded (optional)
-                resFiles    -> list of resolution function related data to be loaded
-                D2OFiles    -> list of D2O data to be loaded """
+        :arg QENSFiles:     list of Quasi-Elastic Neutron Scattering data files to be loaded (optional)
+        :arg FWSFiles:      list of Fixed Window Scans data files to be loaded (optional)
+        :arg TempRampFiles: list of temperature ramps data files to be loaded (optional)
+        :arg ECFile:        Empty cell data to be loaded (optional)
+        :arg resFiles:      list of resolution function related data to be loaded
+        :arg D2OFiles:      list of D2O data to be loaded 
+
+        It goes like this, when a file is imported, data are loaded into a class, depending
+        on the given data type. This class will inherit from :class:`baseType`, and might
+        have specific methods or can redefine methods if needed by the data type.
+
+        Then, using a decorator pattern, a model can be assigned to this class by using the 
+        provided :py:func:`assignModeltoData` method in :class:`Dataset` or simply by using
+        the following ``myClass = Builtin_ModelClass(myClass)``
+
+        Each builtin model have a *fit* method, with a *qWise* argument that allow to perform either
+        a global or a q-wis fit. They contains several methods to easily access fitted parameters and curves.
+
+        Finally, various plotting methods are available, each corresponding to a given data type.
+
+    """
 
 
     def __init__(self, QENSFiles=None, FWSFiles=None, TempRampFiles=None, ECFile=None, fECFile=None,
@@ -109,12 +131,14 @@ class Dataset:
             and send an error message in case the file could not be imported. 
             It can be used to import .inx file or QENS/FWS from hdf5 files for now.
 
-            Input:  dataFile    -> path of the data file to be imported
-                    fileFormat  -> format of the file to be imported (inx, hdf5,...) (optional, default None)
-                    filesTypes  -> named parameters containing a list of files paths for each file type given
+            :arg dataFile:      path of the data file to be imported
+            :arg fileFormat:    format of the file to be imported (inx, hdf5,...) (optional, default None)
+            :arg QENSFiles,...: named parameters containing a list of files paths for each file type given
 
             
-            The files are imported without binning. """
+            The files are imported without binning and stored in *dataSetList* attribute. 
+
+        """
 
     
         #_Processing files arguments
@@ -162,7 +186,7 @@ class Dataset:
             if self.resData != []:
                 data.assignResData(self.resData[0])
                 data.normalize()
-                data.qWiseFit()
+                data.fit()
 
             self.D2OData = data
 
@@ -244,7 +268,9 @@ class Dataset:
             they are assigned in an order-wise manner. 
 
             If none of the above conditions are fulfilled, nothing is done and resolution data should be 
-            assigned manually. """
+            assigned manually. 
+
+        """
 
         lenResData = len(self.resData)
 
@@ -267,7 +293,9 @@ class Dataset:
     def removeDataSet(self, fileIdx):
         """ This method takes either a single integer as argument, which corresponds
             to the index of the file to be removed from self.dataFiles, self.dataSetList and 
-            self.rawDataList. """
+            self.rawDataList. 
+
+        """
 
         self.dataSetList.pop(fileIdx)
 
@@ -286,7 +314,7 @@ class Dataset:
 
 
     def resetAll(self):
-        """ Reset all dataset, as well as resolution D2O and empty cell data to their initial state """
+        """ Reset all dataset, as well as resolution D2O and empty cell data to their initial state. """
 
         for dataset in self.dataSetList:
             dataset.resetData()
@@ -320,7 +348,9 @@ class Dataset:
             If only one resolution data file is loaded, use this one for all dataset, else, use them in
             the same order as dataset in self.dataSetList
 
-            Input: fileIdxList -> list of indices of dataset in self.dataSetList to be normalized """
+            :arg fileIdxList: list of indices of dataset in self.dataSetList to be normalized 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -337,10 +367,12 @@ class Dataset:
             number of first bins (low temperature) are used to compute an average signal at low 
             temperature. The average is then used to normalize the whole dataset. This for each q-value.
 
-            Input:  fileIdxList ->  can be "all", then every dataSet in self.dataSetList is normalized
+            :arg fileIdxList:  can be "all", then every dataSet in self.dataSetList is normalized
                                     can also be a single integer or a list of integer (optional, default "all")
-                    nbrBins     ->  number of low temperature bins used to compute the normalization factor
-                                    (optional, default 8) """
+            :arg nbrBins:      number of low temperature bins used to compute the normalization factor
+                                    (optional, default 8) 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -358,9 +390,12 @@ class Dataset:
                                             neutron_wavelength=6.27, absco_kwargs={}, D2O=True, res=True):
         """ Method for quick absorption correction on all selected dataset in fileIdxList.
             
-            Same arguments as in baseType class, except D2O, which, if True, involves that corrections are
-            performed on D2O data too. 
-            Also, if 'res' argument is set to True, correction are done for resolution function data too. """
+            Same arguments as in :class:`baseType` class, except D2O, which, 
+            if True, involves that corrections are performed on D2O data too.
+
+            Also, if *res* argument is set to True, correction are done for resolution function data too. 
+
+        """
 
         
         #_If not file indices were given, assumes that all should be use
@@ -408,13 +443,15 @@ class Dataset:
 
     def substract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True, subRes=True):
         """ This method uses the fitted empty cell function to substract the signal for the selected
-            dataSet. 
+            dataset. 
 
-            Input: subFactor    -> pre-multiplying factor for empty cell data prior to substraction
-                   fileIdxList  -> can be "all", then every dataSet in self.dataSetList is normalized
-                                    can also be a single integer or a list of integer (optional, default "all") 
-                   subD2O       -> if True, tries to substract empty cell signal from D2O data too 
-                   subRes       -> if True, substract empty cell signal from resolutions data too """
+            :arg subFactor:   pre-multiplying factor for empty cell data prior to substraction
+            :arg fileIdxList: can be "all", then every dataSet in self.dataSetList is normalized
+                                can also be a single integer or a list of integer (optional, default "all") 
+            :arg subD2O:      if True, tries to substract empty cell signal from D2O data too 
+            :arg subRes:      if True, substract empty cell signal from resolutions data too 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -446,14 +483,16 @@ class Dataset:
         """ Discard outliers by setting errors to infinite for each data points having a signal over
             noise ration under a given threshold (determined by meanScale * mean(S/N ratios)). 
             
-            Input:  meanScale   ->  factor by which mean of signal over noise ratio will be 
-                                    multiplied. Then, this scaled mean is used as a threshold under which
-                                    data errors will be set to infinite so that they won't weigh in the 
-                                    fitting procedure. 
-                    fileIdxList ->  list of data files to be used for outliers discard
-                    D2O         -> if True, discard outliers in D2O data too, and refit
-                    EC          -> if True, discard outliers in empty cell data, and refit
-                    res         -> if True, discard outliers in resolution and refit """
+            :arg meanScale:   factor by which mean of signal over noise ratio will be 
+                                multiplied. Then, this scaled mean is used as a threshold under which
+                                data errors will be set to infinite so that they won't weigh in the 
+                                fitting procedure. 
+            :arg fileIdxList: list of data files to be used for outliers discard
+            :arg D2O:         if True, discard outliers in D2O data too, and refit
+            :arg EC:          if True, discard outliers in empty cell data, and refit
+            :arg res:         if True, discard outliers in resolution and refit 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -500,7 +539,9 @@ class Dataset:
 
     def discardDetectors(self, decIdxList, *fileIdxList):
         """ Remove data corresponding to given detectors/q-values
-            The process modifies dataset.qIdx attributes, that is used for sample QENS fitting and plotting. """
+            The process modifies dataset.qIdx attributes, that is used for sample QENS fitting and plotting. 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -526,8 +567,10 @@ class Dataset:
     def setQRange(self, minQ, maxQ, *fileIdxList):
         """ Defines a q-range within which detectors are not discarded.
             
-            Input:  minQ -> minimum q-value to keep
-                    maxQ -> maximum q-value to keep """
+            :arg minQ: minimum q-value to keep
+            :arg maxQ: maximum q-value to keep 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -542,7 +585,9 @@ class Dataset:
     def assignModeltoData(self, model, *fileIdxList):
         """ Helper function to quickly assign the given model to all dataset with given indices in
             self.dataSetList. If model is not None, the decorator pattern is used to modify the dataType
-            class behavior. """
+            class behavior. 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -559,7 +604,9 @@ class Dataset:
     def fitData(self, *fileIdxList, p0=None, bounds=None, qWise=False):
         """ Helper function to quickly call fit method in all class instances present in self.dataSetList
             for the given indices in fileIdxList.
-            Check first for the presence of a fit method and print a warning message if none is found. """
+            Check first for the presence of a fit method and print a warning message if none is found. 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -583,9 +630,11 @@ class Dataset:
         """ The method find the index corresponding to the file, perform the binning process,
             then replace the value in self.dataSetList by the binned one. 
             
-            Input: binS         -> bin size
-                   fileIdxList  -> indices of the dataSet to be binned, can be a single int or a list of int 
-                                   (optional, default "all") """ 
+            :arg binS:        bin size
+            :arg fileIdxList: indices of the dataSet to be binned, can be a single int or a list of int 
+                                (optional, default "all") 
+
+        """ 
 
 
         #_If not file indices were given, assumes that all should be use
@@ -676,7 +725,9 @@ class Dataset:
             The resolution function and other parameters are automatically obtained from the current
             dataSet class instance. 
             
-            Input:  fileIdxList -> indices of dataset to be plotted (optional, default "all") """
+            :arg fileIdxList: indices of dataset to be plotted (optional, default "all") 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
@@ -698,7 +749,9 @@ class Dataset:
             The resolution function and other parameters are automatically obtained from the current
             dataSet class instance. 
             
-            Input:  fileIdx -> index of dataset to plot in self.dataSetList """
+            :arg fileIdx: index of dataset to plot in self.dataSetList 
+
+        """
 
 
         plotW = FWSPlot.FWSPlot(self.dataSetList[fileIdx])
@@ -716,9 +769,11 @@ class Dataset:
             The resolution function and other parameters are automatically obtained from the current
             dataSet class instance. 
             
-            Input:  fileIdxList -> indices of dataset to be plotted (optional, default "all")
-                    powder      -> whether the sample is a powder or in liquid state (optional, default True) 
-                    qDiscardList-> integer or list if indices corresponding to q-values to discard """
+            :arg fileIdxList:  indices of dataset to be plotted (optional, default "all")
+            :arg powder:       whether the sample is a powder or in liquid state (optional, default True) 
+            :arg qDiscardList: integer or list if indices corresponding to q-values to discard 
+
+        """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:

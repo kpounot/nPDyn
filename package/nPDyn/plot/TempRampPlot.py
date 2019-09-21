@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import sys, os
 import numpy as np
 
@@ -13,17 +20,19 @@ from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
-from .subPlotsFormat import subplotsFormat, subplotsFormatWithColorBar
+from nPDyn.plot.subPlotsFormat import subplotsFormat, subplotsFormatWithColorBar
 
 class TempRampPlot(QWidget):
-    """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
+    """ This class creates a PyQt widget containing a matplotlib canvas to draw the plots,
         a lineedit widget to allow the user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
 
-        Total scattering    -> plot the total scattering (sum for all q-values)
-        q-Wise scattering   -> plot the scattering for each q-value
-        Fit                 -> plot the fitted model on data for all temperatures
-        MSD                 -> plot the fitted MSD as a function of temperature """
+            - Total scattering    - plot the total scattering (sum for all q-values)
+            - q-Wise scattering   - plot the scattering for each q-value
+            - Fit                 - plot the fitted model on data for all temperatures
+            - MSD                 - plot the fitted MSD as a function of temperature 
+
+    """
 
     def __init__(self, datasetList):
 
@@ -33,7 +42,7 @@ class TempRampPlot(QWidget):
         self.dataset = datasetList
 
         try:
-            self.initChecks()
+            self._initChecks()
         except Exception as e:
             print(e)
             return
@@ -175,6 +184,7 @@ class TempRampPlot(QWidget):
 
     #_Plot of the parameters resulting from the fit procedure
     def fit(self):
+        """ Plots the fitted model. """
 
         self.figure.clear()     
         ax = subplotsFormat(self, True, True)
@@ -218,6 +228,7 @@ class TempRampPlot(QWidget):
  
 
     def MSD(self):
+        """ Plots the fitted mean-squared displacement (MSD). """
 	   
         self.figure.clear()     
         ax = self.figure.add_subplot(111)  
@@ -258,7 +269,7 @@ class TempRampPlot(QWidget):
 
 
 
-    def initChecks(self):
+    def _initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
 

@@ -1,11 +1,28 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import numpy as np
 
 from collections import namedtuple
 
-from .baseType import BaseType
+from nPDyn.dataTypes.baseType import BaseType
 
 
 class QENSType(BaseType):
+    """ This class inherits from :class:`baseType` class.
+
+        No extra or redefined methods, compared to :class:`baseType` are present for now.
+
+        Additional attributes are present for Scipy basinhopping routine:
+
+            - BH_iter - number of basinhopping iteration to perform (default 100)
+            - disp    - if True, print basinhopping progression while it's running (default True)
+
+    """
 
     def __init__(self, fileName, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
@@ -13,8 +30,6 @@ class QENSType(BaseType):
 
         self.BH_iter    = 100
         self.disp       = True
-
-        self.globalFit  = True
 
 
 class DataTypeDecorator(QENSType):

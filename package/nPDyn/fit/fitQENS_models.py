@@ -4,25 +4,30 @@ from scipy.signal import fftconvolve, convolve
 from scipy.special import spherical_jn, wofz
 
 
-from ..dataTypes.models import resFunc_gaussian, resFunc_pseudoVoigt
+from nPDyn.dataTypes.models import resFunc_gaussian, resFunc_pseudoVoigt
 
 
 def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True, returnSubCurves=False):
     """ This class can be used to fit data from powder protein samples - q-wise or globally -
         using two lorentzians, which is the number that should be used to fit QENS data. Indeed,
-        considering the work of D.S. Sivia (1992) on bayesian analysis of QENS data fitting, it appears
+        considering the work of D.S. Sivia [1]_ on bayesian analysis of QENS data fitting, it appears
         clearly that using more lorentzians just results in overfitting.
 
-        Input:  params      -> parameters for the model (described below), usually given by scipy's routines
-                dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
-                qIdx        -> index of the current q-value
+        :arg params:          parameters for the model (described below), usually given by scipy's routines
+        :arg dataset:         dataset namedtuple containing x-axis values, intensities, errors,...
+        :arg qIdx:            index of the current q-value
                                if None, a global fit is performed over all q-values
-                returnCost  -> if True, return the standard deviation of the model to experimental data
+        :arg returnCost:      if True, return the standard deviation of the model to experimental data
                                if False, return only the model 
-                               
-        Reference :
-        -   D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
-            quasi-elastic neutron scattering data. Physica B, 182, 341-348 """
+        :arg returnSubCurves: if True, returns each individual component of the model after convolution
+                       
+
+        References:
+        
+        .. [1] D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
+            quasi-elastic neutron scattering data. Physica B, 182, 341-348 
+
+    """
 
 
     s0      = params[0]     #_contribution factor of elastic signal (EISF)
@@ -101,19 +106,24 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None, returnCost=True, ret
 def protein_powder_1Lorentzian(params, dataset, qIdx=None, returnCost=True, returnSubCurves=False):
     """ This class can be used to fit data from powder protein samples - q-wise or globally -
         using one lorentzians, which is the number that should be used to fit QENS data. Indeed,
-        considering the work of D.S. Sivia (1992) on bayesian analysis of QENS data fitting, it appears
+        considering the work of D.S. Sivia [1]_ on bayesian analysis of QENS data fitting, it appears
         clearly that using more lorentzians just results in overfitting.
 
-        Input:  params      -> parameters for the model (described below), usually given by scipy's routines
-                dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
-                qIdx        -> index of the current q-value
+        :arg params:          parameters for the model (described below), usually given by scipy's routines
+        :arg dataset:         dataset namedtuple containing x-axis values, intensities, errors,...
+        :arg qIdx:            index of the current q-value
                                if None, a global fit is performed over all q-values
-                returnCost  -> if True, return the standard deviation of the model to experimental data
+        :arg returnCost:      if True, return the standard deviation of the model to experimental data
                                if False, return only the model 
+        :arg returnSubCurves: if True, returns each individual component of the model after convolution
                                
+
         Reference :
-        -   D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
-            quasi-elastic neutron scattering data. Physica B, 182, 341-348 """
+        
+        .. [1] D.S. Sivia, S König, C.J. Carlile and W.S. Howells (1992) Bayesian analysis of 
+            quasi-elastic neutron scattering data. Physica B, 182, 341-348 
+
+    """
 
 
     s0      = params[0]     #_contribution factor of elastic signal (EISF)
@@ -193,12 +203,15 @@ def water_powder(params, dataset, qIdx=None, returnCost=True, returnSubCurves=Fa
         focusing on water dynamics. Signal is deconvoluted in its rotational and translational motions
         contributions.
 
-        Input:  params      -> parameters for the model (described below), usually given by scipy's routines
-                dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
-                qIdx        -> index of the current q-value
+        :arg params:          parameters for the model (described below), usually given by scipy's routines
+        :arg dataset:         dataset namedtuple containing x-axis values, intensities, errors,...
+        :arg qIdx:            index of the current q-value
                                if None, a global fit is performed over all q-values
-                returnCost  -> if True, return the standard deviation of the model to experimental data
-                               if False, return only the model """
+        :arg returnCost:      if True, return the standard deviation of the model to experimental data
+                               if False, return only the model 
+        :arg returnSubCurves: if True, returns each individual component of the model after convolution
+
+    """
                                
 
     s0      = params[0]     #_contribution factor of elastic signal (EISF)
@@ -313,15 +326,17 @@ def protein_liquid_analytic_voigt(params, dataset, D2OSignal=None, qIdx=None, re
         This makes uses of an analytic expression for convolution with resolution function, therefore
         resolution function used here should be a sum of two gaussians or pseudo-voigt.
 
-        Input:  params      -> parameters for the model (described below), usually given by scipy's routines
-                dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
-                D2OSignal   -> D2OSignal, fitted or not, to be used in the model (optional, is obtained 
-                                from dataset if None, but this make the whole fitting procedure much slower)
-                qIdx        -> index of the current q-value
+        :arg params:          parameters for the model (described below), usually given by scipy's routines
+        :arg dataset:         dataset namedtuple containing x-axis values, intensities, errors,...
+        :arg D2OSignal:       D2O signal data as a 2D array with shape ( nbr q-values, S(q, :math:`\\omega`) )
+        :arg qIdx:            index of the current q-value
                                if None, a global fit is performed over all q-values
-                returnCost  -> if True, return the standard deviation of the model to experimental data
+        :arg returnCost:      if True, return the standard deviation of the model to experimental data
                                if False, return only the model 
-                scanIdx     -> only for FWS (or QENS) data series, index of the scan being fitted """
+        :arg scanIdx:         only for FWS (or QENS) data series, index of the scan being fitted
+        :arg returnSubCurves: if True, returns each individual component of the model after convolution
+
+    """
 
 
     g0      = params[0]     #_global diffusion linewidth
@@ -422,16 +437,15 @@ def protein_liquid_analytic_voigt_CF(X, params, dataset, D2OSignal=None, qIdx=No
         This makes uses of an analytic expression for convolution with resolution function, therefore
         resolution function used here should be a sum of two gaussians or pseudo-voigt.
 
-        Input:  params      -> parameters for the model (described below), usually given by scipy's routines
-                dataSet     -> dataSet namedtuple containing x-axis values, intensities, errors,...
-                D2OSignal   -> D2OSignal, fitted or not, to be used in the model (optional, is obtained 
-                                from dataset if None, but this make the whole fitting procedure much slower)
-                qIdx        -> index of the current q-value
+        :arg params:          parameters for the model (described below), usually given by scipy's routines
+        :arg dataset:         dataset namedtuple containing x-axis values, intensities, errors,...
+        :arg D2OSignal:       D2O signal data as a 2D array with shape ( nbr q-values, S(q, :math:`\\omega`) )
+        :arg qIdx:            index of the current q-value
                                if None, a global fit is performed over all q-values
-                returnCost  -> if True, return the standard deviation of the model to experimental data
-                               if False, return only the model 
-                scanIdx     -> only for FWS (or QENS) data series, index of the scan being fitted """
+        :arg scanIdx:         only for FWS (or QENS) data series, index of the scan being fitted
+        :arg returnSubCurves: if True, returns each individual component of the model after convolution
 
+    """
 
     params = np.array(params)
 

@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import sys, os
 import numpy as np
 
@@ -13,20 +20,23 @@ import matplotlib.gridspec as gridspec
 from matplotlib.figure import Figure
 import matplotlib
 
-from .subPlotsFormat import subplotsFormat
+from nPDyn.plot.subPlotsFormat import subplotsFormat
  
 
 
 class QENSPlot(QWidget):
-    """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
+    """ This class creates a PyQt widget containing a matplotlib canvas to draw the plots,
         a lineedit widget to allow the user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
 
-        Plot        -> plot the normalized experimental data for the selected q-value
-        Compare     -> superimpose experimental data on one plot
-        3D Plot     -> plot the whole normalized dataSet
-        Analysis    -> plot the different model parameters as a function of q-value
-        Resolution  -> plot the fitted model on top of the experimental data for the selected q-value """
+            - Plot              - plot the normalized experimental data for the selected q-value
+            - Compare           - superimpose experimental data on one plot
+            - 3D Plot           - plot the whole normalized dataSet
+            - Analysis          - plot the different model parameters as a function of q-value
+            - q-wise analysis   - plot the different model parameters as a function of q-value
+            - Fit               - plot the fitted model on top of the experimental data 
+
+    """
 
     def __init__(self, datasetList):
 
@@ -37,7 +47,7 @@ class QENSPlot(QWidget):
         self.dataset = datasetList
 
         try:
-            self.initChecks()
+            self._initChecks()
         except Exception as e:
             print(e)
             return
@@ -205,9 +215,7 @@ class QENSPlot(QWidget):
 
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
-        """ This method plots the fitted parameters for each file.
-            There is one parameter list for each file, which consists in a q-wise list of scipy's
-            OptimizeResult instance. Parameters are retrieved using OptimizeResults.x attribute. """ 
+        """ This method plots the fitted parameters for each file. """ 
 
         self.figure.clear()     
 
@@ -244,7 +252,9 @@ class QENSPlot(QWidget):
 
     def qWiseAnalysis(self):
         """ This method provides a quick way to plot the q-dependence of weight factors and lorentzian
-            widths for each contribution. """
+            widths for each contribution. 
+
+        """
 
         self.figure.clear()     
 
@@ -282,6 +292,7 @@ class QENSPlot(QWidget):
 
 
     def fitPlot(self):
+        """ Plots the fitted model for each file. """
 	   
         self.figure.clear()     
 
@@ -382,7 +393,7 @@ class QENSPlot(QWidget):
 #--------------------------------------------------
 #_Initialization checks and others
 #--------------------------------------------------
-    def initChecks(self):
+    def _initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
         for idx, dataset in enumerate(self.dataset):

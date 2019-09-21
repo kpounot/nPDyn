@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import sys, os
 import numpy as np
 
@@ -12,15 +19,16 @@ from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
-from .subPlotsFormat import subplotsFormat
+from nPDyn.plot.subPlotsFormat import subplotsFormat
 
 class plotMSDSeries(QWidget):
     """ This class created a PyQt widget containing a matplotlib canvas to draw the plots.
 
-        Init:   parent      -> parent class instance, the nPDyn dataset instance
-                msdSeries   -> MSD obtained from MD simulations
-                tempList    -> temperature list for MSD from simulation
-                fileIdxList -> indices of experimental data's MSD to be compared with msdSeries """
+        :arg msdSeries:   list of mean-squared displacements (MSD) series obtained from MD simulations
+        :arg tempList:    temperature list for MSD from simulation
+        :arg datasetList: indices of experimental MSD to be compared with msdSeries 
+
+    """
 
 
     def __init__(self, msdSeriesList, tempList, datasetList=[]):
@@ -32,7 +40,7 @@ class plotMSDSeries(QWidget):
         self.msdSeries  = msdSeriesList
 
         try:
-            self.initChecks()
+            self._initChecks()
         except Exception as e:
             print(e)
             return
@@ -123,7 +131,7 @@ class plotMSDSeries(QWidget):
         self.canvas.draw()
 
 
-    def initChecks(self):
+    def _initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
         for idx, dataset in enumerate(self.dataset):

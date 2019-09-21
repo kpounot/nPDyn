@@ -6,8 +6,9 @@ from collections import namedtuple
 def processData(dataFile, FWS=False, averageTemp=True):
     """
     This script is meant to be used with IN16B data pre-processed 
-                                                (reduction, (EC correction) and vanadium centering)
-    with Mantid. It can handle both QENS and FW scans.
+    (reduction, (EC correction) and vanadium centering) with Mantid. 
+
+    It can handle both QENS and fixed-window scans.
 
     For QENS, data can be binned and averaged over all scans. Then the result is stored as a namedtuple
     containing several members (all being numpy arrays):
@@ -27,7 +28,9 @@ def processData(dataFile, FWS=False, averageTemp=True):
         - errors        -> 2D array of errors values for each q-value (axis 0) and scan number (axis 1) 
         - temp          -> temperature value (for time-resolved FWS performed at fixed temperature) 
         - norm          -> boolean, wether data were normalized or not 
-        - qIdx          -> list of indices of q-values, used for fitting and plotting """
+        - qIdx          -> list of indices of q-values, used for fitting and plotting 
+
+    """
 
     h5File = h5.File(dataFile)
 

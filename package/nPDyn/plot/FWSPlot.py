@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import sys, os
 import numpy as np
 
@@ -13,20 +20,21 @@ from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
-from .subPlotsFormat import subplotsFormat, subplotsFormatWithColorBar
+from nPDyn.plot.subPlotsFormat import subplotsFormat, subplotsFormatWithColorBar
  
 
 
 class FWSPlot(QWidget):
-    """ This class created a PyQt widget containing a matplotlib canvas to draw the plots,
+    """ This class creates a PyQt widget containing a matplotlib canvas to draw the plots,
         a lineedit widget to allow the user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
 
-        Plot        -> plot the normalized experimental data for the selected q-value
-        Compare     -> superimpose experimental data on one plot
-        3D Plot     -> plot the whole normalized dataSet
-        Analysis    -> plot the different model parameters as a function of q-value
-        Resolution  -> plot the fitted model on top of the experimental data for the selected q-value """
+            - Plot        - plot the normalized experimental data for the selected q-value
+            - 3D Plot     - plot the whole normalized dataSet
+            - Analysis    - plot the different model parameters as a function of q-value
+            - Fit         - plot the fitted model on top of the experimental data for the selected q-value 
+
+    """
 
     def __init__(self, dataset):
 
@@ -35,7 +43,7 @@ class FWSPlot(QWidget):
         #_Dataset related attributes
         self.dataset = [dataset]
 
-        self.initChecks()
+        self._initChecks()
 
 #--------------------------------------------------
 #_Construction of the GUI
@@ -217,9 +225,7 @@ class FWSPlot(QWidget):
 
     #_Plot of the parameters resulting from the fit procedure
     def analysisPlot(self):
-        """ This method plots the fitted parameters for each file.
-            There is one parameter list for each file, which consists in a q-wise list of scipy's
-            OptimizeResult instance. Parameters are retrieved using OptimizeResults.x attribute. """ 
+        """ This method plots the fitted parameters for each file. """ 
 
         self.figure.clear()     
 
@@ -266,6 +272,7 @@ class FWSPlot(QWidget):
 
 
     def fitPlot(self):
+        """ Plot the fitted model. """
 	   
         self.figure.clear()     
 
@@ -326,7 +333,7 @@ class FWSPlot(QWidget):
 #--------------------------------------------------
 #_Initialization checks and others
 #--------------------------------------------------
-    def initChecks(self):
+    def _initChecks(self):
         """ This methods is used to perform some checks before finishing class initialization. """
 
         try: 

@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import sys, os
 
 from collections import namedtuple
@@ -5,9 +12,9 @@ from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .dataTypes import *
-from .dataTypes.models import *
-from .plot.plotMD_MSD import plotMSDSeries
+from nPDyn.dataTypes import *
+from nPDyn.dataTypes.models import *
+from nPDyn.plot.plotMD_MSD import plotMSDSeries
 
 
 #_Try to import NAMDAnalyzer, print a warning message in case it cannot be found
@@ -24,14 +31,14 @@ except ImportError:
 
 
 class MDData(MDDataset, BackScatData):
-    """ This class wraps the NAMDAnalyzer class. It's initialized with the __init__ method of
-        NAMDAnalyzer's Dataset class and the given file list.
+    """ This class wraps the NAMDAnalyzer Dataset class. It's initialized with the __init__ method of
+        the class and the given file list.
 
         Several methods are available to convert Elastic Incoherent Neutron Scattering or scattering function
         from NAMDAnalyzer to a namedtuple that can directly be used by nPDyn fitting and plotting methods. 
         
-        The getTempRampEISF methods need several .dcd files that will be loaded and unloaded one after 
-        the other for each temperature. """
+        The getTempRampEISF methods need several .dcd files that will treated sequentially to extract
+        mean-squared displacements. """
 
     def __init__(self, expData, fileList, stride=1):
         MDDataset.__init__(self, fileList, stride=stride)
@@ -60,21 +67,26 @@ class MDData(MDDataset, BackScatData):
 #--------------------------------------------------
     def getTempRampEISF(self, dcdFiles, tempList, dataSetIdx=0, resBkgdIdx=None, bkgdIdx=None, 
                         converter_kwargs={}):
-        """ Calls compScatteringFunc from NAMDAnalyzer for all given dcdFiles, extracts the EISF and
+        """ Calls [compScatteringFunc]_ from NAMDAnalyzer for all given dcdFiles, extracts the EISF and
             stores values in a data tuple that can be used directly in nPDyn.
 
-            Input:  dcdFiles    -> list of dcd files corresponding to each temperature
-                    tempList    -> list of temperatures used, should be in the same order as dcd files
-                    dataSetIdx  -> experimental dataset index to be used as reference for q-values and indices
-                                   (optional, default 0)
-                    resBkgdIdx  -> index of experimental resolution data from which background parameter
+            :arg dcdFiles:         list of dcd files corresponding to each temperature
+            :arg tempList:         list of temperatures used, should be in the same order as dcd files
+            :arg dataSetIdx:       experimental dataset index to be used as reference for q-values and indices
+                                    (optional, default 0)
+            :arg resBkgdIdx:       index of experimental resolution data from which background parameter
                                     should be extracted
-                    converter_kwargs -> arguments to be passed to scattering function computation methods
-                                        in NAMDAnalyzer package. (optional, some defaults value but better use
-                                        it explicitly. 
-                                        
+            :arg converter_kwargs: arguments to be passed to scattering function computation methods
+                                    in NAMDAnalyzer package. (optional, some defaults value but better use
+                                    it explicitly. 
+                                
 
-            This namedtuple can be added to the dataSetList of nPDyn and used as any experimetal file. """
+            The result is added to *dataSetList* in :class:`Dataset` class. 
+
+
+ .. [compScatteringFunc] https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert`
+
+        """
 
         qIdx  = self.expData.dataSetList[dataSetIdx].data.qIdx
         qVals = self.expData.dataSetList[dataSetIdx].data.qVals[qIdx]
@@ -129,21 +141,20 @@ class MDData(MDDataset, BackScatData):
 
     def getQENS(self, dcdFile, dataSetIdx=0, resBkgdIdx=None, bkgdIdx=None,
                 converter_kwargs={}):
-        """ This method calls the convertScatFunctoEISF for energy space.
+        """ This method calls the [compScatteringFunc]_ from NAMDAnalyzer package.
 
-            This procedure is done for each dcd file in 'dcdFiles'. It might take some time depending
-            on the size of the dcd files. Due to memory limitation, this cannot be done in parallel on most
-            computers. This is why the method is implemented like that.
+            :arg dcdFile:          list of file path to be used to compute QENS spectra
+            :arg dataSetIdx:       index of experimental dataset to be used to extract q-values
+            :arg resBkgdIdx:       index of resolution data to be used for background
+            :arg bkgdIdx:          similar to resBkgdIdx, but using sample data in dataSetList
+            :arg converter_kwargs: arguments to be given to NAMDAnalyzer compScatFunc method 
 
-            Finally, all the EISF for each temperature are gathered into a single namedtuple similar to the
-            one used in nPDyn.
+            The result is added to nPDyn *dataSetList* attribute in :class:`Dataset` class.
 
-            This namedtuple can be added to the dataSetList of nPDyn and used as any experimental file. 
-            
-            Input:  dcdFile             -> list of file path to be used to compute QENS spectra
-                    dataSetIdx          -> index of experimental dataset to be used to extract q-values
-                    resBkgdIdx          -> index of resolution data to be used for background
-                    converter_kwargs    -> arguments to be given to NAMDAnalyzer compScatFunc method """
+
+ .. [compScatteringFunc] https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert`
+
+        """
         
 
 
@@ -193,7 +204,13 @@ class MDData(MDDataset, BackScatData):
 
 
     def getMSDfromMD(self, dcdFiles, converter_kwargs={}):
-        """ For each dcd file in dcdFiles, import it, compute the MSD directly from the trajectories """
+        """ For each dcd file in dcdFiles, import it, compute the MSD directly from the trajectories. 
+
+            This makes use of the [compMSD]_ method from NAMDAnalyzer BackScatData module
+
+            .. [compMSD] https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert`
+
+        """
 
         msdSeries = []
 
@@ -222,12 +239,13 @@ class MDData(MDDataset, BackScatData):
 #_Plotting method 
 #--------------------------------------------------
     def plotMSDfromMD(self, tempList, msdIdxList, *fileIdxList):
-        """ Plot the given computed MSD alongwith given files in fileIdxList.
+        """ Plot the given computed MSD along with given files in fileIdxList.
 
-            Input:  tempList    -> temperature list, same order as in the msd list
-                    msdIdxList  -> indices for msd series in self.MDData.msdSeriesList
-                    fileIdxList -> indices for files in self.fileIdxList to be plotted (optional, default all)
-                    """
+            :arg tempList:    temperature list, same order as in the msd list
+            :arg msdIdxList:  indices for msd series in self.MDData.msdSeriesList
+            :arg fileIdxList: indices for files in self.fileIdxList to be plotted (optional, default all)
+                    
+        """
 
         datasetList     = [dataset for i, dataset in enumerate(self.expData.dataSetList) if i in fileIdxList] 
         msdSeriesList   = [msd for i, msd in enumerate(self.msdSeriesList) if i in msdIdxList] 

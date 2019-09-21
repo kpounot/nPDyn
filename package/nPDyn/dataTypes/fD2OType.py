@@ -1,12 +1,22 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import numpy as np
 
 from collections import namedtuple
 
-from .FWSType import FWSType
-from ..fileFormatParser import guessFileFormat, readFile, fileImporters
+from nPDyn.dataTypes.FWSType import FWSType
+from nPDyn.fileFormatParser import guessFileFormat, readFile, fileImporters
 
 
 class fD2OType(FWSType):
+    """ This class inherits from :class:`baseType` class.
+
+    """
 
     def __init__(self, fileName=None, data=None, rawData=None, resData=None, D2OData=None, ECData=None):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
@@ -16,9 +26,11 @@ class fD2OType(FWSType):
 
 
     def importData(self, fileFormat=None):
-        """ Extract data from file and store them in self.data and self.rawData attributes.
+        """ Extract data from file and store them in *data* and *rawData* attributes.
 
-            If no fileFormat is given, tries to guess it, try hdf5 format if format cannot be guessed. """
+            If no fileFormat is given, tries to guess it, try hdf5 format if format cannot be guessed. 
+
+        """
 
         if fileFormat:
             data = readFile(fileFormat, self.fileName, True)

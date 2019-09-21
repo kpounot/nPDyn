@@ -2,7 +2,7 @@ import sys
 
 import re
 
-from .dataParsers import *
+from nPDyn.dataParsers import *
 
 
 
