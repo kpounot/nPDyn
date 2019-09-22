@@ -16,7 +16,7 @@ class Model(DataTypeDecorator):
     def __init__(self, dataType):
         super().__init__(dataType)
 
-        self.model      = resModel.resFunc
+        self.model      = self.resFunc
         self.params     = None
         self.paramsNames = ["normF", "S", "g0", "g1", "shift", "bkgd"] #_For plotting purpose
 

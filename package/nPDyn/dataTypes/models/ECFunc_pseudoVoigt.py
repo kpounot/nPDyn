@@ -4,7 +4,6 @@ from collections import namedtuple
 from scipy import optimize
 
 from nPDyn.dataTypes.ECType import ECType, DataTypeDecorator
-from nPDyn.fit.ECFit_pseudoVoigtModel import ECFit, fitFunc 
 
 
 
@@ -27,7 +26,7 @@ class Model(DataTypeDecorator):
     def __init__(self, dataType):
         super().__init__(dataType)
 
-        self.model      = model
+        self.model      = self.model
         self.params     = None
         self.paramsNames = ["normF", "S", "lorW", "gauW", "shift", "bkgd"] #_For plotting purpose
 
@@ -49,7 +48,7 @@ class Model(DataTypeDecorator):
 
             maxI = 1.5 * np.max( ECData.intensities )
 
-            ECList.append(optimize.curve_fit(   fitFunc, 
+            ECList.append(optimize.curve_fit(   self.model, 
                                                 ECData.X,
                                                 ECData.intensities[qIdx],
                                                 sigma=ECData.errors[qIdx],
@@ -64,7 +63,7 @@ class Model(DataTypeDecorator):
 
 
                 
-    def model(x, normF, S, lorW, gauW, shift, bkgd):
+    def model(self, x, normF, S, lorW, gauW, shift, bkgd):
         """ Pseudo-Voigt profile for resolution function.
 
             :arg x:     energy transfer offsets (in microeV)  

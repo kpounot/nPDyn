@@ -4,7 +4,6 @@ from collections import namedtuple
 from scipy import optimize
 
 from nPDyn.dataTypes.resType import ResType, DataTypeDecorator
-from nPDyn.fit import resFit_pseudoVoigtModel as resModel 
 
 
 
@@ -29,7 +28,7 @@ class Model(DataTypeDecorator):
     def __init__(self, dataType):
         super().__init__(dataType)
 
-        self.model      = resModel.resFunc
+        self.model      = self.resFunc
         self.params     = None
         self.paramsNames = ["normF", "S", "lorW", "gauW", "shift", "bkgd"] #_For plotting purpose
 
@@ -37,10 +36,10 @@ class Model(DataTypeDecorator):
     def fit(self, p0=None, bounds=None):
         """ Fitting procedure """
 
-        self.params = resModel.resFit(self.data, p0, bounds)
+        self.params = self.resFit(p0, bounds)
 
                 
-    def resFunc(x, normF, S, lorW, gauW, shift, bkgd):
+    def resFunc(self, x, normF, S, lorW, gauW, shift, bkgd):
         """ Pseudo-Voigt profile for resolution function.
 
             :arg x:     energy transfer offsets (in microeV)  
@@ -59,7 +58,7 @@ class Model(DataTypeDecorator):
 
      
 
-    def resFit(p0=None, bounds=None):
+    def resFit(self, p0=None, bounds=None):
         """ Uses Scipy's curve_fit routine to fit the pseudo-Voigt profile to the experimental data
             given in the argument resData. 
             
@@ -74,7 +73,7 @@ class Model(DataTypeDecorator):
 
             #_Initial guesses for parameters based on data
             maxI     = 20 * np.max( qWiseData )
-            maxWidth = np.max( sel.data.X )
+            maxWidth = np.max( self.data.X )
             maxBkgd  = 5 * np.mean( qWiseData[qWiseData > 0] )
 
             init_normF  = np.max(qWiseData)
