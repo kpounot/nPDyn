@@ -80,6 +80,8 @@ Reference
    fileFormatParser
    fit/index
    plot/index
+   license
+   help
 
 
 Quick start
