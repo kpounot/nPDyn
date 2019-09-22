@@ -10,8 +10,8 @@ Python based API for analysis of neutron backscattering data.
 
 
 
-Installation/Usage:
-----------------------
+Installation:
+-------------
 nPDyn can make use of NAMDAnalyzer, which can be obtained at:
 http://github.com/kpounot/NAMDAnalyzer
 
