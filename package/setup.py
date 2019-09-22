@@ -10,6 +10,8 @@ with open('../README.md', 'r') as f:
     description = f.read()
 
 
+gsl_lib = ['gsl', 'gslcblas']
+
 if 'win32' in sys.platform:
     #_Check for GSL on windows
     dist = Distribution()
@@ -41,7 +43,7 @@ packagesList = [    'nPDyn',
 pyabsco_ext = Extension( "nPDyn.lib.pyabsco", 
                          ["nPDyn/lib/src/absco.c", "nPDyn/lib/pyabsco.pyx"],
                          include_dirs=["nPDyn/lib/src"],
-                         libraries=["gsl", "gslcblas"] )
+                         libraries=gsl_lib )
 
 
 setup(  name='nPDyn',
