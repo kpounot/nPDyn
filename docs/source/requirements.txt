@@ -1,7 +1,6 @@
 scipy 
 numpy
 matplotlib
-ipython
 PyQt5
 h5py
 sphinx_rtd_theme
