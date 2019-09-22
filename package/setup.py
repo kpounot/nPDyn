@@ -6,7 +6,7 @@ from Cython.Build import cythonize
 
 
 
-with open('../README.md', 'r') as f:
+with open('../README.rst', 'r') as f:
     description = f.read()
 
 
