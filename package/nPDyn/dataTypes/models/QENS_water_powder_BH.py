@@ -26,7 +26,7 @@ class Model(DataTypeDecorator):
         :math:`\\langle u^{2} \\rangle` is the mean-squared displacement, 
         R is the resolution function,
         :math:`a_{0}` is the EISF given by :math:`a_{i} + a_{r} j_{0}^{2}(qd)` where j is the 
-        spherical bessel function, d the water O-H distance set to 0.96 angstrom,
+        spherical bessel function, d the water O-H distance set to 0.96 :math:`\\AA`,
         :math:`a_{i}` account for apparent immobile water molecules fraction,
         and :math:`a_{r}` accounts for fraction of waters undergoing rotational motions,
         :math:`\\omega` is the energy offset, 
