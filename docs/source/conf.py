@@ -12,6 +12,7 @@
 #
 import os
 import sys
+sys.path.insert(0, os.path.abspath('../../package'))
 sys.path.insert(0, os.path.abspath('../../package/nPDyn'))
 sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataManipulation'))
 sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataParsers'))
