@@ -5,4 +5,4 @@ ipython
 PyQt5
 h5py
 sphinx_rtd_theme
-../../package
+package
