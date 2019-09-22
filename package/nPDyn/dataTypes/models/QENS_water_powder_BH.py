@@ -30,7 +30,7 @@ class Model(DataTypeDecorator):
         :math:`a_{i}` account for apparent immobile water molecules fraction,
         and :math:`a_{r}` accounts for fraction of waters undergoing rotational motions,
         :math:`\\omega` is the energy offset, 
-        :math:`\\mathcal{L}_{\\Gamma_{r}}` accounts for rotations and is given by:
+        :math:`\\mathcal{L}_{\\Gamma_{r}}` accounts for rotations and is given by [#]_:
 
         .. math::
 
@@ -45,6 +45,7 @@ class Model(DataTypeDecorator):
         References:
 
         .. [#] https://journals.aps.org/pr/abstract/10.1103/PhysRev.119.863
+        .. [#] See Sears series of papers: http://doi.org/10.1139/p66-108
 
     """  
 

@@ -328,7 +328,7 @@ def protein_liquid_analytic_voigt(params, dataset, D2OSignal=None, qIdx=None, re
 
         :arg params:          parameters for the model (described below), usually given by Scipy routines
         :arg dataset:         dataset namedtuple containing x-axis values, intensities, errors,...
-        :arg D2OSignal:       D2O signal data as a 2D array with shape ( nbr q-values, S(q, :math:`\\omega `) )
+        :arg D2OSignal:       D2O signal data as a 2D array with shape ( nbr q-values, S(q, :math:`\\omega`) )
         :arg qIdx:            index of the current q-value
                                if None, a global fit is performed over all q-values
         :arg returnCost:      if True, return the standard deviation of the model to experimental data
@@ -439,7 +439,7 @@ def protein_liquid_analytic_voigt_CF(X, params, dataset, D2OSignal=None, qIdx=No
 
         :arg params:          parameters for the model (described below), usually given by scipy's routines
         :arg dataset:         dataset namedtuple containing x-axis values, intensities, errors,...
-        :arg D2OSignal:       D2O signal data as a 2D array with shape ( nbr q-values, S(q, :math:`\\omega `) )
+        :arg D2OSignal:       D2O signal data as a 2D array with shape ( nbr q-values, S(q, :math:`\\omega`) )
         :arg qIdx:            index of the current q-value
                                if None, a global fit is performed over all q-values
         :arg scanIdx:         only for FWS (or QENS) data series, index of the scan being fitted
