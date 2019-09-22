@@ -26,7 +26,7 @@ class Model(DataTypeDecorator):
         :math:`\\mathcal{L}_{D_{2}O}` is the :math:`D_{2}O` lineshape, :math:`a_{0}` acts as an EISF,
         and :math:`\\beta` and :math:`\\beta_{D_{2}O}` are scalars.
 
-        The Scipy basinhopping routine is used.
+        The Scipy curve_fit routine is used.
 
         References:
 
