@@ -7,7 +7,6 @@ import re
 from collections import namedtuple
 
 import matplotlib
-matplotlib.use('Qt5Agg')
 
 from PyQt5.QtWidgets import QApplication
 
