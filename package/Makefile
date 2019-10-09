@@ -5,22 +5,54 @@ init:
 
 
 build: setup.py
-	python setup.py build 
+	python3 setup.py build 
 
 
 
 .PHONY: install
 install:
-	python setup.py install 
+	python3 setup.py install --user
 
 
 .PHONY: clean
 clean:
 ifeq ($(OS), Windows_NT)
-	rmdir /S /Q build  
-	cd nPDyn/lib && del *.c *.cpp
-else
-	rm -rf build  
-	rm nPDyn/lib/*.c 
+
+
+ifneq (,$(wildcard ./build/*))
+	rmdir /S /Q build
+endif
+ifneq (,$(wildcard ./dist/*))
+	rmdir /S /Q dist
+endif
+ifneq (,$(wildcard ./nPDyn.egg-info/*))
+	rmdir /S /Q nPDyn.egg-info
+endif
+ifneq (,$(wildcard ./nPDyn/lib/*.pyd))
+	del .\nPDyn\lib\*.pyd
+endif
+ifneq (,$(wildcard ./nPDyn/lib/*.c))
+	del .\nPDyn\lib\*.c
 endif
 
+
+else
+
+ifneq (,$(wildcard ./build/*))
+	rm -rf build
+endif
+ifneq (,$(wildcard ./dist/*))
+	rm -rf dist
+endif
+ifneq (,$(wildcard ./nPDyn.egg-info/*))
+	rm -rf nPDyn.egg-info
+endif
+ifneq (,$(wildcard ./nPDyn/lib/*.pyd))
+	rm ./nPDyn/lib/*.pyd
+endif
+ifneq (,$(wildcard ./nPDyn/lib/*.c))
+	rm ./nPDyn/lib/*.c
+endif
+
+
+endif
