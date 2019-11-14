@@ -22,6 +22,7 @@ def readFile(fileFormat, dataFile, FWS=False):
         data = fileImporters[fileFormat](dataFile, FWS)
     except Exception as e:
         print(e)
+        return
 
     return data
 

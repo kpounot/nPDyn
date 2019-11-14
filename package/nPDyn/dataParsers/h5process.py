@@ -31,20 +31,20 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
     """
 
-    h5File = h5.File(dataFile)
+    h5File = h5.File(dataFile, 'r')
 
     #_Fixed window scan processing
     if FWS == True:
         FWSData = namedtuple('FWSData', 'qVals X intensities errors temp norm qIdx') 
 
         if averageTemp:
-            temp    = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'].value)
+            temp    = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'][()])
         else:
-            temp    = h5File['mantid_workspace_1/logs/sample.temperature/value'].value
+            temp    = h5File['mantid_workspace_1/logs/sample.temperature/value'][()]
 
-        wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'].value
+        wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'][()]
 
-        twoThetaList = h5File['mantid_workspace_1/workspace/axis2'].value
+        twoThetaList = h5File['mantid_workspace_1/workspace/axis2'][()]
         listQ = 4*np.pi / wavelength * np.sin(np.pi  * twoThetaList / 360)
 
         dataList = [] # Stores the full dataset for a given data file
@@ -54,9 +54,9 @@ def processData(dataFile, FWS=False, averageTemp=True):
         listErr  = []
         deltaE   = []
         for j, workspace in enumerate(h5File):
-            listI.append(   h5File[workspace + '/workspace/values'].value )
-            listErr.append( h5File[workspace + '/workspace/errors'].value )
-            deltaE.append(  h5File[workspace + '/logs/Doppler.maximum_delta_energy/value'].value )
+            listI.append(   h5File[workspace + '/workspace/values'][()] )
+            listErr.append( h5File[workspace + '/workspace/errors'][()] )
+            deltaE.append(  h5File[workspace + '/logs/Doppler.maximum_delta_energy/value'][()] )
 
         #_Converts intensities and errors to numpy and array and transpose to get 
         #_(# frames, # qVals, # energies) shaped array
@@ -79,16 +79,16 @@ def processData(dataFile, FWS=False, averageTemp=True):
     else: 
         QENSData = namedtuple('QENSData', 'qVals X intensities errors temp norm qIdx')
 
-        wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'].value
-        temp        = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'].value)
+        wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'][()]
+        temp        = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'][()])
 
-        twoThetaList = h5File['mantid_workspace_1/workspace/axis2'].value
+        twoThetaList = h5File['mantid_workspace_1/workspace/axis2'][()]
         listQ = 4*np.pi / wavelength * np.sin(np.pi  * twoThetaList / 360)
 
-        listE = h5File['mantid_workspace_1/workspace/axis1'].value[:-1] * 1e3
+        listE = h5File['mantid_workspace_1/workspace/axis1'][()][:-1] * 1e3
 
-        listI   = h5File['mantid_workspace_1/workspace/values'].value
-        listErr = h5File['mantid_workspace_1/workspace/errors'].value
+        listI   = h5File['mantid_workspace_1/workspace/values'][()]
+        listErr = h5File['mantid_workspace_1/workspace/errors'][()]
 
 
         #_Clean useless values from intensities and errors arrays

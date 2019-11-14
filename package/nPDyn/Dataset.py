@@ -173,7 +173,7 @@ class Dataset:
         if D2OFile:
             data = D2OType.D2OType(D2OFile)
             data.importData(fileFormat=fileFormat)
-            data = D2OFunc_lorentzian_and_elastic_Min.Model(data)
+            data = D2OFunc_singleLorentzian_Min.Model(data)
             data.assignECData( self.ECData )
 
             if self.resData != []:

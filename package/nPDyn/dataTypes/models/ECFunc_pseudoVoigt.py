@@ -40,19 +40,19 @@ class Model(DataTypeDecorator):
         ECList = [] #_Fitted parameter are stored here for each q value in the dataSet
 
         #_Calling the scipy's curve_fit routine
-        for qIdx, qWiseData in enumerate(ECData.intensities):
+        for qIdx, qWiseData in enumerate(self.data.intensities):
 
             #_Initial guesses for parameters based on data
-            init_normF  = np.mean(ECData.intensities[qIdx]) 
-            init_bkgd   = np.min([val for val in ECData.intensities[qIdx] if val > 0])
+            init_normF  = np.mean(qWiseData) 
+            init_bkgd   = np.mean([val for val in qWiseData if val > 0])
 
-            maxI = 1.5 * np.max( ECData.intensities )
+            maxI = 1.5 * np.max( qWiseData )
 
             ECList.append(optimize.curve_fit(   self.model, 
-                                                ECData.X,
-                                                ECData.intensities[qIdx],
-                                                sigma=ECData.errors[qIdx],
-                                                p0=[init_normF, 0.5, 1, 1, 0.1, init_bkgd],
+                                                self.data.X,
+                                                self.data.intensities[qIdx],
+                                                sigma=self.data.errors[qIdx],
+                                                p0=[init_normF, 0.1, 1, 1, 0.1, init_bkgd],
                                                 bounds=([0., 0., 0., 0., -10, 0.],  
                                                         [maxI, 1, np.inf, np.inf, 10, maxI]),
                                                 max_nfev=10000000,
@@ -76,9 +76,9 @@ class Model(DataTypeDecorator):
 
         """
 
-        return  (normF * (S * lorW/(lorW**2 + (x-shift)**2) /np.pi 
-                + (1-S) * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi)) 
-                + bkgd))
+        return  ( normF * (S * lorW/(lorW**2 + (x-shift)**2) /np.pi 
+                  + (1-S) * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi))) 
+                  + bkgd )
 
  
 
