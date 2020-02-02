@@ -48,8 +48,7 @@ class Model(DataTypeDecorator):
     def fit(self, p0=None, bounds=None):
         """ Global fit """
 
-        print("\nStarting basinhopping fitting for file: %s" % self.fileName, flush=True)
-        print(50*"-", flush=True)
+        print("\nStarting curve_fit procedure for file: %s" % self.fileName, flush=True)
 
         if p0 is None: #_Using default initial values
             p0 = [2, 20, 0.1] 
@@ -233,7 +232,7 @@ class Model(DataTypeDecorator):
         return slice(3+self.data.qIdx.size, None)
 
 
-    def getsubCurves(self, qIdx):
+    def getSubCurves(self, qIdx):
         """ Accessor for individual components of the fits for given q-value.
 
             :returns:
@@ -248,9 +247,10 @@ class Model(DataTypeDecorator):
         #_D2O signal 
         D2OSignal = self.getD2OSignal()
 
-        resF, gLor, iLor = self.model(self.getParams(qIdx), self, D2OSignal, qIdx, False, 
+        resF, gLor, iLor = self.model(self.data.X, self.getParams(qIdx), self, D2OSignal, qIdx, False, 
                                       returnSubCurves=True)
-        labels      = [r'$L_{\Gamma_{global}}(q, \omega)$', r'$L_{\Gamma_{internal}}(q, \omega)$']
+
+        labels      = [r'$L_{\Gamma}(q, \omega)$', r'$L_{\gamma}(q, \omega)$']
 
         return resF[qIdx], gLor[qIdx], iLor[qIdx], labels
 

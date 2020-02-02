@@ -383,7 +383,7 @@ class QENSPlot(QWidget):
             maxX    = dataset.data.X[-1]
 
             ax[idx].set_xlim(-1.1*maxX, 1.1*maxX)
-            ax[idx].set_ylim(0.5*minData, 1.2*maxData)
+            ax[idx].set_ylim(0.5*minData, 1.8*maxData)
 
         
         ax[-1].legend(framealpha=0.5, fontsize=12)

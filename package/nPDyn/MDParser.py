@@ -13,7 +13,7 @@ from nPDyn.plot.plotMD_MSD import plotMSDSeries
 #_Try to import NAMDAnalyzer, print a warning message in case it cannot be found
 try:
     from NAMDAnalyzer.Dataset import Dataset as MDDataset
-    from NAMDAnalyzer.dataAnalysis.backscatteringDataConvert import BackScatData
+    from NAMDAnalyzer.dataAnalysis.BackscatteringDataConvert import BackScatData
 except ImportError:
     class MDDataset: pass
     class BackScatData: pass

@@ -3,6 +3,8 @@ import numpy as np
 import h5py as h5
 from collections import namedtuple
 
+from scipy.interpolate import interp1d
+
 def processData(dataFile, FWS=False, averageTemp=True):
     """ This script is meant to be used with IN16B data pre-processed (reduction, (EC correction) 
             and vanadium centering) with Mantid. 
@@ -50,13 +52,24 @@ def processData(dataFile, FWS=False, averageTemp=True):
         dataList = [] # Stores the full dataset for a given data file
 
         #_Initialize some lists and store energies, intensities and errors in them
+        listX    = []
         listI    = []
         listErr  = []
         deltaE   = []
         for j, workspace in enumerate(h5File):
+            listX.append(   h5File[workspace + '/workspace/axis1'][()] )
             listI.append(   h5File[workspace + '/workspace/values'][()] )
             listErr.append( h5File[workspace + '/workspace/errors'][()] )
             deltaE.append(  h5File[workspace + '/logs/Doppler.maximum_delta_energy/value'][()] )
+
+
+        for data in listX:
+            if data.shape[0] != listX[0].shape[0]:
+                interp = True
+
+        if interp:
+            listX, listI, listErr = _interpFWS(listX, listI, listErr)
+
 
         #_Converts intensities and errors to numpy and array and transpose to get 
         #_(# frames, # qVals, # energies) shaped array
@@ -75,7 +88,10 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
         return dataList
 
-    #Þ_Assumes QENS data
+
+
+
+    #_Assumes QENS data
     else: 
         QENSData = namedtuple('QENSData', 'qVals X intensities errors temp norm qIdx')
 
@@ -100,6 +116,47 @@ def processData(dataFile, FWS=False, averageTemp=True):
         dataSet = QENSData(listQ, listE, listI, listErr, temp, False, np.arange(listQ.size))
 
         return dataSet
+
+
+
+def _interpFWS(listX, listI, listErr):
+    """ In the case of different sampling for the energy transfers used in FWS data, the
+        function interpolates the smallest arrays to produce a unique numpy array of FWS data.
+
+    """
+
+    maxSize = 0
+    maxX    = None
+
+    #_Finds the maximum sampling in the list of dataset
+    for k, data in enumerate(listX):
+        if data.shape[0] >= maxSize:
+            maxSize = data.shape[0]
+            maxX    = data
+
+    #_Performs an interpolation for each dataset with a sampling rate smaller than the maximum
+    for k, data in enumerate(listX):
+        if data.shape[0] != maxSize:
+            interpI = interp1d( data, 
+                                listI[k], 
+                                kind='cubic', 
+                                fill_value=(listI[k][:,0], listI[k][:,-1]),
+                                bounds_error=False )
+
+            interpErr = interp1d( data, 
+                                  listErr[k], 
+                                  kind='cubic', 
+                                  fill_value=(listErr[k][:,0], listErr[k][:,-1]),
+                                  bounds_error=False )
+
+            listI[k]   = interpI(maxX)
+            listErr[k] = interpErr(maxX)
+
+            data = maxX
+
+
+    return listX, listI, listErr
+
 
 
 

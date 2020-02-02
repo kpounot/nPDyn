@@ -225,7 +225,7 @@ class Model(DataTypeDecorator):
         return slice(3+self.data.qIdx.size, None)
 
 
-    def getsubCurves(self, qIdx):
+    def getSubCurves(self, qIdx):
         """ Accessor for individual components of the fits for given q-value.
 
             :returns:

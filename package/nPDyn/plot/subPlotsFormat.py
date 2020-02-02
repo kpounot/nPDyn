@@ -99,35 +99,35 @@ def subplotsFormatWithColorBar(caller, sharex=False, sharey=False, projection=No
     if listSize == 1:
         caller.figure.subplots(1, 2, sharex, sharey,
                                         subplot_kw={'projection':projection},
-                                        gridspec_kw={'width_ratios':[5,1]} )
+                                        gridspec_kw={'width_ratios':[20,1]} )
 
     if listSize !=1 and listSize < 4:
         caller.figure.subplots(1, 2*listSize, sharex, sharey,
                                                 subplot_kw={'projection':projection},
-                                                gridspec_kw={'width_ratios':listSize*[5,1]} )
+                                                gridspec_kw={'width_ratios':listSize*[20,1]} )
 
     if listSize == 4:
         caller.figure.subplots(2, 4, sharex, sharey, 
                                                         subplot_kw={'projection':projection},
-                                                        gridspec_kw={'width_ratios':2*[5,1]} )
+                                                        gridspec_kw={'width_ratios':2*[20,1]} )
 
     if listSize > 4 and listSize <= 9:
         nbrRows = int(np.ceil(listSize / 3))
         caller.figure.subplots(nbrRows, 6, sharex, sharey, 
                                                         subplot_kw={'projection':projection},
-                                                        gridspec_kw={'width_ratios':3*[5,1]} )
+                                                        gridspec_kw={'width_ratios':3*[20,1]} )
 
     if listSize > 9 and listSize <= 12:
         nbrRows = int(np.ceil(listSize / 4))
         caller.figure.subplots(nbrRows, 8, sharex, sharey, 
                                                         subplot_kw={'projection':projection},
-                                                        gridspec_kw={'width_ratios':4*[5,1]} )
+                                                        gridspec_kw={'width_ratios':4*[20,1]} )
 
     if listSize > 12:
         nbrRows = int(np.ceil(listSize / 5))
         caller.figure.subplots(nbrRows, 10, sharex, sharey, 
                                                         subplot_kw={'projection':projection},
-                                                        gridspec_kw={'width_ratios':5*[5,1]} )
+                                                        gridspec_kw={'width_ratios':5*[20,1]} )
 
     #_Removing unecessary axes
     for idx, subplot in enumerate(caller.figure.axes):

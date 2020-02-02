@@ -25,6 +25,10 @@ class TempRampType(BaseType):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
 
 
+        self._normFList = None
+
+
+
     def importData(self, fileFormat=None):
         """ Extract data from file and store them in *data* and *rawData* attributes.
 
@@ -60,13 +64,17 @@ class TempRampType(BaseType):
                                         errors      = self.data.errors / normFList,
                                         norm=True )
 
-    def getNormF(self, nbrBins):
+        self._normFList = normFList
+
+
+
+    def getNormF(self):
         """ Returns normalization factors from average at low temperature for each q-values.
             These are computed on raw data. 
 
         """
 
-        normFList = np.mean(self.rawData.intensities[:,:nbrBins], axis=1)[:,np.newaxis]
+        return self._normFList
 
 
 
@@ -82,7 +90,12 @@ class TempRampType(BaseType):
             #_Compute the fitted Empty Cell function
             ECFunc = []
             for qIdx, qVal in enumerate(self.data.qVals):
-                ECFunc.append( self.ECData.model( 0.0, *self.ECData.params[qIdx][0] ) )
+                if qVal in self.ECData.data.qVals:
+                    ECqIdx = int(np.argwhere(qVal == self.ECData.data.qVals)[:,0])
+                    ECFunc.append( self.ECData.model( 0.0, *self.ECData.params[ECqIdx][0] ) )
+
+                else:
+                    ECFunc.append(0.0)
 
             ECFunc = np.array( ECFunc )[:,np.newaxis]
 
@@ -98,8 +111,7 @@ class TempRampType(BaseType):
 
             #_If data are normalized, uses the same normalization factor for empty cell data
             if self.data.norm and not self.ECData.data.norm:
-                ECFunc /= self.getNormF(5)
-
+                ECFunc /= self.getNormF()
 
 
         #_Substracting the empty cell intensities from experimental data

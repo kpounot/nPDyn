@@ -174,7 +174,6 @@ class TempRampPlot(QWidget):
             qValFirst   = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][0]
             qValLast    = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][-1]
             self.drawCustomColorBar(ax, cmap, qValFirst, qValLast)
-            ax.set_aspect(15)
             ax.set_ylabel('q [$\AA^{-2}$]')
 
 
