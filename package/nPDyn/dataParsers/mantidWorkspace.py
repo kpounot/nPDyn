@@ -24,7 +24,8 @@ def processData(dataFile, FWS=False, averageTemp=True):
         For FWS, data are stored as list of namedtuple, each corresponding to one energy offset.
         They containing several members (all being numpy arrays):
             - qVals         - list of q values
-            - deltaE        - energy offset
+            - X             - energy offset
+            - Y             - observable values (time, temperature or other varying parameter)
             - intensities   - 2D array of counts values for each q-value (axis 0) and scan number (axis 1)
             - errors        - 2D array of errors values for each q-value (axis 0) and scan number (axis 1) 
             - temp          - temperature value (for time-resolved FWS performed at fixed temperature) 
@@ -37,7 +38,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
     #_Fixed window scan processing
     if FWS == True:
-        FWSData = namedtuple('FWSData', 'qVals X intensities errors temp norm qIdx') 
+        FWSData = namedtuple('FWSData', 'qVals X Y intensities errors temp norm qIdx') 
 
         if averageTemp:
             temp    = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'][()])
@@ -52,27 +53,28 @@ def processData(dataFile, FWS=False, averageTemp=True):
         dataList = [] # Stores the full dataset for a given data file
 
         #_Initialize some lists and store energies, intensities and errors in them
-        listX    = []
+        listY    = []
         listI    = []
         listErr  = []
         deltaE   = []
         for j, workspace in enumerate(h5File):
-            listX.append(   h5File[workspace + '/workspace/axis1'][()] )
+            listY.append(   h5File[workspace + '/workspace/axis1'][()] )
             listI.append(   h5File[workspace + '/workspace/values'][()] )
             listErr.append( h5File[workspace + '/workspace/errors'][()] )
             deltaE.append(  h5File[workspace + '/logs/Doppler.maximum_delta_energy/value'][()] )
 
 
-        for data in listX:
-            if data.shape[0] != listX[0].shape[0]:
+        for data in listY:
+            if data.shape[0] != listY[0].shape[0]:
                 interp = True
 
         if interp:
-            listX, listI, listErr = _interpFWS(listX, listI, listErr)
+            listY, listI, listErr = _interpFWS(listY, listI, listErr)
 
 
         #_Converts intensities and errors to numpy and array and transpose to get 
         #_(# frames, # qVals, # energies) shaped array
+        listY   = np.array(listY).T
         listI   = np.array(listI).T
         listErr = np.array(listErr).T
         deltaE  = np.array(deltaE)[:,0]
@@ -84,7 +86,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
         np.place(listErr, listI / listErr < 0.5, np.inf)
 
 
-        dataList = FWSData( listQ, deltaE, listI, listErr, temp, False, np.arange(listQ.size) )
+        dataList = FWSData( listQ, deltaE, listY, listI, listErr, temp, False, np.arange(listQ.size) )
 
         return dataList
 
