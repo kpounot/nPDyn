@@ -53,5 +53,7 @@ setup(  name='nPDyn',
         author_email='kpounot@hotmail.fr',
         url='github.com/kpounot/nPDyn',
         packages=packagesList,
+        package_dir={'nPDyn':'nPDyn'},
+        package_data={'nPDyn':['fit/D2O_data/*.dat']},
         ext_modules = cythonize([pyabsco_ext]) )
 

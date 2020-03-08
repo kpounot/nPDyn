@@ -25,6 +25,7 @@ class D2OType(BaseType):
 
 
 
+
 class DataTypeDecorator(D2OType):
 
     def __init__(self, dataType):

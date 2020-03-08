@@ -5,6 +5,8 @@ from scipy import optimize
 
 from scipy.special import spherical_jn
 
+from iminuit import Minuit
+
 from nPDyn.dataTypes.QENSType import DataTypeDecorator
 from nPDyn.fit.fitQENS_models import water_powder as model
 
@@ -40,7 +42,7 @@ class Model(DataTypeDecorator):
         :math:`\\mathcal{L}_{\\Gamma_{t}}` is a Lorentzian of width obeying jump diffusion model as 
         decribed by Singwi and Sjölander [#]_ and accounts for translational motions.
 
-        The Scipy basinhopping routine is used.
+        The iminuit package is used here.
 
         References:
 
@@ -54,8 +56,8 @@ class Model(DataTypeDecorator):
 
         self.model          = model
         self.params         = None
-        self.paramsNames    = ['$s_0$', '$s_r$', '$s_t$', '$\Gamma_r$', '$\Gamma_t$', 'msd', '$\\tau$', 'bkgd'] 
-        self.BH_iter        = 25
+        self.paramsNames    = ['s0', 'sr', 'st', 'rotational', 'translational', 'msd', 'tau', 'bkgd'] 
+        self.BH_iter        = 10
         self.disp           = True
 
 
@@ -65,37 +67,25 @@ class Model(DataTypeDecorator):
         print("\nStarting basinhopping fitting for file: %s" % self.fileName, flush=True)
         print(50*"-", flush=True)
 
-        if p0 is None: #_Using default initial values
-            p0 = [0.2, 0.4, 0.4, 2, 5, 0.5, 2] + [self.data.intensities[self.data.qIdx[i]][:10].mean()*0.5
+        if not p0: #_Using default initial values
+            p0 = [0.2, 0.4, 0.4, 2, 10, 0.5, 2] + [self.data.intensities[self.data.qIdx[i]][:10].mean()*0.8
                                                     for i in range(len(self.data.qIdx))]
 
-        if bounds is None: 
-            bounds = [(0, np.inf) for i in range(6)] + [(1.8,2.2)]
+        if not bounds: 
+            bounds = [(0, np.inf) for i in range(6)] + [(1.80,2.20)]
             bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
 
-
-
-        result = optimize.basinhopping( self.model, 
-                                        p0,
-                                        niter = self.BH_iter,
-                                        niter_success = 0.5*self.BH_iter,
-                                        interval=5,
-                                        disp=self.disp,
-                                        minimizer_kwargs={'args':(self,), 
-                                                          'bounds':bounds,
-                                                          'tol':1e-12,
-                                                          'options':{'maxcor':100,
-                                                                     'maxfun':50000,
-                                                                     'maxiter':50000}} )
-
-
+        minFunc = Minuit.from_array_func(lambda p: self.model(p, self), p0, limit=bounds)
+        minFunc.migrad()
 
         #_Creating a list with the same parameters for each q-values (makes code for plotting easier)
-        out = []
+        pVal = []
+        pErr = []
         for qIdx in self.data.qIdx:
-            out.append(result)
+            pVal.append(np.array([val for key, val in minFunc.values.items()]))
+            pErr.append(np.array([val for key, val in minFunc.errors.items()]))
 
-        self.params = out    
+        self.params = np.array([pVal, pErr])    
 
         self.globalFit = True
 
@@ -109,30 +99,27 @@ class Model(DataTypeDecorator):
         print(50*"-" + "\n", flush=True)
 
 
-        result = []
+        pVal = []
+        pErr = []
         for i, qIdx in enumerate(self.data.qIdx):
             if not p0: #_Using default initial values
-                p0 = [0.2, 0.4, 0.4, 2, 10, 0.5, 2] + [self.data.intensities[self.data.qIdx[i]][:10].mean()]
+                p0 = [0.2, 0.4, 0.4, 5, 2, 0.5, 2] + [self.data.intensities[self.data.qIdx[i]][:10].mean()]
 
             if not bounds: 
-                bounds = [(0, np.inf) for i in range(6)] + [(1.8,2.2)] + [(0., np.inf)]
+                bounds = [(0, np.inf) for i in range(6)] + [(1.80,2.20)] + [(0., np.inf)]
 
 
             print("\nFitting model for q index %i\n" % qIdx, flush=True)
-            result.append(optimize.basinhopping( self.model, 
-                                        p0,
-                                        niter = self.BH_iter,
-                                        niter_success = 0.5*self.BH_iter,
-                                        disp=self.disp,
-                                        minimizer_kwargs={ 'args':(self, i), 
-                                                           'bounds':bounds,
-                                                            'options': {'maxcor': 100,
-                                                                        'maxiter': 50000,
-                                                                        'maxfun': 50000}}) )
-                                                           
+                            
+            minFunc = Minuit.from_array_func(lambda p: self.model(p, self), p0, limit=bounds)
+            minFunc.migrad()
+
+            #_Creating a list with the same parameters for each q-values (makes code for plotting easier)
+            pVal.append(np.array([val for key, val in minFunc.values.items()]))
+            pErr.append(np.array([val for key, val in minFunc.errors.items()]))
 
 
-        self.params = result
+        self.params = np.array([pVal, pErr])
 
         self.globalFit = False
 
@@ -150,10 +137,7 @@ class Model(DataTypeDecorator):
     def getParams(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == len(self.paramsNames):
-            params = self.params[qIdx].x
-        else:
-            params = self.params[qIdx].x[ [0,1,2,3,4,5,6,7+qIdx] ]
+        params = self.params[0][qIdx]
 
         return params
 
@@ -179,10 +163,10 @@ class Model(DataTypeDecorator):
 
         rotational = np.sum( [l*(l+1) * self.params[qIdx].x[3] for l in range(1,5)] )
 
+        tauParam = self.params[qIdx].x[6]
 
         weights     = self.params[qIdx].x[1:3] / self.params[qIdx].x[:3].sum()
-        tau         = self.params[qIdx].x[6]
-        lorWidths   = [rotational, self.params[qIdx].x[4] * self.data.qVals[qIdx]**tau]
+        lorWidths   = [rotational, self.params[qIdx].x[4] * self.data.qVals[qIdx]**tauParam]
         labels      = ['Rotational', 'Translational']
 
         return weights, lorWidths, labels

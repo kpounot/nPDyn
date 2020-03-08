@@ -21,6 +21,7 @@ class ResType(BaseType):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
 
 
+
     def substractEC(self, scaleFactor=0.95):
         """ Use the assigned empty cell data for substraction to loaded data.
             

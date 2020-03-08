@@ -37,9 +37,12 @@ class Model(DataTypeDecorator):
 
         self.model          = model
         self.params         = None
-        self.paramsNames    = ['s0', 's1', 's2', 'g1', 'g2', 'msd', 'bkgd'] #_For plotting purpose
+        self.paramsNames    = ['$a_0$', '$a_1$', '$a_2$', '$\Gamma_1$', '$\Gamma_2$', 
+                               'MSD', '$\\tau$','bkgd'] #_For plotting purpose
         self.BH_iter        = 50
         self.disp           = True
+
+        self.globalFit = False
 
 
     def fit(self, p0=None, bounds=None):
@@ -49,25 +52,22 @@ class Model(DataTypeDecorator):
         print(50*"-", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.6, 0.2, 0.2, 2, 15, 1] + [0.001 for i in range(len(self.data.qIdx))]
+            p0 = [0.6, 0.2, 0.2, 5, 15, 1, 2] + [self.data.intensities[self.data.qIdx[i]][:10].mean()*0.5
+                                                    for i in range(len(self.data.qIdx))]
 
         if not bounds: #_Using default bounds
-            minData = 1.5 * np.min( self.data.intensities ) #_To restrict background below experimental data
-
-            bounds = [(0., 1), (0., 1), (0., 1), (0., 30), (0., 30), (0., 10)]
-            bounds += [(0., minData) for i in range(len(self.data.qIdx))]
+            bounds = [(0, np.inf) for i in range(7)]
+            bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
 
 
         result = optimize.basinhopping( self.model, 
                                         p0,
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
-                                        interval=25,
+                                        interval=5,
                                         disp=self.disp,
                                         minimizer_kwargs={  'args':(self,), 
-                                                            'bounds':bounds,
-                                                            'options': {'maxcor': 100,
-                                                                        'maxfun': 200000}})
+                                                            'bounds':bounds })
 
 
 
@@ -78,6 +78,7 @@ class Model(DataTypeDecorator):
 
         self.params = out    
 
+        self.globalFit = True
 
 
 
@@ -87,12 +88,10 @@ class Model(DataTypeDecorator):
         print(50*"-" + "\n", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.6, 0.2, 0.2, 2, 15, 1, 0.001]
+            p0 = [0.6, 0.2, 0.2, 2, 15, 1, 1, 0.001]
 
         if not bounds: #_Using default bounds
-            minData = np.min( self.data.intensities ) #_To restrict background below experimental data
-
-            bounds = [(0., 1), (0., 1), (0., 1), (0., 1000), (0., 1000), (0., 10), (0., minData)] 
+            bounds = [(0, np.inf) for i in range(8)]
 
 
         result = []
@@ -109,6 +108,7 @@ class Model(DataTypeDecorator):
 
         self.params = result
 
+        self.globalFit = False
 
 
     def getModel(self, qIdx):
@@ -124,10 +124,10 @@ class Model(DataTypeDecorator):
     def getParams(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == 7:
+        if not self.globalFit:
             params = self.params[qIdx].x
         else:
-            params = self.params[qIdx].x[ [0,1,2,3,4,5,6+qIdx] ]
+            params = self.params[qIdx].x[ [0,1,2,3,4,5,6,7+qIdx] ]
 
         return params
 
@@ -136,13 +136,13 @@ class Model(DataTypeDecorator):
     def getParamsErrors(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == 7:
+        if not self.globalFit:
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
         else:
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
-            params = params[ [0,1,2,3,4,5,6+qIdx] ]
+            params = params[ [0,1,2,3,4,5,6,7+qIdx] ]
 
         return params
 
@@ -182,10 +182,10 @@ class Model(DataTypeDecorator):
     def getBackground(self, qIdx):
         """ Accessor for background term, None for this model. """
 
-        if len(self.params[0].x) == 7:
-            return self.params[qIdx].x[6]
+        if not self.globalFit:
+            return self.params[qIdx].x[7]
         else:
-            return self.params[qIdx].x[6+qIdx]
+            return self.params[qIdx].x[7+qIdx]
 
 
 
@@ -197,7 +197,7 @@ class Model(DataTypeDecorator):
         """
 
         resF, lor1, lor2 = self.model(self.getParams(qIdx), self, qIdx, False, True)
-        labels      = [r'$L_{\Gamma_{1}}(q, \omega)$', r'$L_{\Gamma_{2}}(q, \omega)$']
+        labels      = [r'$\mathcal{L}_{\Gamma_{1}}$', r'$\mathcal{L}_{\Gamma_{2}}$']
 
         return resF[qIdx], lor1[qIdx], lor2[qIdx], labels
 

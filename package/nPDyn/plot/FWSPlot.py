@@ -20,6 +20,8 @@ from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
+matplotlib.use('Qt5Agg')
+
 from nPDyn.plot.subPlotsFormat import subplotsFormat, subplotsFormatWithColorBar
  
 
@@ -141,21 +143,15 @@ class FWSPlot(QWidget):
                         
 
             subplot.set_title(self.dataset[0].fileName, fontsize=10)
-            subplot.set_xlabel(r'$\hslash\omega [\mu eV]$', fontsize=18)
+            subplot.set_xlabel(r'$\Delta E \ [\mu eV]$', fontsize=18)
             subplot.set_yscale('log')
-            subplot.set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
+            subplot.set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \Delta E)$', fontsize=18)   
             subplot.grid()
 
 
         for ax in ax1:
-            
-            #_Chech if timestep is given
-            if self.dataset[0].timestep is not None:
-                yy = self.dataset[0].timestep * np.arange(self.dataset[0].data.intensities.shape[0])
-                ylabel = 'Time [h]'
-            else:
-                yy = np.arange(self.dataset[0].data.intensities.shape[0])
-                ylabel = 'Scan number'
+            yy = self.dataset[0].data.Y[0]
+            ylabel = self.dataset[0].Ylabel
 
 
             #_Creates a custom color bar
@@ -194,12 +190,8 @@ class FWSPlot(QWidget):
             qIds = self.dataset[0].data.qIdx
 
             #_Chech if timestep is given
-            if self.dataset[0].timestep is not None:
-                yy = self.dataset[0].timestep * np.arange(self.dataset[0].data.intensities.shape[0])
-                ylabel = 'Time [h]'
-            else:
-                yy = np.arange(self.dataset[0].data.intensities.shape[0])
-                ylabel = 'Scan number'
+            yy = self.dataset[0].data.Y[0]
+            ylabel = self.dataset[0].Ylabel
 
 
             xx, yy = np.meshgrid(self.dataset[0].data.qVals[qIds], yy)
@@ -240,29 +232,24 @@ class FWSPlot(QWidget):
         ax = subplotsFormat(self, sharex=True, params=True)
 
         #_Create 2D numpy array to easily access parameters for each file
-        paramsList  = self.dataset[0].getParams(qValIdx)
+        paramsList = self.dataset[0].getParams(qValIdx)
 
         if self.errBox.isChecked(): #_Whether or not using error bars
             errList = self.dataset[0].getParamsErrors(qValIdx)
         else:
             errList = np.zeros_like(paramsList)
 
-        #_Chech if timestep is given
-        if self.dataset[0].timestep is not None:
-            X = self.dataset[0].timestep * np.arange(self.dataset[0].data.intensities.shape[0])
-            xlabel = 'Time [h]'
-        else:
-            X = np.arange(self.dataset[0].data.intensities.shape[0])
-            xlabel = 'Scan number'
+        #_Check if timestep is given
+        yy = self.dataset[0].data.Y[0]
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
-            subplot.errorbar(X, 
+            subplot.errorbar(yy, 
                              paramsList[:,idx], 
                              errList[:,idx],
                              marker='o')
             subplot.set_ylabel(self.dataset[0].paramsNames[idx]) 
-            subplot.set_xlabel(xlabel)
+            subplot.set_xlabel(self.dataset[0].Ylabel)
         
         self.canvas.draw()
 
@@ -292,12 +279,8 @@ class FWSPlot(QWidget):
         for idx, subplot in enumerate(ax):
 
             #_Chech if timestep is given
-            if self.dataset[0].timestep is not None:
-                yy = self.dataset[0].timestep * np.arange(self.dataset[0].data.intensities.shape[0])
-                ylabel = 'Time [h]'
-            else:
-                yy = np.arange(self.dataset[0].data.intensities.shape[0])
-                ylabel = 'Scan number'
+            yy = self.dataset[0].data.Y[0]
+            ylabel = self.dataset[0].Ylabel
 
             #_Plot the datas for selected q value normalized with integrated curves at low temperature
             xx, yy = np.meshgrid(self.dataset[0].data.X, yy)
@@ -321,9 +304,9 @@ class FWSPlot(QWidget):
 
 
         subplot.set_title(self.dataset[idx].fileName, fontsize=10)
-        subplot.set_xlabel(r'$\hslash\omega (\mu eV)$')
+        subplot.set_xlabel(r'$\Delta E \ (\mu eV)$')
         subplot.set_ylabel(ylabel)
-        subplot.set_zlabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$')   
+        subplot.set_zlabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \Delta E)$')   
 
         self.canvas.draw()
 

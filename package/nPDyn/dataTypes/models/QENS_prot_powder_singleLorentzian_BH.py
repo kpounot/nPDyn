@@ -37,9 +37,11 @@ class Model(DataTypeDecorator):
 
         self.model          = model
         self.params         = None
-        self.paramsNames    = ['s0', 's1', 'g1', 'msd', 'tau', 'bkgd'] #_For plotting purpose
+        self.paramsNames    = ['$a_0$', '$a_1$', '$\Gamma$', 'MSD', 'bkgd'] #_For plotting purpose
         self.BH_iter        = 50
         self.disp           = True
+
+        self.globalFit      = False
 
 
     def fit(self, p0=None, bounds=None):
@@ -49,25 +51,22 @@ class Model(DataTypeDecorator):
         print(50*"-", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.4, 0.6, 2, 1, 2] + [0.001 for i in range(len(self.data.qIdx))]
+            p0 = [0.4, 0.6, 10, 1] + [self.data.intensities[self.data.qIdx[i]][:10].mean()*0.5
+                                                    for i in range(len(self.data.qIdx))]
 
         if not bounds: #_Using default bounds
-            minData = 1.5 * np.min( self.data.intensities ) #_To restrict background below experimental data
-
-            bounds = [(0., 1), (0., 1), (0., 30), (0., 10), (0., 2)]
-            bounds += [(0., minData) for i in range(len(self.data.qIdx))]
+            bounds = [(0, np.inf) for i in range(4)]
+            bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
 
 
         result = optimize.basinhopping( self.model, 
                                         p0,
                                         niter = self.BH_iter,
                                         niter_success = 0.5*self.BH_iter,
-                                        interval=25,
+                                        interval=5,
                                         disp=self.disp,
                                         minimizer_kwargs={  'args':(self,), 
-                                                            'bounds':bounds,
-                                                            'options': {'maxcor': 100,
-                                                                        'maxfun': 200000}})
+                                                            'bounds':bounds })
 
 
 
@@ -78,22 +77,21 @@ class Model(DataTypeDecorator):
 
         self.params = out    
 
+        self.globalFit = True
 
 
 
-    def qWiseFit(self, p0=None, bounds=None):
+    def qWiseFit(self, p0=None, bounds=(-np.inf, np.inf)):
         """ q-wise fit """
 
         print("\nStarting basinhopping fitting for file: %s\n" % self.fileName, flush=True)
         print(50*"-" + "\n", flush=True)
 
         if not p0: #_Using default initial values
-            p0 = [0.6, 0.2, 5, 1, 2, 0.001]
+            p0 = [0.6, 0.2, 5, 1, 0.001]
 
         if not bounds: #_Using default bounds
-            minData = np.min( self.data.intensities ) #_To restrict background below experimental data
-
-            bounds = [(0., 1), (0., 1), (0., 1000), (0., 10), (0., 2), (0., minData)] 
+            bounds = [(0, np.inf) for i in range(5)]
 
 
         result = []
@@ -110,6 +108,7 @@ class Model(DataTypeDecorator):
 
         self.params = result
 
+        self.globalFit = False
 
 
     def getModel(self, qIdx):
@@ -125,10 +124,10 @@ class Model(DataTypeDecorator):
     def getParams(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == len(self.paramsNames):
+        if not self.globalFit:
             params = self.params[qIdx].x
         else:
-            params = self.params[qIdx].x[ [0,1,2,3,4,5+qIdx] ]
+            params = self.params[qIdx].x[ [0,1,2,3,4+qIdx] ]
 
         return params
 
@@ -137,13 +136,13 @@ class Model(DataTypeDecorator):
     def getParamsErrors(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == len(self.paramsNames):
+        if not self.globalFit:
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
         else:
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
-            params = params[ [0,1,2,3,4,5+qIdx] ]
+            params = params[ [0,1,2,3,4+qIdx] ]
 
         return params
 
@@ -185,10 +184,10 @@ class Model(DataTypeDecorator):
     def getBackground(self, qIdx):
         """ Accessor for background term, None for this model. """
 
-        if len(self.params[0].x) == len(self.paramsNames):
-            return self.params[qIdx].x[5]
+        if not self.globalFit:
+            return self.params[qIdx].x[4]
         else:
-            return self.params[qIdx].x[5+qIdx]
+            return self.params[qIdx].x[4+qIdx]
 
 
 

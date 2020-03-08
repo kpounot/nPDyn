@@ -61,8 +61,8 @@ def convert(datafile, FWS=None):
     #_Clean useless values from intensities and errors arrays
     np.place(errors, errors==0, np.inf)
     np.place(errors, errors==np.nan, np.inf)
-    np.place(intensities, intensities / errors < 0.5, 0)
-    np.place(errors, intensities / errors < 0.5, np.inf)
+    np.place(intensities, intensities / errors < 0.1, 0)
+    np.place(errors, intensities / errors < 0.1, np.inf)
  
     #_Creating the named tuple (no temp with .inx)
     dataSet = qData(qVals, X, intensities, errors, None, False, np.arange(qVals.size)) 

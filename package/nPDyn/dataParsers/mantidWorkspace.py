@@ -40,6 +40,8 @@ def processData(dataFile, FWS=False, averageTemp=True):
     if FWS == True:
         FWSData = namedtuple('FWSData', 'qVals X Y intensities errors temp norm qIdx') 
 
+        interp = False
+
         if averageTemp:
             temp    = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'][()])
         else:
@@ -74,7 +76,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
         #_Converts intensities and errors to numpy and array and transpose to get 
         #_(# frames, # qVals, # energies) shaped array
-        listY   = np.array(listY).T
+        listY   = np.array(listY) / 3600
         listI   = np.array(listI).T
         listErr = np.array(listErr).T
         deltaE  = np.array(deltaE)[:,0]
@@ -151,6 +153,7 @@ def _interpFWS(listX, listI, listErr):
                                   fill_value=(listErr[k][:,0], listErr[k][:,-1]),
                                   bounds_error=False )
 
+            data       = maxX
             listI[k]   = interpI(maxX)
             listErr[k] = interpErr(maxX)
 

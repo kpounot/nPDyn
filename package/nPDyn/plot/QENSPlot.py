@@ -20,6 +20,8 @@ import matplotlib.gridspec as gridspec
 from matplotlib.figure import Figure
 import matplotlib
 
+matplotlib.use('Qt5Agg')
+
 from nPDyn.plot.subPlotsFormat import subplotsFormat
  
 
@@ -133,7 +135,7 @@ class QENSPlot(QWidget):
                         fmt='o')
             
             subplot.set_title(self.dataset[idx].fileName, fontsize=10)
-            subplot.set_xlabel(r'$\hslash\omega [\mu eV]$', fontsize=18)
+            subplot.set_xlabel(r'$\hslash\omega \ [\mu eV]$', fontsize=18)
             subplot.set_yscale('log')
             subplot.set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
             subplot.grid()
@@ -157,12 +159,12 @@ class QENSPlot(QWidget):
 
         for dataset in self.dataset:
             ax.errorbar(dataset.data.X, 
-                        dataset.data.intensities[qValIdx],
-                        dataset.data.errors[qValIdx], 
+                        dataset.data.intensities[dataset.data.qIdx][qValIdx],
+                        dataset.data.errors[dataset.data.qIdx][qValIdx], 
                         label=dataset.fileName,
                         fmt='o')
             
-            ax.set_xlabel(r'$\hslash\omega [\mu eV]$', fontsize=18)
+            ax.set_xlabel(r'$\hslash\omega \ [\mu eV]$', fontsize=18)
             ax.set_yscale('log')
             ax.set_ylabel(r'$S(q=' + str(np.round(qValToShow, 2)) + ', \omega)$', fontsize=18)   
 
@@ -204,8 +206,8 @@ class QENSPlot(QWidget):
                              c=cmap(normColors(self.dataset[i].data.qVals[qIdx])))
 
             subplot.set_title(self.dataset[i].fileName, fontsize=10)
-            subplot.set_xlabel(r'$\hslash \omega [\mu eV]$')
-            subplot.set_ylabel(r'$q$')
+            subplot.set_xlabel(r'$\hslash \omega \ [\mu eV]$')
+            subplot.set_ylabel(r'$q \ [\AA^{-1}]$')
             subplot.set_zlabel(r'$S(q, \omega)$')
             subplot.grid()
 
@@ -258,7 +260,7 @@ class QENSPlot(QWidget):
 
         self.figure.clear()     
 
-        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]**2
+        qVals = self.dataset[0].data.qVals[self.dataset[0].data.qIdx]
         qIds  = np.arange(qVals.size)
 
         ax = self.figure.subplots(len(self.dataset[0].getWeights_and_lorWidths(0)[0]), 2, sharex=True)
@@ -278,15 +280,18 @@ class QENSPlot(QWidget):
 
 
             for idx, row in enumerate(ax):
-                row[0].errorbar(qVals, paramsList[:,0,idx], errList[:,0,idx], marker='o')
+                row[0].errorbar(qVals, paramsList[:,0,idx], errList[:,0,idx], marker='o',
+                                label=dataset.fileName)
                 row[0].set_ylabel('Weight - %s' % labels[idx])
-                row[0].set_xlabel(r'q [$\AA^{-2}$]')
+                row[0].set_xlabel(r'$q \ [\AA^{-1}$]')
                 row[0].set_ylim(0,1)
 
-                row[1].errorbar(qVals, paramsList[:,1,idx], errList[:,1,idx], marker='o')
+                row[1].errorbar(qVals, paramsList[:,1,idx], errList[:,1,idx], marker='o',
+                                label=dataset.fileName)
                 row[1].set_ylabel('Width - %s' %labels[idx])
-                row[1].set_xlabel(r'q [$\AA^{-2}$]')
+                row[1].set_xlabel(r'$q \ [\AA^{-1}$]')
 
+        ax[-1][-1].legend(loc='upper left', bbox_to_anchor=(1.1,1), fontsize=10)
         self.canvas.draw()
 
 
@@ -344,7 +349,7 @@ class QENSPlot(QWidget):
 
                 ax[idx].plot(   dataset.data.X,
                                 D2OSignal,
-                                label='D2O',
+                                label='$D_2O$',
                                 ls=':',
                                 zorder=4 )
 

@@ -4,27 +4,31 @@ from collections import namedtuple
 from scipy import optimize
 
 from nPDyn.dataTypes.FWSType import DataTypeDecorator
-from nPDyn.fit.fitQENS_models import protein_liquid_analytic_voigt as model
+from nPDyn.fit.fitQENS_models import protein_liquid_2Lorentzians as model
 
 
 
 class Model(DataTypeDecorator):
     """ This class provides a model for protein dynamics in liquid state for fixed-window scans data.
 
-        The model (:py:func:`~fitQENS_models.protein_liquid_analytic_voigt`) is given by:
+        The model (:py:func:`~fitQENS_models.FWS_protein_liquid_withImmobileFrac_BH`) is given by:
 
         .. math::
 
-            S(q, \\omega) = R(q, \\omega ) \\otimes \\left[ \\beta ( a_{0} \\mathcal{L}_{\\gamma }
-                                    + (1 - a_{0}) \\mathcal{L}_{\\Gamma } ) \\right]
+            S(q, \\omega) = R(q, \\omega ) \\otimes \\beta(q) \\left\{ a_0(q) \\delta(\\omega) 
+                                    + (1-a_0(q)) \\left[ a_1 \\mathcal{L}_{\\Gamma }
+                                                         + (1-a_1) \\mathcal{L}_{\\Gamma + \\gamma} \\right] 
+                                                         \\right\}
                                     + \\beta_{D_{2}O} \\mathcal{L}_{D_{2}O}
 
         where, R is the resolution function, q is the scattering angle, :math:`\\omega` the energy offset, 
-        :math:`\\mathcal{L}_{\\gamma}` is a single Lorentzian accounting for global diffusion motions,
-        :math:`\\mathcal{L}_{\\Gamma}` is a Lorentzian of width obeying jump diffusion model as 
-        decribed by Singwi and Sjölander [#]_ ,
-        :math:`\\mathcal{L}_{D_{2}O}` is the :math:`D_{2}O` lineshape, :math:`a_{0}` acts as an EISF,
-        and :math:`\\beta` and :math:`\\beta_{D_{2}O}` are scalars.
+        :math:`\\mathcal{L}_{\\Gamma} = D_s q^2` is a single Lorentzian accounting for global 
+        diffusion motions,
+        :math:`\\mathcal{L}_{\\Gamma + \\gamma}` is a Lorentzian convoluted with the previous one
+        of width :math:`\\gamma = \\frac{D_i q^2}{1 + D_i q^2 \\tau}` obeying jump diffusion model - as 
+        decribed by Singwi and Sjölander [#]_ - accounting for protein-internal dynamics,
+        :math:`\\mathcal{L}_{D_{2}O}` is the :math:`D_{2}O` lineshape, :math:`a_{0}(q)` acts as an EISF,
+        and :math:`\\beta(q)` and :math:`\\beta_{D_{2}O}` are scalars.
 
         The Scipy basinhopping routine is used.
 
@@ -39,9 +43,11 @@ class Model(DataTypeDecorator):
 
         self.model       = model
         self.params      = None
-        self.paramsNames = ['$D_s$', '$D_i$', '$\\tau$', '$\\beta$', '$a_0$'] 
+        self.paramsNames = ['$D_s$', '$D_i$', '$\\tau$', '$a_1$', '$\\beta$', '$a_0$'] 
         self.BH_iter     = 20
         self.disp        = True
+
+        self.globalFit = True
 
 
 
@@ -53,11 +59,12 @@ class Model(DataTypeDecorator):
 
 
         if not p0: #_Using default initial values
-            p0 = [10, 20, 1]  
-            p0 = p0 + [0.9 for i in self.data.qIdx] + [0.5 for i in self.data.qIdx]
+            p0 = [5, 15, 1, 0.5]  
+            p0 = p0 + [1 for i in self.data.qIdx]
+            p0 = p0 + [0.1 for i in self.data.qIdx]
 
-        if not bounds: 
-            bounds = [(0, np.inf) for i in range(3)]
+        if not bounds: #_Using default bounds
+            bounds = [(0, np.inf) for i in range(3)] + [(0., 1)]
             bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
             bounds += [(0, 1) for i in range(len(self.data.qIdx))]
 
@@ -78,7 +85,7 @@ class Model(DataTypeDecorator):
                                             niter_success = 0.5*self.BH_iter,
                                             disp=self.disp,
                                             minimizer_kwargs={ 'args':(self, D2OSignal, None, True, tIdx), 
-                                                               'bounds':bounds } )
+                                                               'bounds':bounds } ) 
 
 
 
@@ -86,6 +93,7 @@ class Model(DataTypeDecorator):
             r += "    g0    = %.2f\n" % result.x[0]
             r += "    g1    = %.2f\n" % result.x[1]
             r += "    tau   = %.2f\n" % result.x[2]
+            r += "    a1    = %.2f\n" % result.x[3]
             print(r)
 
 
@@ -95,6 +103,7 @@ class Model(DataTypeDecorator):
 
         self.params = np.array( out ).reshape( (self.data.intensities.shape[0], self.data.qIdx.size) )    
 
+        self.globalFit = True
 
 
 
@@ -106,10 +115,10 @@ class Model(DataTypeDecorator):
 
 
         if not p0: #_Using default initial values
-            p0 = [15, 30, 1, 0.9, 0.5] 
+            p0 = [20, 5, 2, 0.5, 1, 0.1] 
 
         if not bounds: #_Using default bounds
-            bounds = [(0, np.inf) for i in range(5)]
+            bounds = [(0, np.inf) for i in range(3)] + [(0., 1)] + [(0, np.inf)] + [(0., 1)]
 
 
         #_D2O signal 
@@ -139,13 +148,16 @@ class Model(DataTypeDecorator):
                 r += "    g0    = %.2f\n" % result[-1].x[0]
                 r += "    g1    = %.2f\n" % result[-1].x[1]
                 r += "    tau   = %.2f\n" % result[-1].x[2]
-                r += "    beta  = %.2f\n" % result[-1].x[3]
-                r += "    a0    = %.2f\n" % result[-1].x[4]
+                r += "    a1    = %.2f\n" % result[-1].x[3]
+                r += "    beta  = %.2f\n" % result[-1].x[4]
+                r += "    a0    = %.2f\n" % result[-1].x[5]
                 print(r)
 
 
 
         self.params = np.array( result ).reshape( (self.data.intensities.shape[0], self.data.qIdx.size) )
+
+        self.globalFit = False
 
 
     def getModel(self, scanIdx, qIdx):
@@ -163,12 +175,12 @@ class Model(DataTypeDecorator):
         """ Accessor for parameters of the model for the given q value """
 
         params = []
-        if len(self.params[0][0].x) == 5:
+        if not self.globalFit:
             for tIdx in range(self.data.intensities.shape[0]):
                 params.append(self.params[tIdx][qIdx].x)
         else:
             for tIdx in range(self.data.intensities.shape[0]):
-                params.append(self.params[tIdx][qIdx].x[ [0,1,2,3+qIdx, 3+self.data.qIdx.size+qIdx] ])
+                params.append(self.params[tIdx][qIdx].x[ [0,1,2,3,4+qIdx,4+self.data.qIdx.size+qIdx] ])
 
         return np.array(params)
 
@@ -178,7 +190,7 @@ class Model(DataTypeDecorator):
         """ Accessor for parameter errors of the model for the given q value """
 
         paramsErr = []
-        if len(self.params[0][0].x) == 5:
+        if not self.globalFit:
             for tIdx in range(self.data.intensities.shape[0]):
                 params = self.params[tIdx][qIdx].lowest_optimization_result.hess_inv.todense()
                 params = np.sqrt( np.diag( params ) )
@@ -187,7 +199,7 @@ class Model(DataTypeDecorator):
             for tIdx in range(self.data.intensities.shape[0]):
                 params = self.params[tIdx][qIdx].lowest_optimization_result.hess_inv.todense()
                 params = np.sqrt( np.diag( params ) )
-                params = params[ [0,1,2,3+qIdx,3+self.data.qIdx.size+qIdx] ]
+                params = params[ [0,1,2,3,4+qIdx,4+self.data.qIdx.size+qIdx] ]
                 paramsErr.append(params)
 
         return np.array(paramsErr)
@@ -201,21 +213,22 @@ class Model(DataTypeDecorator):
         #_For plotting purpose, gives fitted weights and lorentzian width
         outWeights   = []
         lorWidths = []
-        if len(self.params[0][0].x) == 5:
+        if not self.globalFit:
             for tIdx in range(self.data.intensities.shape[0]):
-                weights = [self.params[tIdx][qIdx].x[4], 1 - self.params[tIdx][qIdx].x[4]]
-                beta    = self.params[tIdx][qIdx].x[3]
+                weights = [self.params[tIdx][qIdx].x[4+self.data.qIdx.size+qIdx], 
+                           1 - self.params[tIdx][qIdx].x[4+self.data.qIdx.qIdx]]
+                beta    = self.params[tIdx][qIdx].x[4]
                 weights = np.array(weights) * beta
 
                 outWeights.append(weights)
 
-                lorWidths.append(self.params[tIdx][qIdx].x[0:2])
+                lorWidths.append(self.params[tIdx][qIdx].x[0])
         else:
             for tIdx in range(self.data.intensities.shape[0]):
-                weights     = [self.params[tIdx][qIdx].x[3+self.data.qIdx.size+qIdx], 
-                                            1 - self.params[tIdx][qIdx].x[3+self.data.qIdx.size+qIdx]]
-                beta        = self.params[tIdx][qIdx].x[3+qIdx]
-                weights = np.array(weights) * beta
+                weights     = [self.params[tIdx][qIdx].x[4+self.data.qIdx.size+qIdx], 
+                               1 - self.params[tIdx][qIdx].x[4+self.data.qIdx.size+qIdx]]
+                beta        = self.params[tIdx][qIdx].x[4+qIdx]
+                weights     = np.array(weights) * beta
 
                 outWeights.append(weights)
 
@@ -238,15 +251,10 @@ class Model(DataTypeDecorator):
                                                                                  for params in self.params ] )
         weightsErr  = []
         lorErr      = []
-        if len(self.params[0][0].x) == 5:
-            for tIdx in range(self.data.intensities.shape[0]):
-                weightsErr.append( [errList[tIdx][4], errList[tIdx][4]] )
-                lorErr.append( errList[tIdx][0:2] )
-        else:
-            for tIdx in range(self.data.intensities.shape[0]):
-                weightsErr.append( [errList[tIdx][3+self.data.qIdx.size+qIdx], 
-                                                        errList[tIdx][3+self.data.qIdx.size+qIdx]] )
-                lorErr.append( errList[tIdx][0:2] )
+        for tIdx in range(self.data.intensities.shape[0]):
+            weightsErr.append( [errList[tIdx][4+self.data.qIdx.size+qIdx], 
+                                errList[tIdx][4+self.data.qIdx.size+qIdx]] )
+            lorErr.append( errList[tIdx][0:2] )
  
 
         return np.array(weightsErr), np.array(lorErr)
@@ -260,17 +268,15 @@ class Model(DataTypeDecorator):
         return None
 
 
-
     def get_betaSlice(self):
         """ For global fit, returns the slice corresponding to beta parameter(s) """
 
-        return slice(3, 3+self.data.qIdx.size)
+        return slice(4, 4+self.data.qIdx.size)
 
 
 
     def get_a0Slice(self):
         """ For global fit, returns the slice corresponding to a0 parameter(s) """
 
-        return slice(3+self.data.qIdx.size, None)
-
+        return slice(4+self.data.qIdx.size, None)
 

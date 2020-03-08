@@ -76,32 +76,38 @@ class Dataset:
 
         modelT = namedtuple( 'models', 'resFunc_pseudoVoigt resFunc_gaussian D2OFunc_sglLorentzian_Min'
                                             + ' ECFunc_pseudoVoigt'
+                                            + ' ECFunc_Gaussian'
                                             + ' D2OFunc_lorentzian_and_elastic_Min'
                                             + ' QENS_prot_powder_dblLorentzian_BH'
                                             + ' QENS_prot_powder_sglLorentzian_BH'
                                             + ' QENS_water_powder_BH'
+                                            + ' QENS_water_powder_minuit'
                                             + ' QENS_protein_liquid_analytic_voigt_BH' 
                                             + ' QENS_protein_liquid_analytic_voigt_CF' 
                                             + ' TempRamp_gaussian TempRamp_q4'
                                             + ' FWS_protein_liquid_BH'
                                             + ' FWS_protein_liquid_CF'
+                                            + ' FWS_protein_liquid_withImmobileFrac_BH'
                             )
 
 
         self.models = modelT(   resFunc_pseudoVoigt.Model,
                                 resFunc_gaussian.Model,
                                 ECFunc_pseudoVoigt.Model,
+                                ECFunc_Gaussian.Model,
                                 D2OFunc_singleLorentzian_Min.Model,
                                 D2OFunc_lorentzian_and_elastic_Min.Model,
                                 QENS_prot_powder_doubleLorentzian_BH.Model,
                                 QENS_prot_powder_singleLorentzian_BH.Model,
                                 QENS_water_powder_BH.Model,
+                                QENS_water_powder_minuit.Model,
                                 QENS_protein_liquid_analytic_voigt_BH.Model,
                                 QENS_protein_liquid_analytic_voigt_CF.Model,
                                 TempRamp_gaussian.Model,
                                 TempRamp_q4.Model,
                                 FWS_protein_liquid_BH.Model,
-                                FWS_protein_liquid_CF.Model
+                                FWS_protein_liquid_CF.Model,
+                                FWS_protein_liquid_withImmobileFrac_BH.Model,
                             )
 
 
@@ -247,6 +253,135 @@ class Dataset:
 
                 self.dataSetList.append( data )
 
+
+
+
+    def importRawData(self, dataList, instrument, dataType='QENS', kwargs={}):
+        """ This method uses instrument-specific algorithm to import raw data.
+
+            :arg dataList:      a list of data files to be imported
+            :arg instrument:    the instrument used to record data (only 'IN16B' possible for now)
+            :arg dataType:      type of data recorded (can be 'QENS', 'FWS', 'res', 'ec', 
+                                'D2O', 'fec' or 'fD2O')
+            :arg kwargs:        keyword arguments to be passed to the algorithm 
+                                (see algorithm in dataParsers for details)
+
+        """
+
+        if dataType=='QENS':
+            data = QENSType.QENSType(dataList) 
+
+            data.importRawData(dataList, instrument, dataType, kwargs)
+
+            tmpData = data.data
+            tmpRaw  = data.rawData
+            for idx, val in enumerate(data.data):
+                tmp = QENSType.QENSType(dataList[idx])
+                tmp.assignD2OData( self.D2OData )
+                tmp.assignECData( self.ECData )
+
+                tmp.data = tmpData[idx]
+                tmp.rawData = tmpRaw[idx]
+
+                self.dataSetList.append( tmp )
+
+
+
+        elif dataType=='FWS':
+            data = FWSType.FWSType(dataList)
+            data.importRawData(dataList, instrument, dataType, kwargs)
+
+            if self.fECData is not None:
+                data.assignECData( self.fECData )
+            else:
+                data.assignECData( self.ECData )
+
+
+            if self.fD2OData is not None:
+                data.assignD2OData( self.fD2OData )
+            else:
+                data.assignD2OData( self.D2OData )
+
+
+            self.dataSetList.append( data )
+
+
+
+        elif dataType=='res':
+            data = resType.ResType(dataList)
+
+            data.importRawData(dataList, instrument, dataType, kwargs)
+
+            tmpData = data.data
+            tmpRaw  = data.rawData
+            for idx, val in enumerate(data.data):
+                tmp = resType.ResType(dataList[idx])
+
+                tmp.data = tmpData[idx]
+                tmp.rawData = tmpRaw[idx]
+
+                tmp = resFunc_pseudoVoigt.Model(tmp)
+                tmp.assignECData( self.ECData )
+                tmp.fit()
+
+                self.resData.append( tmp )
+
+
+        elif dataType=='ec':
+            data = ECType.ECType(dataList)
+
+            data.importRawData(dataList, instrument, dataType, kwargs)
+            data.data    = data.data[0]
+            data.rawData = data.rawData[0]
+
+            data = ECFunc_pseudoVoigt.Model(data)
+            data.fit()
+
+            self.ECData = data
+
+        elif dataType=='fec':
+            data = fECType.fECType(dataList)
+            data.importRawData(dataList, instrument, dataType, kwargs)
+
+            self.fECData = data
+
+
+        elif dataType=='D2O':
+            data = D2OType.D2OType(dataList)
+
+            data.importRawData(dataList, instrument, dataType, kwargs)
+            data.rawData = data.rawData[0]
+            data.data    = data.data[0]
+
+            data = D2OFunc_singleLorentzian_Min.Model(data)
+            data.assignECData( self.ECData )
+
+            if self.resData != []:
+                data.assignResData(self.resData[0])
+                data.normalize()
+                data.fit()
+
+            self.D2OData = data
+
+        elif dataType=='fD2O':
+            data = fD2OType.fD2OType(dataList)
+            data.importRawData(dataList, instrument, dataType, kwargs)
+
+            if self.fECData is not None:
+                data.assignECData( self.fECData )
+            else:
+                data.assignECData( self.ECData )
+
+            if self.resData != []:
+                data.assignResData(self.resData[0])
+
+
+            self.fD2OData = data
+
+
+
+
+        self.resFuncAssign()
 
 
 
@@ -434,8 +569,8 @@ class Dataset:
 
 
 
-    def substract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True, subRes=True):
-        """ This method uses the fitted empty cell function to substract the signal for the selected
+    def subtract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True, subRes=True):
+        """ This method uses the fitted empty cell function to subtract the signal for the selected
             dataset. 
 
             :arg subFactor:   pre-multiplying factor for empty cell data prior to substraction
@@ -452,19 +587,19 @@ class Dataset:
 
         #_Apply corrections for samples data
         for i in fileIdxList:
-            self.dataSetList[i].substractEC(subFactor)
+            self.dataSetList[i].subtractEC(subFactor)
 
 
 
         if subRes:
             for idx, resData in enumerate(self.resData):
-                resData.substractEC(subFactor)
+                resData.subtractEC(subFactor)
                 resData.fit()
 
 
         if subD2O:
             try:
-                self.dataSetList[i].D2OData.substractEC(subFactor)
+                self.dataSetList[i].D2OData.subtractEC(subFactor)
                 self.dataSetList[i].D2OData.qWiseFit()
             except AttributeError:
                 pass

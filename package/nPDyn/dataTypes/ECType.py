@@ -23,6 +23,7 @@ class ECType(BaseType):
 
 
 
+
     def discardNonElastic(self, deltaE=0.4):
         """ Can be used to set to zero in intensity the region that does not pertain to the elastic
             peak. This can be useful for proper empty cell signal substraction.

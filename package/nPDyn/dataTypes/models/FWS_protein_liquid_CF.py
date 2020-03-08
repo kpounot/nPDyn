@@ -40,7 +40,7 @@ class Model(DataTypeDecorator):
 
         self.model      = model
         self.params     = None
-        self.paramsNames = ['g0', 'g1', 'tau', 'beta', 'a0'] 
+        self.paramsNames = ['$D_s$', '$D_i$', '$\\tau$', '$\\beta$', '$a_0$'] 
         self.BH_iter    = 20
         self.disp       = True
 
@@ -57,8 +57,7 @@ class Model(DataTypeDecorator):
             p0 = p0 + [0.2 for i in self.data.qIdx] + [0.8 for i in self.data.qIdx]
 
         if bounds is None: #_Using default bounds
-            maxI = 1.5 * np.max( self.data.intensities )
-            bounds = (0., [np.inf, np.inf, np.inf, maxI, 1.])
+            bounds = (0., [np.inf, np.inf, np.inf, np.inf, np.inf])
 
 
         #_D2O signal 
@@ -111,9 +110,7 @@ class Model(DataTypeDecorator):
             p0 = [15, 30, 1, 0.1, 0.8] 
 
         if bounds is None: #_Using default bounds
-            maxX = 2.5 * np.max( self.data.X )
-            maxI = 1.5 * np.max( self.data.intensities )
-            bounds = (0., [np.inf, np.inf, np.inf, maxI, 1]) 
+            bounds = (0., [np.inf, np.inf, np.inf, np.inf, np.inf]) 
 
 
         #_D2O signal 

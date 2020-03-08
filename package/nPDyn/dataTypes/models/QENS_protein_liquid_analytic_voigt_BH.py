@@ -39,7 +39,7 @@ class Model(DataTypeDecorator):
 
         self.model      = model
         self.params     = None
-        self.paramsNames = ['g0', 'g1', 'tau', 'beta', 'a0'] 
+        self.paramsNames = ['$\Gamma$', '$\gamma$', '$\\tau$', '$\\beta$', '$a_0$'] 
         self.BH_iter    = 20
         self.disp       = True
 
@@ -52,14 +52,13 @@ class Model(DataTypeDecorator):
         print(50*"-", flush=True)
 
         if p0 is None: #_Using default initial values
-            p0 = [2, 20, 0.1] 
+            p0 = [5, 20, 0.1] 
             p0 = p0 + [0.2 for i in self.data.qIdx] + [0.2 for i in self.data.qIdx]
 
         if bounds is None: #_Using default bounds
-            maxI = 1.5 * np.max( self.data.intensities )
-            bounds = ( [(0.0, np.inf), (0.0, np.inf), (0, np.inf)]
-                        + [(0., maxI) for i in self.data.qIdx] 
-                        + [(0., 1) for i in self.data.qIdx] )
+            bounds = [(0, np.inf) for i in range(3)]
+            bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
+            bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
 
 
         #_D2O signal 
@@ -94,11 +93,10 @@ class Model(DataTypeDecorator):
         print(50*"-" + "\n", flush=True)
 
         if p0 is None: #_Using default initial values
-            p0 = [0.8, 1, 10, 0.1, 0.5] 
+            p0 = [5, 15, 10, 0.1, 0.5] 
 
         if bounds is None: #_Using default bounds
-            maxI = 1.5 * np.max( self.data.intensities )
-            bounds = [(0., np.inf), (0., np.inf), (0., np.inf), (0., maxI), (0., 1)] 
+            bounds = [(0, np.inf) for i in range(5)]
 
 
         #_D2O signal 

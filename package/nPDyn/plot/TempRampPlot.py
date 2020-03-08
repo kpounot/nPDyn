@@ -20,6 +20,8 @@ from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
+matplotlib.use('Qt5Agg')
+
 from nPDyn.plot.subPlotsFormat import subplotsFormat, subplotsFormatWithColorBar
 
 class TempRampPlot(QWidget):
@@ -174,7 +176,7 @@ class TempRampPlot(QWidget):
             qValFirst   = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][0]
             qValLast    = self.dataset[i].data.qVals[self.dataset[i].data.qIdx][-1]
             self.drawCustomColorBar(ax, cmap, qValFirst, qValLast)
-            ax.set_ylabel('q [$\AA^{-2}$]')
+            ax.set_ylabel('q^2 \ [$\AA^{-2}$]')
 
 
         self.canvas.draw()
@@ -219,7 +221,7 @@ class TempRampPlot(QWidget):
                             label=label)
 
             subplot.set_title(self.dataset[i].fileName, fontsize=10)
-            subplot.set_xlabel(r'$Scattering \ vector \ q \ (\AA^{-2})$')
+            subplot.set_xlabel(r'$Scattering \ vector \ q^2 \ (\AA^{-2})$')
             subplot.set_ylabel(r'EISF at %d K' % tempToShow)
             subplot.legend(framealpha=0.5, fontsize=12)
 
@@ -233,7 +235,7 @@ class TempRampPlot(QWidget):
         ax = self.figure.add_subplot(111)  
 
 
-        markers = ['o', 's', 'v', '^', 'h', 'p', 'd', '*']
+        markers = ['o', 's', 'v', '^', 'h', 'p', 'd', '*', 'P', 'D', '+', '1']
 
         #_Plot the mean-squared displacement as a function of temperature for each file
         for i, dataset in enumerate(self.dataset):

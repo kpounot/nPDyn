@@ -9,17 +9,15 @@ from nPDyn.dataTypes.ECType import ECType, DataTypeDecorator
 
 class Model(DataTypeDecorator):
     """ This class stores data as resolution function related. It allows to perform a fit using a 
-        pseudo-voigt profile as a model for instrument resolution given by: 
+        scaled Gaussian given by: 
 
         .. math::
 
-           S(q, \\omega ) = A \\left[ S \\frac{ \\Gamma }{ \\pi ( (\\omega - shift)^{2} + \\Gamma^{2} ) }
-                            + \\frac{ (1-S) }{ \sqrt{2 \\pi } \\gamma }
-                            e^{ -(\\omega - shift)^{2} / 2\\gamma^{2} } \\right] + bkgd
+           S(q, \\omega ) = A \\frac{1}{ \sqrt{2 \\pi } \\gamma }
+                            e^{ -(\\omega - shift)^{2} / 2\\gamma^{2} } + bkgd
 
         where *q* is the scattering angle, :math:`\\omega` the energy offset, A a scaling factor,
-        S a scalar between 0 and 1, shift a scalar to account for maximum not being at 0,
-        and bkgd a background term.
+        shift a scalar to account for maximum not being at 0 exactly, and bkgd a background term.
 
     """
 
@@ -28,7 +26,7 @@ class Model(DataTypeDecorator):
 
         self.model      = self.model
         self.params     = None
-        self.paramsNames = ["normF", "S", "lorW", "gauW", "shift", "bkgd"] #_For plotting purpose
+        self.paramsNames = ["normF", "gauW", "shift", "bkgd"] #_For plotting purpose
 
 
     def fit(self):
@@ -44,7 +42,7 @@ class Model(DataTypeDecorator):
 
             #_Initial guesses for parameters based on data
             init_normF  = np.mean(qWiseData) 
-            init_bkgd   = qWiseData[:10].mean()
+            init_bkgd   = np.mean([val for val in qWiseData if val > 0])
 
             maxI = 1.5 * np.max( qWiseData )
 
@@ -52,9 +50,9 @@ class Model(DataTypeDecorator):
                                                 self.data.X,
                                                 self.data.intensities[qIdx],
                                                 sigma=self.data.errors[qIdx],
-                                                p0=[init_normF, 0.1, 1, 1, 0.1, init_bkgd],
-                                                bounds=([0., 0., 0., 0., -10, 0.],  
-                                                        [maxI, 1, np.inf, np.inf, 10, np.inf]),
+                                                p0=[init_normF, 1, 0.1, init_bkgd],
+                                                bounds=([0., 0., -10, 0.],  
+                                                        [maxI, np.inf, 10, maxI]),
                                                 max_nfev=10000000,
                                                 method='trf'))
 
@@ -63,22 +61,15 @@ class Model(DataTypeDecorator):
 
 
                 
-    def model(self, x, normF, S, lorW, gauW, shift, bkgd):
-        """ Pseudo-Voigt profile for resolution function.
+    def model(self, x, normF, gauW, shift, bkgd):
+        """ Gaussian profile for empty-cell signal.
 
             :arg x:     energy transfer offsets (in microeV)  
             :arg normF: normalization factor
-            :arg S:     weight factor for the lorentzian
-            :arg lorW:  lorentzian width parameter
             :arg gauW:  gaussian width parameter
             :arg shift: shift of the resolution function center from 0
             :arg bkgd:  background term 
 
         """
 
-        return  ( normF * (S * lorW/(lorW**2 + (x-shift)**2) /np.pi 
-                  + (1-S) * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi))) 
-                  + bkgd )
-
- 
-
+        return ( normF * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi)) + bkgd )

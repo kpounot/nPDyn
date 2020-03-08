@@ -72,19 +72,16 @@ class Model(DataTypeDecorator):
         for qIdx, qWiseData in enumerate(self.data.intensities):
 
             #_Initial guesses for parameters based on data
-            maxI     = 20 * np.max( qWiseData )
-            maxWidth = np.max( self.data.X )
-            maxBkgd  = 5 * np.mean( qWiseData[qWiseData > 0] )
+            maxWidth = np.max( self.data.X ) / 2
 
             init_normF  = np.max(qWiseData)
-            init_bkgd   = 0.5 * maxBkgd
-            init_width  = 0.8
+            init_bkgd   = qWiseData[:10].mean()
 
             if not p0:
-                p0 = [init_normF, 0.1, init_width, init_width, 0.0, init_bkgd]
+                p0 = [init_normF, 0.5, 0.8, 0.8, 0.0, init_bkgd]
 
             if not bounds:
-                bounds = ([0., 0., 0., 0., -10, 0.],  [maxI, 1, maxWidth, maxWidth, 10, maxBkgd])
+                bounds = ([0., 0., 0., 0., -10, 0.],  [np.inf, 1, maxWidth, maxWidth, 10, np.inf])
 
 
 

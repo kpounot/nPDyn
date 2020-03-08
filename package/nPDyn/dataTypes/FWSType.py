@@ -23,7 +23,7 @@ class FWSType(BaseType):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
 
 
-        self.timestep = None #_Should be given in hours
+        self.Ylabel = 'Time [h]'
 
         self.globalFit = True
 

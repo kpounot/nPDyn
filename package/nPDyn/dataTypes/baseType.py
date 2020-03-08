@@ -13,6 +13,7 @@ from itertools import count
 
 from nPDyn.dataManipulation.binData import binData
 from nPDyn.fileFormatParser import guessFileFormat, readFile, fileImporters
+from nPDyn.dataParsers import *
 
 try:
     from ..lib.pyabsco import py_absco_slab, py_absco_tube
@@ -49,6 +50,9 @@ class BaseType:
         self.D2OData    = D2OData #_For use with sample data types
         self.ECData     = ECData 
 
+        self.QENS_redAlgo = {'IN16B': IN16B_QENS_scans_reduction.IN16B_QENS}
+        self.FWS          = {'IN16B': IN16B_FWS_scans_reduction.IN16B_FWS}
+
 
 
     def importData(self, fileFormat=None):
@@ -63,6 +67,7 @@ class BaseType:
         else:
             data = guessFileFormat(self.fileName)
 
+
         self.data       = data
         self.rawData    = self.data._replace(   qVals       = np.copy(self.data.qVals),
                                                 X           = np.copy(self.data.X),
@@ -71,6 +76,55 @@ class BaseType:
                                                 temp        = np.copy(self.data.temp),
                                                 norm        = False,
                                                 qIdx        = np.copy(self.data.qIdx) )
+
+
+
+
+    def importRawData(self, dataList, instrument, dataType, kwargs):
+        """ This method uses instrument-specific algorithm to process raw data.
+
+            :arg dataList:      a list of data files to be imported
+            :arg instrument:    the instrument used to record data (only 'IN16B' possible for now)
+            :arg dataType:      type of data recorded (can be 'QENS' or 'FWS')
+            :arg kwargs:        keyword arguments to be passed to the algorithm 
+                                (see algorithm in dataParsers for details)
+
+        """
+
+        if dataType in ['QENS', 'res', 'ec', 'D2O']:
+            data = self.QENS_redAlgo[instrument](dataList, **kwargs)
+            data.process()
+
+            self.data = data.outTuple
+
+            self.rawData = []
+            for data in self.data:
+                self.rawData.append( data._replace( qVals       = np.copy(data.qVals),
+                                                    X           = np.copy(data.X),
+                                                    intensities = np.copy(data.intensities),
+                                                    errors      = np.copy(data.errors),
+                                                    temp        = np.copy(data.temp),
+                                                    norm        = False,
+                                                    qIdx        = np.copy(data.qIdx) ) )
+
+
+        elif dataType in ['FWS', 'fec', 'fD2O']:
+            data = self.FWS[instrument](dataList, **kwargs)
+            data.process()
+
+            self.data    = data.outTuple
+            self.rawData = self.data._replace(qVals       = np.copy(self.data.qVals),
+                                              X           = np.copy(self.data.X),
+                                              Y           = np.copy(self.data.Y),
+                                              intensities = np.copy(self.data.intensities),
+                                              errors      = np.copy(self.data.errors),
+                                              temp        = np.copy(self.data.temp),
+                                              norm        = False,
+                                              qIdx        = np.copy(self.data.qIdx)) 
+
+
+
+
 
 
 
@@ -107,7 +161,7 @@ class BaseType:
 
 
 
-    def substractEC(self, scaleFactor=0.95):
+    def subtractEC(self, scaleFactor=0.95):
         """ Use the assigned empty cell data for substraction to loaded data.
             
             Empty cell data are scaled using the given *scaleFactor* prior to substraction. 

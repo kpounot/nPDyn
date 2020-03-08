@@ -1,2 +1,5 @@
-__all__ = [ 'h5process',
-            'inxConvert']
+__all__ = [ 'mantidWorkspace',
+            'inxConvert',
+            'IN16B_QENS_scans_reduction',
+            'IN16B_FWS_scans_reduction'
+          ]

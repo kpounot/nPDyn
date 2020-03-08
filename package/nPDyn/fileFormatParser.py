@@ -2,19 +2,21 @@ import sys
 
 import re
 
+import h5py
+
 from nPDyn.dataParsers import *
 
 
 
-fileImporters = {   'inx'   : inxConvert.convert,
-                    'hdf5'  : h5process.processData }
+fileImporters = {   'inx'        : inxConvert.convert,
+                    'mantid'     : mantidWorkspace.processData }
 
 
 
 def readFile(fileFormat, dataFile, FWS=False):
     """ Extract data from file using the given file format. 
         
-        fileFormat can be 'hdf5' or 'inx' (other to come later) 
+        fileFormat can be 'mantid' or 'inx' (others to come later) 
 
     """
 
@@ -40,9 +42,9 @@ def guessFileFormat(dataFile, FWS=False):
         return readFile('inx', dataFile, FWS) 
 
     elif re.search('.nxs', dataFile):
-        return readFile('hdf5', dataFile, FWS)
+        return readFile('mantid', dataFile, FWS)
 
     else: #_Try a generic hdf5 file (.h5 extension or else)
-        return readFile('hdf5', dataFile, FWS)
+        return readFile('mantid', dataFile, FWS)
 
 
