@@ -278,19 +278,19 @@ class IN16B_QENS:
             leftPeaks  = []
             rightPeaks = []
             for qIdx, qData in enumerate(maskedData):
+                errors = np.sqrt(qData)
+                np.place(errors, errors==0, np.inf)
                 params = curve_fit( Gaussian, 
                                     np.arange(midChannel), 
                                     qData[:midChannel],
-                                    #sigma=np.sqrt(qData[:midChannel]),
-                                    maxfev=10000,
+                                    sigma=errors[:midChannel],
                                     p0=[qData[:midChannel].max(),midChannel/10, midChannel/2, 0] )
                 leftPeaks.append(params[0][2])
 
                 params = curve_fit( Gaussian, 
                                     np.arange(midChannel), 
                                     qData[midChannel:],
-                                    #sigma=np.sqrt(qData[midChannel:]),
-                                    maxfev=10000,
+                                    sigma=errors[midChannel:],
                                     p0=[qData[midChannel:].max(), midChannel/10, midChannel/2, 0] )
                 rightPeaks.append(params[0][2])
 

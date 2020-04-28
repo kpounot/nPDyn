@@ -171,8 +171,8 @@ class IN16B_FWS:
 
         np.place(errors, errors==0.0, np.inf) 
         np.place(errors, errors==np.nan, np.inf) 
-        #np.place(data, data/errors < 0.5, 0) 
-        #np.place(errors, data/errors < 0.5, np.inf) 
+        np.place(data, data/errors < 0.5, 0) 
+        np.place(errors, data/errors < 0.5, np.inf) 
 
         self.outTuple = self.FWSData(self.qList[0], 
                                      energies, 

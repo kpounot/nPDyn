@@ -569,7 +569,7 @@ class Dataset:
 
 
 
-    def subtract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True, subRes=True):
+    def subtract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True, subRes=False):
         """ This method uses the fitted empty cell function to subtract the signal for the selected
             dataset. 
 
@@ -600,7 +600,7 @@ class Dataset:
         if subD2O:
             try:
                 self.dataSetList[i].D2OData.subtractEC(subFactor)
-                self.dataSetList[i].D2OData.qWiseFit()
+                self.dataSetList[i].D2OData.fit()
             except AttributeError:
                 pass
 

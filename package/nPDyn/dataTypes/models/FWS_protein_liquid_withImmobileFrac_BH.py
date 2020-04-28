@@ -4,7 +4,7 @@ from collections import namedtuple
 from scipy import optimize
 
 from nPDyn.dataTypes.FWSType import DataTypeDecorator
-from nPDyn.fit.fitQENS_models import protein_liquid_2Lorentzians as model
+from nPDyn.fit.fitQENS_models import protein_liquid_withImmobileFrac as model
 
 
 
@@ -59,7 +59,7 @@ class Model(DataTypeDecorator):
 
 
         if not p0: #_Using default initial values
-            p0 = [5, 15, 1, 0.5]  
+            p0 = [10, 25, 1, 0.5]  
             p0 = p0 + [1 for i in self.data.qIdx]
             p0 = p0 + [0.1 for i in self.data.qIdx]
 

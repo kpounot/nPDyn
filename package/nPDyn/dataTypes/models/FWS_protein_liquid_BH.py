@@ -52,10 +52,6 @@ class Model(DataTypeDecorator):
         print(50*"-", flush=True)
 
 
-        if not p0: #_Using default initial values
-            p0 = [10, 20, 1]  
-            p0 = p0 + [0.9 for i in self.data.qIdx] + [0.5 for i in self.data.qIdx]
-
         if not bounds: 
             bounds = [(0, np.inf) for i in range(3)]
             bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
@@ -68,6 +64,11 @@ class Model(DataTypeDecorator):
         out = []
         for tIdx in range(self.data.intensities.shape[0]):
             print("\nFitting model for scan index %i" % tIdx, flush=True)
+
+            if p0 is None: #_Using default initial values
+                p0  = [15, 30, 1]  
+                p0  = p0 + [np.max(self.data.intensities[tIdx,i]) for i in self.data.qIdx] 
+                p0 += [0.5 for i in self.data.qIdx]
 
             if tIdx > 0:
                 p0 = out[-1].x
@@ -106,10 +107,10 @@ class Model(DataTypeDecorator):
 
 
         if not p0: #_Using default initial values
-            p0 = [15, 30, 1, 0.9, 0.5] 
+            p0 = [15, 30, 1, 0.5, 0.5] 
 
-        if not bounds: #_Using default bounds
-            bounds = [(0, np.inf) for i in range(5)]
+        if not bounds: 
+            bounds = [(0, np.inf) for i in range(4)] + [(0., 1)]
 
 
         #_D2O signal 

@@ -52,10 +52,9 @@ class Model(DataTypeDecorator):
                                                 self.data.X,
                                                 self.data.intensities[qIdx],
                                                 sigma=self.data.errors[qIdx],
-                                                p0=[init_normF, 0.1, 1, 1, 0.1, init_bkgd],
+                                                p0=[init_normF, 0.1, 1, 1, 0., init_bkgd],
                                                 bounds=([0., 0., 0., 0., -10, 0.],  
                                                         [maxI, 1, np.inf, np.inf, 10, np.inf]),
-                                                max_nfev=10000000,
                                                 method='trf'))
 
             self.params = ECList
