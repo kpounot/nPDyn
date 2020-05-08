@@ -18,6 +18,7 @@ from nPDyn.plot import *
 
 from nPDyn.plot.plotMD_MSD import plotMSDSeries
 
+
 class Dataset:
     """ Master class of nPDyn, contains a list of dataFiles, which can be sample, resolution, D2O data or
         anything else as long as the format can be recognized. 
