@@ -200,7 +200,7 @@ class IN16B_FWS:
         dataList = []
         errList  = []
 
-        threshold = np.sort(monitor)[::-1][:self.peakFindWindow].mean()
+        threshold = np.sort(monitor)[::-1][:self.peakFindWindow].mean() * 0.8
         peaks     = find_peaks(monitor, threshold=threshold)[0]
         monitor   = monitor[peaks]
 
@@ -214,8 +214,8 @@ class IN16B_FWS:
             qDataPeaks = np.array(qDataPeaks)
             errors     = np.sqrt(qDataPeaks)
 
-            qDataPeaks /= (monitor*peaks.size)
-            errors     /= (monitor*peaks.size)
+            qDataPeaks /= monitor
+            errors     /= monitor
 
             dataList.append(qDataPeaks.sum())
             errList.append(errors.sum())

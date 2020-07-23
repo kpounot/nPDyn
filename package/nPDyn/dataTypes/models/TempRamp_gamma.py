@@ -17,28 +17,27 @@ class Model(DataTypeDecorator):
 
         .. math::
 
-           S(q, \\omega = 0) = e^{ -\\frac{q^{2} \\langle u^{2} \\rangle }{6} }
-                            \\left[ 1 + e^{ - \\frac{q^{4} \\sigma^{2}}{72} } \\right]
+           S(q, \\omega = 0) = frac{1} {(1 + \\frac{\\sigma^2 q^2}{\\beta})^{\\beta}}
 
         where q is the scattering angle, :math:`\\omega` the energy offset, 
-        :math:`\\langle u^{2} \\rangle` the mean-squared displacement,
-        and :math:`\\sigma` the second moment of mean-squared displacement distribution.
+        :math:`\\sigma` the mean-squared displacement,
+        and :math:`\\beta` a parameter accounting for motion heterogeneity in the sample.
 
         References:
 
-        .. [#] http://doi.org/10.1021/jp2102868
+        .. [#] https://doi.org/10.1063/1.3170941 
 
     """
 
     def __init__(self, dataType):
         super().__init__(dataType)
 
-        self.model      = models.q4_corrected_gaussian
+        self.model      = models.gamma
         self.params     = None
-        self.paramsNames = ["MSD", "sigma", "scaleF"] #_For plotting purpose
+        self.paramsNames = ["MSD", "\beta", "scaleF"] #_For plotting purpose
 
 
-        self.defaultBounds = (0., [6., 10., 10000.])
+        self.defaultBounds = (0., [10, 100, 10000.])
 
 
 
@@ -50,7 +49,7 @@ class Model(DataTypeDecorator):
             bounds = self.defaultBounds
 
         if not p0:
-            p0 = [0.0, 0.5, 1]
+            p0 = [0.2, 5, 1]
 
         qIdxList = self.data.qIdx
         

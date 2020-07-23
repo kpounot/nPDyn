@@ -31,7 +31,7 @@ class Model(DataTypeDecorator):
         self.paramsNames = ["normF", "S", "lorW", "gauW", "shift", "bkgd"] #_For plotting purpose
 
 
-    def fit(self):
+    def fit(self, p0=None, bounds=None):
         """ Uses Scipy's curve_fit routine to fit the pseudo-Voigt profile to the experimental data
             given in the argument resData. 
         
@@ -43,19 +43,26 @@ class Model(DataTypeDecorator):
         for qIdx, qWiseData in enumerate(self.data.intensities):
 
             #_Initial guesses for parameters based on data
-            init_normF  = np.mean(qWiseData) 
+            init_normF  = np.max(qWiseData) 
             init_bkgd   = qWiseData[:10].mean()
-
             maxI = 1.5 * np.max( qWiseData )
 
-            ECList.append(optimize.curve_fit(   self.model, 
-                                                self.data.X,
-                                                self.data.intensities[qIdx],
-                                                sigma=self.data.errors[qIdx],
-                                                p0=[init_normF, 0.1, 1, 1, 0., init_bkgd],
-                                                bounds=([0., 0., 0., 0., -10, 0.],  
-                                                        [maxI, 1, np.inf, np.inf, 10, np.inf]),
-                                                method='trf'))
+            if p0 is None:
+                p0=[init_normF, 0.1, 1, 1, 0., init_bkgd]
+
+            if bounds is None:
+                bounds=([0., 0., 0., 0., -10, 0.], [maxI, 1, np.inf, np.inf, 10, np.inf])
+
+
+
+
+            ECList.append(optimize.curve_fit(self.model, 
+                                             self.data.X,
+                                             self.data.intensities[qIdx],
+                                             sigma=self.data.errors[qIdx],
+                                             p0=p0,
+                                             bounds=bounds,
+                                             method='trf'))
 
             self.params = ECList
 

@@ -33,8 +33,8 @@ class MDData(MDDataset, BackScatData):
         The getTempRampEISF methods need several .dcd files that will treated sequentially to extract
         mean-squared displacements. """
 
-    def __init__(self, expData, fileList, stride=1):
-        MDDataset.__init__(self, fileList, stride=stride)
+    def __init__(self, expData, fileList):
+        MDDataset.__init__(self, fileList)
         BackScatData.__init__(self, self)
 
         self.expData = expData
@@ -46,12 +46,11 @@ class MDData(MDDataset, BackScatData):
 
 
 
-    def initMD(self, psfFile, stride=1):
+    def initMD(self, psfFile):
         """ Initialize a NAMDAnalyzer instance with the given psf file. """
 
 
         self.importFile(psfFile)
-        self.stride = stride
 
 
 

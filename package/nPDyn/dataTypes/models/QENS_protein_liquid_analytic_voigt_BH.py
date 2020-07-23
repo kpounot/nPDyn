@@ -45,6 +45,7 @@ class Model(DataTypeDecorator):
 
 
 
+
     def fit(self, p0=None, bounds=None):
         """ Global fit """
 
@@ -56,7 +57,7 @@ class Model(DataTypeDecorator):
             p0 = p0 + [0.2 for i in self.data.qIdx] + [0.2 for i in self.data.qIdx]
 
         if bounds is None: #_Using default bounds
-            bounds = [(0, np.inf) for i in range(3)]
+            bounds = [(0, self.data.X.max()*3) for i in range(2)] + [(0., np.inf)]
             bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
             bounds += [(0, np.inf) for i in range(len(self.data.qIdx))]
 
@@ -85,7 +86,6 @@ class Model(DataTypeDecorator):
 
 
 
-
     def qWiseFit(self, p0=None, bounds=None):
         """ q-wise fit """
 
@@ -96,7 +96,7 @@ class Model(DataTypeDecorator):
             p0 = [5, 15, 10, 0.1, 0.5] 
 
         if bounds is None: #_Using default bounds
-            bounds = [(0, np.inf) for i in range(5)]
+            bounds = [(0, self.data.X.max()*3) for i in range(2)] + [(0, np.inf) for i in range(3)]
 
 
         #_D2O signal 
@@ -105,6 +105,9 @@ class Model(DataTypeDecorator):
 
         result = []
         for i, qIdx in enumerate(self.data.qIdx):
+
+            if i != 0:
+                p0 = result[-1].x
 
             print("\nFitting model for q index %i\n" % qIdx, flush=True)
             result.append(optimize.basinhopping( self.model, 
@@ -134,10 +137,13 @@ class Model(DataTypeDecorator):
     def getParams(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == 5:
+        if len(self.params[0].x) == len(self.paramsNames):
             params = self.params[qIdx].x
         else:
             params = self.params[qIdx].x[ [0,1,2,3+qIdx,3+self.data.qIdx.size+qIdx] ]
+            qVal = self.data.qVals[self.data.qIdx[qIdx]]**2
+            params[0] = params[0] * qVal**2
+            params[1] = params[1] * qVal**2 / (1 + params[1]*qVal**2*params[2])
 
         return params
 
@@ -146,7 +152,7 @@ class Model(DataTypeDecorator):
     def getParamsErrors(self, qIdx):
         """ Accessor for parameters of the model for the given q value """
 
-        if len(self.params[0].x) == 5:
+        if len(self.params[0].x) == len(self.paramsNames):
             params = self.params[qIdx].lowest_optimization_result.hess_inv.todense()
             params = np.sqrt( np.diag( params ) )
         else:
@@ -168,7 +174,7 @@ class Model(DataTypeDecorator):
         """ Accessor for weights/contribution factors and width of model Lorentzians """
 
         #_For plotting purpose, gives fitted weights and lorentzian width
-        if len(self.params[0].x) == 5:
+        if len(self.params[0].x) == len(self.paramsNames):
             weights     = [self.params[qIdx].x[4], 1 - self.params[qIdx].x[4]]
             beta        = self.params[qIdx].x[3]
         else:
@@ -191,7 +197,7 @@ class Model(DataTypeDecorator):
         #_For plotting purpose, gives fitted weights and lorentzian errors
         errList = np.array( [ np.sqrt(np.diag( params.lowest_optimization_result.hess_inv.todense())) 
                                                                                  for params in self.params ] )
-        if len(self.params[0].x) == 5:
+        if len(self.params[0].x) == len(self.paramsNames):
             weightsErr     = [errList[qIdx][4], errList[qIdx][4]]
         else:
             weightsErr     = [errList[qIdx][3+self.data.qIdx.size+qIdx], 
@@ -240,9 +246,9 @@ class Model(DataTypeDecorator):
 
         resF, gLor, iLor = self.model(self.getParams(qIdx), self, D2OSignal, qIdx, False, 
                                       returnSubCurves=True)
+
         labels      = [r'$L_{\Gamma_{global}}(q, \omega)$', r'$L_{\Gamma_{internal}}(q, \omega)$']
 
         return resF[qIdx], gLor[qIdx], iLor[qIdx], labels
-
 
 

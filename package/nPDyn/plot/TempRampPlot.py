@@ -20,7 +20,7 @@ from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 import matplotlib
 
-matplotlib.interactive(False)
+matplotlib.use('Qt5Agg')
 
 from nPDyn.plot.subPlotsFormat import subplotsFormat, subplotsFormatWithColorBar
 
@@ -244,7 +244,7 @@ class TempRampPlot(QWidget):
             tempIdx = int(np.argwhere(dataset.data.X == tempToShow)[0])
 
             #_Extracting the MSD from parameters for each temperature
-            msdList = [dataset.params[tempIdx][0][1] for tempIdx, temp in enumerate(dataset.data.X)]
+            msdList = [dataset.params[tempIdx][0][0] for tempIdx, temp in enumerate(dataset.data.X)]
             qMin = dataset.data.qVals[dataset.data.qIdx[0]]
             qMax = dataset.data.qVals[dataset.data.qIdx[-1]]
 

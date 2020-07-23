@@ -357,8 +357,9 @@ def protein_liquid_analytic_voigt(params, dataset, D2OSignal=None, qIdx=None, re
         D2OSignal =  dataset.getD2OSignal()
 
 
-    g0 = qVals**2 * g0
-    g1 = g1 * qVals**2 / (1 + g1 * qVals**2 * tau)
+    if qIdx is None:
+        g0 = qVals**2 * g0
+        g1 = g1 * qVals**2 / (1 + g1 * qVals**2 * tau)
 
 
 
@@ -467,8 +468,10 @@ def protein_liquid_analytic_voigt_CF(X, params, dataset, D2OSignal=None, qIdx=No
     if D2OSignal is None:
         D2OSignal =  dataset.getD2OSignal()
 
-    g0 = qVals**2 * g0
-    g1 = g1 * qVals**2 / (1 + g1 * qVals**2 * tau)
+
+    if qIdx is None:
+        g0 = qVals**2 * g0
+        g1 = g1 * qVals**2 / (1 + g1 * qVals**2 * tau)
 
 
 

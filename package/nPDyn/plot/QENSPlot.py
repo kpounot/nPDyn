@@ -20,7 +20,7 @@ import matplotlib.gridspec as gridspec
 from matplotlib.figure import Figure
 import matplotlib
 
-matplotlib.interactive(False)
+matplotlib.use('Qt5Agg')
 
 from nPDyn.plot.subPlotsFormat import subplotsFormat
  

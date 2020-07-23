@@ -29,7 +29,7 @@ class Model(DataTypeDecorator):
         self.paramsNames = ["normF", "gauW", "shift", "bkgd"] #_For plotting purpose
 
 
-    def fit(self):
+    def fit(self, p0=None, bounds=None):
         """ Uses Scipy's curve_fit routine to fit the pseudo-Voigt profile to the experimental data
             given in the argument resData. 
         
@@ -43,16 +43,20 @@ class Model(DataTypeDecorator):
             #_Initial guesses for parameters based on data
             init_normF  = np.mean(qWiseData) 
             init_bkgd   = np.mean([val for val in qWiseData if val > 0])
+            maxI = 2 * np.max( qWiseData )
 
-            maxI = 1.5 * np.max( qWiseData )
+            if p0 is None:
+                p0=[init_normF, 1, 0.1, init_bkgd]
+
+            if bounds is None:
+                bounds=([0., 0., -10, 0.], [maxI, np.inf, 10, maxI])
 
             ECList.append(optimize.curve_fit(   self.model, 
                                                 self.data.X,
                                                 self.data.intensities[qIdx],
                                                 sigma=self.data.errors[qIdx],
-                                                p0=[init_normF, 1, 0.1, init_bkgd],
-                                                bounds=([0., 0., -10, 0.],  
-                                                        [maxI, np.inf, 10, maxI]),
+                                                p0=p0,
+                                                bounds=bounds,
                                                 max_nfev=10000000,
                                                 method='trf'))
 

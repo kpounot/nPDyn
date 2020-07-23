@@ -22,10 +22,10 @@ class Model(DataTypeDecorator):
 
         self.model      = models.gaussian
         self.params     = None
-        self.paramsNames = ["scale", "MSD"] #_For plotting purpose
+        self.paramsNames = ["MSD", "scaleF"] #_For plotting purpose
 
 
-        self.defaultBounds = (0., [10000., 15.])
+        self.defaultBounds = (0., [15., 10000.])
 
 
 
@@ -37,7 +37,7 @@ class Model(DataTypeDecorator):
             bounds = self.defaultBounds
 
         if not p0:
-            p0 = [1.0, 0.0]
+            p0 = [0.0, 1.0]
 
         qIdxList = self.data.qIdx
         

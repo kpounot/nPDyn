@@ -75,7 +75,7 @@ class Dataset:
 
 
 
-        modelT = namedtuple( 'models', 'resFunc_pseudoVoigt resFunc_gaussian D2OFunc_sglLorentzian_Min'
+        modelT = namedtuple( 'models', 'resFunc_pseudoVoigt resFunc_gaussian'
                                             + ' ECFunc_pseudoVoigt'
                                             + ' ECFunc_Gaussian'
                                             + ' D2OFunc_lorentzian_and_elastic_Min'
@@ -85,7 +85,7 @@ class Dataset:
                                             + ' QENS_water_powder_minuit'
                                             + ' QENS_protein_liquid_analytic_voigt_BH' 
                                             + ' QENS_protein_liquid_analytic_voigt_CF' 
-                                            + ' TempRamp_gaussian TempRamp_q4'
+                                            + ' TempRamp_gaussian TempRamp_q4 TempRamp_gamma'
                                             + ' FWS_protein_liquid_BH'
                                             + ' FWS_protein_liquid_CF'
                                             + ' FWS_protein_liquid_withImmobileFrac_BH'
@@ -96,7 +96,6 @@ class Dataset:
                                 resFunc_gaussian.Model,
                                 ECFunc_pseudoVoigt.Model,
                                 ECFunc_Gaussian.Model,
-                                D2OFunc_singleLorentzian_Min.Model,
                                 D2OFunc_lorentzian_and_elastic_Min.Model,
                                 QENS_prot_powder_doubleLorentzian_BH.Model,
                                 QENS_prot_powder_singleLorentzian_BH.Model,
@@ -106,6 +105,7 @@ class Dataset:
                                 QENS_protein_liquid_analytic_voigt_CF.Model,
                                 TempRamp_gaussian.Model,
                                 TempRamp_q4.Model,
+                                TempRamp_gamma.Model,
                                 FWS_protein_liquid_BH.Model,
                                 FWS_protein_liquid_CF.Model,
                                 FWS_protein_liquid_withImmobileFrac_BH.Model,
@@ -146,7 +146,11 @@ class Dataset:
             data = ECType.ECType(ECFile)
             data.importData(fileFormat=fileFormat)
             data = ECFunc_pseudoVoigt.Model(data)
-            data.fit()
+            try:
+                data.fit()
+            except RuntimeError as e:
+                print('Error while fitting empty cell data\n')
+                print(e)
 
             self.ECData = data
 
@@ -336,7 +340,11 @@ class Dataset:
             data.rawData = data.rawData[0]
 
             data = ECFunc_pseudoVoigt.Model(data)
-            data.fit()
+            try:
+                data.fit()
+            except RuntimeError as e:
+                print('Error while fitting empty cell data\n')
+                print(e)
 
             self.ECData = data
 

@@ -13,7 +13,7 @@ import numpy as np
 from collections import namedtuple
 
 from scipy.signal import find_peaks, savgol_filter
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, basinhopping
 
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
 
@@ -30,14 +30,13 @@ class IN16B_QENS:
         :arg vanadiumRef:       if :arg unmirroring: is True, then the peaks positions are identified 
                                 using the data provided with this argument. If it is None, then the peaks
                                 positions are identified using the data in scanList.
-        :arg peakFindingMethod: method to be used to find the peaks positions if unmirroring is True.
         :arg detGroup:          detector grouping, i.e. the channels that are summed over along the
                                 position-sensitive detector tubes. It can be an integer, then the same number
                                 is used for all detectors, where the integer defines a region (middle of the
                                 detector +/- detGroup). It can be a list of integers, then each integers of
                                 the list should corresponds to a detector. Or it can be a string, defining
                                 a path to an xml file as used in Mantid.
-        :arg normalize:      whether the data should be normalized to the monitor
+        :arg normalize:         whether the data should be normalized to the monitor
         :arg strip:             an integer defining the number of points that are ignored at each 
                                 extremity of the spectrum.
 
@@ -47,11 +46,10 @@ class IN16B_QENS:
                        sumScans=True, 
                        unmirroring=True, 
                        vanadiumRef=None,
-                       peakFindingMethod='GaussianFit',
                        peakFindingMask=None,
                        detGroup=None,
                        normalize=True,
-                       strip=15):
+                       strip=10):
 
 
         self.QENSData = namedtuple('QENSData', 'qVals X intensities errors temp norm qIdx')
@@ -81,7 +79,6 @@ class IN16B_QENS:
                 scanList = [scanList]
 
 
-        self.peakFindingMethod = peakFindingMethod
         self.peakFindingMask   = peakFindingMask
 
         self.detGroup = detGroup
@@ -150,16 +147,15 @@ class IN16B_QENS:
                 if self.vanadiumRef is not None:
                     vana = IN16B_QENS(self.vanadiumRef,
                                       detGroup=self.detGroup,
-                                      peakFindingMask=self.peakFindingMask,
-                                      peakFindingMethod=self.peakFindingMethod) 
+                                      peakFindingMask=self.peakFindingMask) 
                     vana.process()
                     self.leftPeak  = vana.leftPeak
                     self.rightPeak = vana.rightPeak
-                    data    = self._unmirrorData(data)
+                    data = self._unmirrorData(data)
                     self.monitor = self._unmirrorData(self.monitor.reshape(1, 2*nbrChn))
                 else:
                     self._findPeaks(data)
-                    data    = self._unmirrorData(data)
+                    data = self._unmirrorData(data)
                     self.monitor = self._unmirrorData(self.monitor.reshape(1, 2*nbrChn))
 
                 errData = np.sqrt(data)
@@ -215,88 +211,48 @@ class IN16B_QENS:
 
         maskedData = data * mask
 
-        if self.peakFindingMethod == "SavGolFilter":
-            filters  = np.array([savgol_filter(maskedData, 5, 4), 
-                                 savgol_filter(maskedData, 11, 4),
-                                 savgol_filter(maskedData, 19, 3),
-                                 savgol_filter(maskedData, 25, 3)])
+        #_Finds the peaks using a Savitsky-Golay filter to smooth the data, followed by extracting 
+        #_the position of the maximum
+        filters  = np.array([savgol_filter(maskedData, 5, 4), 
+                             savgol_filter(maskedData, 11, 4),
+                             savgol_filter(maskedData, 19, 3),
+                             savgol_filter(maskedData, 25, 3)])
 
 
-            self.leftPeak = np.mean( np.argmax(filters[:,:,:midChannel], 2), 0).astype(int)
-            self.rightPeak = np.mean( np.argmax(filters[:,:,midChannel:], 2), 0).astype(int)
+        savGol_leftPeak = np.mean( np.argmax(filters[:,:,:midChannel], 2), 0)
+        savGol_rightPeak = np.mean( np.argmax(filters[:,:,midChannel:], 2), 0)
 
 
-        if self.peakFindingMethod == "prominence":
-            leftPeaks  = []
-            rightPeaks = []
-            for qIdx, qData in enumerate(maskedData):
-                peaks = find_peaks(qData, distance=midChannel/2, prominence=qData.max()/2)
-                peaks = (peaks[0] + peaks[1]['left_bases'] + peaks[1]['right_bases']) / 3
-                leftPeaks.append(peaks[0])
-                rightPeaks.append(peaks[1] - midChannel)
+        #_Finds the peaks by using a Gaussian function to fit the data
+        Gaussian = lambda x, normF, gauW, shift, bkgd: (
+                        normF * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi)) + bkgd )
 
-            self.leftPeak  = np.array(leftPeaks).astype(int)
-            self.rightPeak = np.array(rightPeaks).astype(int)
-
-
-        if self.peakFindingMethod == "pseudoVoigtFit":
-            pseudoVoigt = lambda x, normF, S, lorW, gauW, shift, bkgd: (
-                            normF * (S * lorW/(lorW**2 + (x-shift)**2) / np.pi 
-                            + (1-S) * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi)) 
-                            + bkgd) )
-
-            leftPeaks  = []
-            rightPeaks = []
-            for qIdx, qData in enumerate(maskedData):
-                params = curve_fit( pseudoVoigt, 
-                                    np.arange(midChannel), 
-                                    qData[:midChannel],
-                                    #sigma=np.sqrt(qData[:midChannel]),
-                                    maxfev=10000,
-                                    p0=[qData[:midChannel].max(), 0.5, midChannel/10, 
-                                              midChannel/10, midChannel/2, 0] )
-                leftPeaks.append(params[0][4])
-
-                params = curve_fit( pseudoVoigt, 
-                                    np.arange(midChannel), 
-                                    qData[midChannel:],
-                                    #sigma=np.sqrt(qData[midChannel:]),
-                                    maxfev=10000,
-                                    p0=[qData[midChannel:].max(), 0.5, midChannel/10, 
-                                              midChannel/10, midChannel/2, 0] )
-                rightPeaks.append(params[0][4])
+        leftPeaks  = []
+        rightPeaks = []
+        for qIdx, qData in enumerate(maskedData):
+            errors = np.sqrt(qData)
+            np.place(errors, errors==0, np.inf)
+            params = curve_fit( Gaussian, 
+                                np.arange(midChannel), 
+                                qData[:midChannel],
+                                sigma=errors[:midChannel],
+                                p0=[qData[:midChannel].max(),1, midChannel/2, 0] )
+            leftPeaks.append(params[0][2])
+            
+            params = curve_fit( Gaussian, 
+                                np.arange(midChannel), 
+                                qData[midChannel:],
+                                sigma=errors[midChannel:],
+                                p0=[qData[midChannel:].max(), 1, midChannel/2, 0] )
+            rightPeaks.append(params[0][2])
 
 
-            self.leftPeak  = np.array(leftPeaks).astype(int)
-            self.rightPeak = np.array(rightPeaks).astype(int)
+        gauss_leftPeak  = np.array(leftPeaks)
+        gauss_rightPeak = np.array(rightPeaks)
 
 
-        if self.peakFindingMethod == "GaussianFit":
-            Gaussian = lambda x, normF, gauW, shift, bkgd: (
-                            normF * np.exp(-((x-shift)**2) / (2*gauW**2)) / (gauW*np.sqrt(2*np.pi)) + bkgd )
-
-            leftPeaks  = []
-            rightPeaks = []
-            for qIdx, qData in enumerate(maskedData):
-                errors = np.sqrt(qData)
-                np.place(errors, errors==0, np.inf)
-                params = curve_fit( Gaussian, 
-                                    np.arange(midChannel), 
-                                    qData[:midChannel],
-                                    sigma=errors[:midChannel],
-                                    p0=[qData[:midChannel].max(),midChannel/10, midChannel/2, 0] )
-                leftPeaks.append(params[0][2])
-
-                params = curve_fit( Gaussian, 
-                                    np.arange(midChannel), 
-                                    qData[midChannel:],
-                                    sigma=errors[midChannel:],
-                                    p0=[qData[midChannel:].max(), midChannel/10, midChannel/2, 0] )
-                rightPeaks.append(params[0][2])
-
-
-            self.leftPeak  = np.array(leftPeaks).astype(int)
-            self.rightPeak = np.array(rightPeaks).astype(int)
+        self.leftPeak  = (0.85*gauss_leftPeak + 0.15*savGol_leftPeak).astype(int)
+        self.rightPeak = (0.85*gauss_rightPeak + 0.15*savGol_rightPeak).astype(int)
 
 
 
@@ -320,7 +276,6 @@ class IN16B_QENS:
         for qIdx, qOut in enumerate(out):
             leftPos  = midChannel - self.leftPeak[qIdx]
             rightPos = midChannel - self.rightPeak[qIdx]
-
 
             qOut[leftPos:leftPos+midChannel]   += data[qIdx,:midChannel] 
             qOut[rightPos:rightPos+midChannel] += data[qIdx,midChannel:] 
