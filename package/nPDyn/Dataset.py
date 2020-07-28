@@ -9,7 +9,11 @@ from collections import namedtuple
 import matplotlib
 
 from PyQt5.QtWidgets import QApplication
-app = QApplication(sys.argv)
+
+try:
+    app = QApplication(sys.argv)
+except:
+    pass
 
 from nPDyn import fileFormatParser
 from nPDyn.dataTypes import *
