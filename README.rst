@@ -1,7 +1,7 @@
 
 .. image:: https://readthedocs.org/projects/npdyn/badge/?version=latest
-:target: https://npdyn.readthedocs.io/en/latest/?badge=latest
-:alt: Documentation Status
+    :target: https://npdyn.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 
 
 
