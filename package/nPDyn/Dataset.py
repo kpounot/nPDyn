@@ -8,8 +8,6 @@ from collections import namedtuple
 
 import matplotlib
 
-from PyQt5.QtWidgets import QApplication
-app = QApplication(sys.argv)
 
 from nPDyn import fileFormatParser
 from nPDyn.dataTypes import *
@@ -969,3 +967,5 @@ if __name__ == '__main__':
 
     data = dataSet(args.QENS, args.FWS, args.TempRamp, args.empty_cell, args.fixed_empty_cell,
                                         args.TempRanp_empty_cell, args.resolution, args.D2O, args.fixed_D2O)
+
+

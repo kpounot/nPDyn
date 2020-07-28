@@ -12,7 +12,8 @@ from collections import namedtuple
 
 from PyQt5.QtWidgets import (QFileDialog, QApplication, QMessageBox, QWidget, QLabel, 
                              QLineEdit, QDialog, QPushButton, QVBoxLayout, QFrame, QCheckBox)
-from PyQt5 import QtGui
+
+
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -41,7 +42,6 @@ class QENSPlot(QWidget):
     """
 
     def __init__(self, datasetList):
-
 
         super().__init__()
 
@@ -112,6 +112,9 @@ class QENSPlot(QWidget):
         layout.addWidget(self.qWiseAnalysisButton)
         layout.addWidget(self.fitButton)
         self.setLayout(layout)
+
+
+
 
 
 #--------------------------------------------------
@@ -409,4 +412,8 @@ class QENSPlot(QWidget):
             except AttributeError:
                 print("No parameters for dataset at index %i were found.\n" % idx 
                             + "Please assign a model and use a fitting method before plotting.\n")
+
+
+
+
 
