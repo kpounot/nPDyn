@@ -8,6 +8,15 @@ from collections import namedtuple
 
 import matplotlib
 
+<<<<<<< HEAD
+=======
+from PyQt5.QtWidgets import QApplication
+
+try:
+    app = QApplication(sys.argv)
+except:
+    pass
+>>>>>>> 334ad2faa369e787fd084c414d6050ce97913cca
 
 from nPDyn import fileFormatParser
 from nPDyn.dataTypes import *
