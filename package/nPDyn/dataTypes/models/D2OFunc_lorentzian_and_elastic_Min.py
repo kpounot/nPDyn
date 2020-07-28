@@ -95,6 +95,23 @@ class Model(DataTypeDecorator):
 
 
 
+    def getParams(self, qIdx=None):
+        """ Method used to obtain the fitted parameters for a given index of momentum transfer q. 
+
+            :arg qIdx: index momentum transfer q to be used. If None, parameters for all q are returned.
+
+        """
+
+        params = np.array([self.params[i].x for i in self.data.qIdx])
+        
+        if qIdx is not None:
+            return params[qIdx]
+        else:
+            return params
+
+
+
+
 #--------------------------------------------------
 # model
 #--------------------------------------------------

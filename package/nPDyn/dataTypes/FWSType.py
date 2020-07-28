@@ -80,7 +80,7 @@ class FWSType(BaseType):
 
 
 
-    def substractEC(self, scaleFactor=0.8):
+    def subtractEC(self, scaleFactor=0.95, useModel=True):
         """ Use the assigned empty cell data for substraction to loaded data.
             
             Empty cell data are scaled using the given scaleFactor prior to substraction. 
@@ -162,7 +162,7 @@ class FWSType(BaseType):
 
         #_Empty cell data
         if isinstance(self.ECData, fECType.fECType):
-            ECFunc = self.ECData.data.intensities
+            ECFunc = self.fECData.data.intensities
 
         else: #_Assumes full QENS with fitted model
             try: #_Tries to extract empty cell intensities, use an array of zeros if no data are found

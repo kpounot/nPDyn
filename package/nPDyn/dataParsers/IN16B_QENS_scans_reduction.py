@@ -58,6 +58,8 @@ class IN16B_QENS:
         self.scanList = scanList
         if isinstance(scanList, str):
             if os.path.isdir(scanList):
+                if scanList[-1] != '/':
+                    scanList = scanList + '/'
                 fList    = os.listdir(scanList)
                 self.scanList = [scanList + val for val in fList] 
             else:

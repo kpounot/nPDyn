@@ -179,7 +179,7 @@ class D2OPlot(QWidget):
         ax = subplotsFormat(self, sharex=True, params=True)
 
         #_Create 2D numpy array to easily access parameters for each file
-        paramsList = np.column_stack( [data.params[qValIdx].x for data in self.dataset] )
+        paramsList = np.column_stack( [data.getParams(qValIdx) for data in self.dataset] )
 
         #_Plot the parameters of the fits
         for idx, subplot in enumerate(ax):
@@ -236,7 +236,7 @@ class D2OPlot(QWidget):
 
             #_Plot the model
             ax[idx].plot( dataset.data.X,
-                          dataset.model(  dataset.params[qValIdx].x, 
+                          dataset.model(  dataset.getParams(qValIdx), 
                                                     dataset,
                                                     qIdx=qValIdx,
                                                     returnCost=False),

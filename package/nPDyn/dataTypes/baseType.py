@@ -51,7 +51,7 @@ class BaseType:
         self.ECData     = ECData 
 
         self.QENS_redAlgo = {'IN16B': IN16B_QENS_scans_reduction.IN16B_QENS}
-        self.FWS          = {'IN16B': IN16B_FWS_scans_reduction.IN16B_FWS}
+        self.FWS_redAlgo  = {'IN16B': IN16B_FWS_scans_reduction.IN16B_FWS}
 
 
 
@@ -109,7 +109,7 @@ class BaseType:
 
 
         elif dataType in ['FWS', 'fec', 'fD2O']:
-            data = self.FWS[instrument](dataList, **kwargs)
+            data = self.FWS_redAlgo[instrument](dataList, **kwargs)
             data.process()
 
             self.data    = data.outTuple
@@ -161,19 +161,26 @@ class BaseType:
 
 
 
-    def subtractEC(self, scaleFactor=0.95):
+    def subtractEC(self, scaleFactor=0.95, useModel=True):
         """ Use the assigned empty cell data for substraction to loaded data.
             
-            Empty cell data are scaled using the given *scaleFactor* prior to substraction. 
+            :arg scaleFactor:   Empty cell data are scaled using the given factor prior to subtraction. 
+            :arg useModel:      For QENS data, use the fitted model instead of experimental points
+                                to perform the subtraction if True.
 
         """
 
-        #_Compute the fitted Empty Cell function
-        ECFunc = []
-        for qIdx, qVal in enumerate(self.data.qVals):
-            ECFunc.append( self.ECData.model( self.data.X, *self.ECData.params[qIdx][0] ) )
+        if useModel: #_Uses a fitted model
+            #_Gets the fitted Empty Cell function
+            ECFunc = []
+            for qIdx, qVal in enumerate(self.data.qVals):
+                ECFunc.append( self.ECData.model( self.data.X, *self.ECData.params[qIdx][0] ) )
 
-        ECFunc = np.array( ECFunc )
+            ECFunc = np.array( ECFunc )
+
+        else:
+            ECFunc = self.ECData.data.intensities
+
 
         #_If data are normalized, uses the same normalization factor for empty cell data
         if self.data.norm:

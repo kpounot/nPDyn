@@ -53,6 +53,8 @@ class IN16B_FWS:
         self.scanList = scanList
         if isinstance(scanList, str):
             if os.path.isdir(scanList):
+                if scanList[-1] != '/':
+                    scanList = scanList + '/'
                 fList = os.listdir(scanList)
                 fList.sort()
                 self.scanList = [scanList + val for val in fList] 
@@ -331,14 +333,14 @@ class IN16B_FWS:
                 interpI = interp1d( deltaTime[idx], 
                                     dataAtdE, 
                                     axis=0,
-                                    kind='cubic', 
+                                    kind='linear', 
                                     fill_value=(dataAtdE[0], dataAtdE[-1]),
                                     bounds_error=False)
 
                 interpErr = interp1d( deltaTime[idx], 
                                       errAtdE, 
                                       axis=0,
-                                      kind='cubic', 
+                                      kind='linear', 
                                       fill_value=(errAtdE[0], errAtdE[-1]),
                                       bounds_error=False )
 

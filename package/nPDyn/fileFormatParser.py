@@ -2,8 +2,6 @@ import sys
 
 import re
 
-import h5py
-
 from nPDyn.dataParsers import *
 
 

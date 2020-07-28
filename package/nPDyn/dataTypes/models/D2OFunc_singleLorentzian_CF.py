@@ -40,21 +40,23 @@ class Model(DataTypeDecorator):
 
     def fit(self, p0=None, bounds=None):
         if self.disp:
-            print("\nUsing Scipy's minimize to fit data from file: %s" % self.fileName, flush=True)
+            print("\nUsing Scipy's curve_fit to fit data from file: %s" % self.fileName, flush=True)
 
         if not p0: #_Using default initial values
             p0 = np.array( [0.1] ) 
 
         if not bounds: #_Using default bounds
-            bounds = [(0., 10)]
+            bounds = ([0., 10])
 
 
         result = []
         for qIdx, qVal in enumerate(self.data.qVals):
-            result.append( optimize.minimize( self.model, 
-                                            p0,
-                                            args=(self,), 
-                                            bounds=bounds) )
+            result.append( optimize.curve_fit( lambda x, *p0: self.model(p0, self, qIdx, False), 
+                                               self.data.X,
+                                               self.data.intensities[qIdx],
+                                               sigma=self.data.errors[qIdx],
+                                               p0=p0,
+                                               bounds=bounds) )
 
         self.params = result
 
@@ -63,7 +65,7 @@ class Model(DataTypeDecorator):
     def getD2OContributionFactor(self):
         """ Returns the contribution factor of D2O lineshape in the model """
 
-        aD2O = np.array([self.params[i].x[0] for i in self.data.qIdx])
+        aD2O = np.array([self.params[i][0] for i in self.data.qIdx])
 
         return aD2O
 
@@ -74,7 +76,7 @@ class Model(DataTypeDecorator):
             
             If a qIdx is given, returns D2O signal only for the corresponding q value. """
 
-        D2OSignal = np.array( [ self.model(self.params[idx].x, self, idx, False) 
+        D2OSignal = np.array( [ self.model(self.params[idx][0], self, idx, False) 
                                                                     for idx in self.data.qIdx ] )
 
         D2OSignal *= self.volFraction
@@ -91,12 +93,13 @@ class Model(DataTypeDecorator):
 
         """
 
-        params = np.array([self.params[i].x for i in self.data.qIdx])
+        params = np.array([self.params[i][0] for i in self.data.qIdx])
         
         if qIdx is not None:
             return params[qIdx]
         else:
             return params
+
 
 
 

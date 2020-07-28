@@ -57,14 +57,14 @@ class MDData(MDDataset, BackScatData):
 #--------------------------------------------------
 #_Methods to obtain nPDyn like data types that are append to experimental data list
 #--------------------------------------------------
-    def getTempRampEISF(self, dcdFiles, tempList, dataSetIdx=0, resBkgdIdx=None, bkgdIdx=None, 
+    def getTempRampEISF(self, dcdFiles, tempList, datasetIdx=0, resBkgdIdx=None, bkgdIdx=None, 
                         converter_kwargs={}):
         """ Calls ``compScatteringFunc`` from NAMDAnalyzer for all given dcdFiles, extracts the EISF and
             stores values in a data tuple that can be used directly in nPDyn.
 
             :arg dcdFiles:         list of dcd files corresponding to each temperature
             :arg tempList:         list of temperatures used, should be in the same order as dcd files
-            :arg dataSetIdx:       experimental dataset index to be used as reference for q-values and indices
+            :arg datasetIdx:       experimental dataset index to be used as reference for q-values and indices
                                     (optional, default 0)
             :arg resBkgdIdx:       index of experimental resolution data from which background parameter
                                     should be extracted
@@ -73,7 +73,7 @@ class MDData(MDDataset, BackScatData):
                                     it explicitly. 
                                 
 
-            The result is added to *dataSetList* in :class:`Dataset` class. 
+            The result is added to *datasetList* in :class:`Dataset` class. 
 
 
             For NAMDAnalyzer BackScatData module, see:
@@ -81,8 +81,8 @@ class MDData(MDDataset, BackScatData):
 
         """
 
-        qIdx  = self.expData.dataSetList[dataSetIdx].data.qIdx
-        qVals = self.expData.dataSetList[dataSetIdx].data.qVals[qIdx]
+        qIdx  = self.expData.datasetList[datasetIdx].data.qIdx
+        qVals = self.expData.datasetList[datasetIdx].data.qVals[qIdx]
 
         tempDataSeries  = []
 
@@ -117,14 +117,14 @@ class MDData(MDDataset, BackScatData):
 
         #_Gets fitted dataset background and add it to simulated data
         if bkgdIdx is not None:
-            bkgd = np.array( [self.expData.dataSetList[bkgdIdx].getBackground(qIdx) 
-                for qIdx, val in enumerate(self.expData.dataSetList[bkgdIdx].data.qIdx)] )[:,np.newaxis]
+            bkgd = np.array( [self.expData.datasetList[bkgdIdx].getBackground(qIdx) 
+                for qIdx, val in enumerate(self.expData.datasetList[bkgdIdx].data.qIdx)] )[:,np.newaxis]
 
             MDDataT = MDDataT._replace(intensities = MDDataT.intensities + bkgd)
 
 
-        #_Appends computed temp ramp to dataSetList 
-        self.expData.dataSetList.append( TempRampType.TempRampType( self.psfFile, 
+        #_Appends computed temp ramp to datasetList 
+        self.expData.datasetList.append( TempRampType.TempRampType( self.psfFile, 
                                                             dataTuple,
                                                             dataTuple ) )
 
@@ -132,17 +132,17 @@ class MDData(MDDataset, BackScatData):
 
 
 
-    def getQENS(self, dcdFile, dataSetIdx=0, resBkgdIdx=None, bkgdIdx=None,
+    def getQENS(self, dcdFile, datasetIdx=0, resBkgdIdx=None, bkgdIdx=None,
                 converter_kwargs={}):
         """ This method calls the ``compScatteringFunc`` from NAMDAnalyzer package.
 
             :arg dcdFile:          list of file path to be used to compute QENS spectra
-            :arg dataSetIdx:       index of experimental dataset to be used to extract q-values
+            :arg datasetIdx:       index of experimental dataset to be used to extract q-values
             :arg resBkgdIdx:       index of resolution data to be used for background
-            :arg bkgdIdx:          similar to resBkgdIdx, but using sample data in dataSetList
+            :arg bkgdIdx:          similar to resBkgdIdx, but using sample data in datasetList
             :arg converter_kwargs: arguments to be given to NAMDAnalyzer compScatFunc method 
 
-            The result is added to nPDyn *dataSetList* attribute in :class:`Dataset` class.
+            The result is added to nPDyn *datasetList* attribute in :class:`Dataset` class.
 
             For NAMDAnalyzer BackScatData module, see:
             https://namdanalyzer.readthedocs.io/en/latest/dataAnalysis/BackscatteringDataConvert
@@ -152,8 +152,8 @@ class MDData(MDDataset, BackScatData):
 
 
 
-        qIdx  = self.expData.dataSetList[dataSetIdx].data.qIdx
-        qVals = self.expData.dataSetList[dataSetIdx].data.qVals[qIdx]
+        qIdx  = self.expData.datasetList[datasetIdx].data.qIdx
+        qVals = self.expData.datasetList[datasetIdx].data.qVals[qIdx]
 
         #_Defining some defaults arguments
         kwargs = { 'qValList': qVals }
@@ -181,14 +181,14 @@ class MDData(MDDataset, BackScatData):
 
         #_Gets fitted dataset background and add it to simulated data
         if bkgdIdx is not None:
-            bkgd = np.array( [self.expData.dataSetList[bkgdIdx].getBackground(qIdx) 
-                for qIdx, val in enumerate(self.expData.dataSetList[bkgdIdx].data.qIdx)] )[:,np.newaxis]
+            bkgd = np.array( [self.expData.datasetList[bkgdIdx].getBackground(qIdx) 
+                for qIdx, val in enumerate(self.expData.datasetList[bkgdIdx].data.qIdx)] )[:,np.newaxis]
 
             MDDataT = MDDataT._replace(intensities = MDDataT.intensities + bkgd)
 
             
 
-        self.expData.dataSetList.append( QENSType.QENSType( self.psfFile, 
+        self.expData.datasetList.append( QENSType.QENSType( self.psfFile, 
                                                             MDDataT,
                                                             MDDataT ) )
 
@@ -241,7 +241,7 @@ class MDData(MDDataset, BackScatData):
                     
         """
 
-        datasetList     = [dataset for i, dataset in enumerate(self.expData.dataSetList) if i in fileIdxList] 
+        datasetList     = [dataset for i, dataset in enumerate(self.expData.datasetList) if i in fileIdxList] 
         msdSeriesList   = [msd for i, msd in enumerate(self.msdSeriesList) if i in msdIdxList] 
 
         plotW = plotMSDSeries(msdSeriesList, tempList, datasetList)

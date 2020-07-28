@@ -50,7 +50,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
         wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'][()]
 
         twoThetaList = h5File['mantid_workspace_1/workspace/axis2'][()]
-        listQ = 4*np.pi / wavelength * np.sin(np.pi  * twoThetaList / 360)
+        listQ = np.array(4*np.pi / wavelength * np.sin(np.pi  * twoThetaList / 360))
 
         dataList = [] # Stores the full dataset for a given data file
 
@@ -103,7 +103,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
         temp        = np.mean(h5File['mantid_workspace_1/logs/sample.temperature/value'][()])
 
         twoThetaList = h5File['mantid_workspace_1/workspace/axis2'][()]
-        listQ = 4*np.pi / wavelength * np.sin(np.pi  * twoThetaList / 360)
+        listQ = np.array(4*np.pi / wavelength * np.sin(np.pi  * twoThetaList / 360))
 
         listE = h5File['mantid_workspace_1/workspace/axis1'][()][:-1] * 1e3
 

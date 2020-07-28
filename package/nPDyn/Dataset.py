@@ -9,6 +9,7 @@ from collections import namedtuple
 import matplotlib
 
 from PyQt5.QtWidgets import QApplication
+app = QApplication(sys.argv)
 
 from nPDyn import fileFormatParser
 from nPDyn.dataTypes import *
@@ -53,10 +54,9 @@ class Dataset:
                                                 tECFile=None, resFiles=None, D2OFile=None, fD2OFile=None):
 
 
-        self.app = QApplication(sys.argv)
 
         #_Declaring attributes related to samples dataset
-        self.dataSetList    = []
+        self.datasetList    = []
 
         #_Declaring resolution function(s) related variables
         self.resData    = []
@@ -79,6 +79,8 @@ class Dataset:
                                             + ' ECFunc_pseudoVoigt'
                                             + ' ECFunc_Gaussian'
                                             + ' D2OFunc_lorentzian_and_elastic_Min'
+                                            + ' D2OFunc_singleLorentzian_Min'
+                                            + ' D2OFunc_singleLorentzian_CF'
                                             + ' QENS_prot_powder_dblLorentzian_BH'
                                             + ' QENS_prot_powder_sglLorentzian_BH'
                                             + ' QENS_water_powder_BH'
@@ -97,6 +99,8 @@ class Dataset:
                                 ECFunc_pseudoVoigt.Model,
                                 ECFunc_Gaussian.Model,
                                 D2OFunc_lorentzian_and_elastic_Min.Model,
+                                D2OFunc_singleLorentzian_Min.Model,
+                                D2OFunc_singleLorentzian_CF.Model,
                                 QENS_prot_powder_doubleLorentzian_BH.Model,
                                 QENS_prot_powder_singleLorentzian_BH.Model,
                                 QENS_water_powder_BH.Model,
@@ -121,11 +125,9 @@ class Dataset:
         
 
 
-
-
     def importFiles(self, fileFormat=None, QENSFiles=None, FWSFiles=None, TempRampFiles=None, 
                         ECFile=None, fECFile=None, tECFile=None, resFiles=None, D2OFile=None, fD2OFile=None):
-        """ Read and import data from experimental data file.
+        """ Read and import pre-processed data from experimental data file.
 
             If no file format is given, this method tries to identify the file's type automatically, 
             and send an error message in case the file could not be imported. 
@@ -136,7 +138,7 @@ class Dataset:
             :arg QENSFiles,...: named parameters containing a list of files paths for each file type given
 
             
-            The files are imported without binning and stored in *dataSetList* attribute. 
+            The files are imported without binning and stored in *datasetList* attribute. 
 
         """
 
@@ -184,7 +186,7 @@ class Dataset:
         if D2OFile:
             data = D2OType.D2OType(D2OFile)
             data.importData(fileFormat=fileFormat)
-            data = D2OFunc_singleLorentzian_Min.Model(data)
+            data = D2OFunc_singleLorentzian_CF.Model(data)
             data.assignECData( self.ECData )
 
             if self.resData != []:
@@ -221,7 +223,7 @@ class Dataset:
                 data.importData(fileFormat=fileFormat)
                 data.assignD2OData( self.D2OData )
                 data.assignECData( self.ECData )
-                self.dataSetList.append( data )
+                self.datasetList.append( data )
 
 
         if FWSFiles: 
@@ -241,7 +243,7 @@ class Dataset:
                     data.assignD2OData( self.D2OData )
 
 
-                self.dataSetList.append( data )
+                self.datasetList.append( data )
 
 
 
@@ -256,7 +258,7 @@ class Dataset:
                 else:
                     data.assignECData( self.ECData )
 
-                self.dataSetList.append( data )
+                self.datasetList.append( data )
 
 
 
@@ -288,7 +290,7 @@ class Dataset:
                 tmp.data = tmpData[idx]
                 tmp.rawData = tmpRaw[idx]
 
-                self.dataSetList.append( tmp )
+                self.datasetList.append( tmp )
 
 
 
@@ -308,7 +310,7 @@ class Dataset:
                 data.assignD2OData( self.D2OData )
 
 
-            self.dataSetList.append( data )
+            self.datasetList.append( data )
 
 
 
@@ -412,12 +414,12 @@ class Dataset:
         lenResData = len(self.resData)
 
         if lenResData == 1:
-            for data in self.dataSetList:
+            for data in self.datasetList:
                 data.assignResData(self.resData[0])
 
 
-        if lenResData == len(self.dataSetList):
-            for idx, data in enumerate(self.dataSetList):
+        if lenResData == len(self.datasetList):
+            for idx, data in enumerate(self.datasetList):
                 data.assignResData(self.resData[idx])
 
 
@@ -427,33 +429,33 @@ class Dataset:
 #--------------------------------------------------
 #_Importation, reset and deletion methods
 #--------------------------------------------------
-    def removeDataSet(self, fileIdx):
+    def removeDataset(self, fileIdx):
         """ This method takes either a single integer as argument, which corresponds
-            to the index of the file to be removed from self.dataFiles, self.dataSetList and 
+            to the index of the file to be removed from self.dataFiles, self.datasetList and 
             self.rawDataList. 
 
         """
 
-        self.dataSetList.pop(fileIdx)
+        self.datasetList.pop(fileIdx)
 
 
-    def resetDataSet(self, *fileIdxList):
+    def resetDataset(self, *fileIdxList):
         """ This method takes either a single integer or a list of integer as argument. They correspond
             to the indices of the file to be reset to their initial state using self.rawDataList. """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         for idx in fileIdxList:
-            self.dataSetList[idx].resetData()
+            self.datasetList[idx].resetData()
 
 
 
     def resetAll(self):
         """ Reset all dataset, as well as resolution D2O and empty cell data to their initial state. """
 
-        for dataset in self.dataSetList:
+        for dataset in self.datasetList:
             dataset.resetData()
 
         for resData in self.resData:
@@ -483,18 +485,18 @@ class Dataset:
             fileIdxList.
 
             If only one resolution data file is loaded, use this one for all dataset, else, use them in
-            the same order as dataset in self.dataSetList
+            the same order as dataset in self.datasetList
 
-            :arg fileIdxList: list of indices of dataset in self.dataSetList to be normalized 
+            :arg fileIdxList: list of indices of dataset in self.datasetList to be normalized 
 
         """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         for i in fileIdxList:
-            self.dataSetList[i].normalize()
+            self.datasetList[i].normalize()
 
 
 
@@ -504,7 +506,7 @@ class Dataset:
             number of first bins (low temperature) are used to compute an average signal at low 
             temperature. The average is then used to normalize the whole dataset. This for each q-value.
 
-            :arg fileIdxList:  can be "all", then every dataSet in self.dataSetList is normalized
+            :arg fileIdxList:  can be "all", then every dataSet in self.datasetList is normalized
                                     can also be a single integer or a list of integer (optional, default "all")
             :arg nbrBins:      number of low temperature bins used to compute the normalization factor
                                     (optional, default 8) 
@@ -513,10 +515,10 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         for i in fileIdxList:
-            self.dataSetList[i].normalize_usingLowTemp(nbrBins)
+            self.datasetList[i].normalize_usingLowTemp(nbrBins)
 
 
 
@@ -537,13 +539,11 @@ class Dataset:
         
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         #_Apply corrections for samples data
         for i in fileIdxList:
-            self.dataSetList[i].absorptionCorrection(canType, canScaling, neutron_wavelength, absco_kwargs)
-
-
+            self.datasetList[i].absorptionCorrection(canType, canScaling, neutron_wavelength, absco_kwargs)
 
 
         if res:
@@ -578,12 +578,12 @@ class Dataset:
 
 
 
-    def subtract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True, subRes=False):
+    def subtract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True, subRes=False, useModel=True):
         """ This method uses the fitted empty cell function to subtract the signal for the selected
             dataset. 
 
             :arg subFactor:   pre-multiplying factor for empty cell data prior to substraction
-            :arg fileIdxList: can be "all", then every dataSet in self.dataSetList is normalized
+            :arg fileIdxList: can be "all", then every dataSet in self.datasetList is normalized
                                 can also be a single integer or a list of integer (optional, default "all") 
             :arg subD2O:      if True, tries to substract empty cell signal from D2O data too 
             :arg subRes:      if True, substract empty cell signal from resolutions data too 
@@ -592,24 +592,30 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         #_Apply corrections for samples data
         for i in fileIdxList:
-            self.dataSetList[i].subtractEC(subFactor)
+            self.datasetList[i].subtractEC(subFactor, useModel)
 
 
 
         if subRes:
             for idx, resData in enumerate(self.resData):
-                resData.subtractEC(subFactor)
+                resData.subtractEC(subFactor, useModel)
                 resData.fit()
 
 
         if subD2O:
             try:
-                self.dataSetList[i].D2OData.subtractEC(subFactor)
-                self.dataSetList[i].D2OData.fit()
+                self.datasetList[i].D2OData.subtractEC(subFactor, useModel)
+                self.datasetList[i].D2OData.fit()
+            except AttributeError:
+                pass
+
+            try:
+                self.datasetList[i].fD2OData.subtractEC(subFactor, useModel)
+                self.datasetList[i].fD2OData.fit()
             except AttributeError:
                 pass
 
@@ -633,10 +639,10 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
         
         for idx in fileIdxList:
-            self.dataSetList[idx].discardOutliers(meanScale)
+            self.datasetList[idx].discardOutliers(meanScale)
 
 
 
@@ -682,10 +688,10 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         for idx in fileIdxList:
-            self.dataSetList[idx].discardDetectors(*decIdxList)
+            self.datasetList[idx].discardDetectors(*decIdxList)
 
 
 
@@ -695,10 +701,10 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         for idx in fileIdxList:
-            self.dataSetList[idx].resetDetectors()
+            self.datasetList[idx].resetDetectors()
 
 
     def setQRange(self, minQ, maxQ, *fileIdxList):
@@ -711,35 +717,35 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         for idx in fileIdxList:
-            self.dataSetList[idx].setQRange(minQ, maxQ)
+            self.datasetList[idx].setQRange(minQ, maxQ)
 
             
 
 
     def assignModeltoData(self, model, *fileIdxList):
         """ Helper function to quickly assign the given model to all dataset with given indices in
-            self.dataSetList. If model is not None, the decorator pattern is used to modify the dataType
+            self.datasetList. If model is not None, the decorator pattern is used to modify the dataType
             class behavior. 
 
         """
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
 
         for idx in fileIdxList:
-            self.dataSetList[idx] = model( self.dataSetList[idx] )
+            self.datasetList[idx] = model( self.datasetList[idx] )
 
 
 
 
 
     def fitData(self, *fileIdxList, p0=None, bounds=None, qWise=False):
-        """ Helper function to quickly call fit method in all class instances present in self.dataSetList
+        """ Helper function to quickly call fit method in all class instances present in self.datasetList
             for the given indices in fileIdxList.
             Check first for the presence of a fit method and print a warning message if none is found. 
 
@@ -747,14 +753,14 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
 
         for idx in fileIdxList:
             if qWise:
-                self.dataSetList[idx].qWiseFit(p0=p0, bounds=bounds)
+                self.datasetList[idx].qWiseFit(p0=p0, bounds=bounds)
             else:
-                self.dataSetList[idx].fit(p0=p0, bounds=bounds)
+                self.datasetList[idx].fit(p0=p0, bounds=bounds)
 
 
 
@@ -763,9 +769,9 @@ class Dataset:
 #--------------------------------------------------
 #_Binning methods
 #--------------------------------------------------
-    def binDataSet(self, binS, *fileIdxList):
+    def binDataset(self, binS, *fileIdxList):
         """ The method find the index corresponding to the file, perform the binning process,
-            then replace the value in self.dataSetList by the binned one. 
+            then replace the value in self.datasetList by the binned one. 
             
             :arg binS:        bin size
             :arg fileIdxList: indices of the dataSet to be binned, can be a single int or a list of int 
@@ -776,28 +782,39 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
         #_Calling binData for each dataSet in fileIdxList
         for idx in fileIdxList:
-            self.dataSetList[idx].binData(binS)
+            self.datasetList[idx].binData(binS)
 
 
 
 
-    def binResData(self, binS):
-        """ Same as binDataSet but for resolution function data. """ 
+    def binResData(self, binS, *fileIdxList):
+        """ Same as binDataset but for resolution function data. 
+
+            :arg binS:        bin size
+            :arg fileIdxList: indices of the dataSet to be binned, can be a single int or a list of int 
+                                (optional, default "all") 
+
+        """ 
         
-        for data in self.resData:
-            data.binData(binS)
+        #_If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.resData))
+
+        #_Calling binData for each dataSet in fileIdxList
+        for idx in fileIdxList:
+            self.resData[idx].binData(binS)
 
  
 
 
     def binAll(self, binS):
-        """ Bin all dataSet in dataSetList as well as resolutio, empty cell and D2O data if present. """ 
+        """ Bin all dataSet in datasetList as well as resolutio, empty cell and D2O data if present. """ 
         
-        self.binDataSet(binS) #_Bin the dataset list
+        self.binDataset(binS) #_Bin the dataset list
 
         #_For other types of data, check if something was loaded, and if so, perform the binning
         if self.resData:
@@ -868,9 +885,9 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
 
-        datasetList = [self.dataSetList[i] for i in fileIdxList] 
+        datasetList = [self.datasetList[i] for i in fileIdxList] 
 
         plotW = QENSPlot.QENSPlot(datasetList)
         
@@ -886,12 +903,12 @@ class Dataset:
             The resolution function and other parameters are automatically obtained from the current
             dataSet class instance. 
             
-            :arg fileIdx: index of dataset to plot in self.dataSetList 
+            :arg fileIdx: index of dataset to plot in self.datasetList 
 
         """
 
 
-        plotW = FWSPlot.FWSPlot(self.dataSetList[fileIdx])
+        plotW = FWSPlot.FWSPlot(self.datasetList[fileIdx])
         
         plotW.show()
 
@@ -914,9 +931,9 @@ class Dataset:
 
         #_If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.dataSetList))
+            fileIdxList = range(len(self.datasetList))
         
-        datasetList = [self.dataSetList[i] for i in fileIdxList] 
+        datasetList = [self.datasetList[i] for i in fileIdxList] 
 
         plotW = TempRampPlot.TempRampPlot(datasetList)
         plotW.show()
