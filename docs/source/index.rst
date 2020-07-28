@@ -3,10 +3,6 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. image:: https://readthedocs.org/projects/npdyn/badge/?version=latest
-:target: https://npdyn.readthedocs.io/en/latest/?badge=latest
-:alt: Documentation Status
-
 nPDyn
 =====
 
