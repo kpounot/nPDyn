@@ -34,9 +34,11 @@ cdef extern from "absco.h":
 
 
 
-def py_absco_slab( double scattering_angle, double mu_i_S=0.45, double mu_f_S=0.45, double mu_i_C=0.05,
-        double mu_f_C=0.05, double slab_angle=45, double thickness_S=0.03, double thickness_C_front=0.5,
-        double thickness_C_rear=0.5 ):
+def py_absco_slab(double scattering_angle, double mu_i_S=0.45, 
+                  double mu_f_S=0.45, double mu_i_C=0.05,
+                  double mu_f_C=0.05, double slab_angle=45, 
+                  double thickness_S=0.03, double thickness_C_front=0.5,
+                  double thickness_C_rear=0.5 ):
 
     cdef double A_S_SC = 0   
     cdef double A_C_SC = 0 
@@ -46,8 +48,9 @@ def py_absco_slab( double scattering_angle, double mu_i_S=0.45, double mu_f_S=0.
     cdef double *acsc_ptr = &A_C_SC
     cdef double *acc_ptr  = &A_C_C
 
-    absco_slab(assc_ptr, acsc_ptr, acc_ptr, scattering_angle, mu_i_S, mu_f_S, mu_i_C, mu_f_C, slab_angle, 
-                thickness_S, thickness_C_front, thickness_C_rear)
+    absco_slab(assc_ptr, acsc_ptr, acc_ptr, scattering_angle, mu_i_S, 
+               mu_f_S, mu_i_C, mu_f_C, slab_angle, 
+               thickness_S, thickness_C_front, thickness_C_rear)
 
 
     return A_S_SC, A_C_SC, A_C_C
