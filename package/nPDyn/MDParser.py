@@ -21,6 +21,7 @@ except ImportError:
 
 
 class MDData(MDDataset, BackScatData):
+    def __init__(self, expData, fileList):
     """ This class wraps the NAMDAnalyzer Dataset class.
         It's initialized with the __init__ method of the class and
         the given file list.
@@ -31,9 +32,11 @@ class MDData(MDDataset, BackScatData):
         and plotting methods.
 
         The getTempRampEISF methods need several .dcd files that will
-        treated sequentially to extract mean-squared displacements. """
+        treated sequentially to extract mean-squared displacements. 
 
-    def __init__(self, expData, fileList):
+    """
+
+
         MDDataset.__init__(self, fileList)
         BackScatData.__init__(self, self)
 

@@ -11,6 +11,10 @@ from nPDyn.plot import (QENSPlot, FWSPlot, TempRampPlot, D2OPlot,
 
 
 class Dataset:
+
+    def __init__(self, QENSFiles=None, FWSFiles=None, TempRampFiles=None,
+                 ECFile=None, fECFile=None, tECFile=None, resFiles=None,
+                 D2OFile=None, fD2OFile=None):
     """ Master class of nPDyn, contains a list of dataFiles, which can be
         sample, resolution, D2O data or anything else as long as the format
         can be recognized.
@@ -49,10 +53,6 @@ class Dataset:
 
     """
 
-
-    def __init__(self, QENSFiles=None, FWSFiles=None, TempRampFiles=None,
-                 ECFile=None, fECFile=None, tECFile=None, resFiles=None,
-                 D2OFile=None, fD2OFile=None):
 
 
 
