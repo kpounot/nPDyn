@@ -3,6 +3,7 @@ Cython
 cython
 scipy 
 numpy
+iminuit
 matplotlib
 ipython
 PyQt5
