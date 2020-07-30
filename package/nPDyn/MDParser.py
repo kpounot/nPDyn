@@ -22,19 +22,19 @@ except ImportError:
 
 class MDData(MDDataset, BackScatData):
     def __init__(self, expData, fileList):
-    """ This class wraps the NAMDAnalyzer Dataset class.
-        It's initialized with the __init__ method of the class and
-        the given file list.
+        """ This class wraps the NAMDAnalyzer Dataset class.
+            It's initialized with the __init__ method of the class and
+            the given file list.
 
-        Several methods are available to convert Elastic Incoherent
-        Neutron Scattering or scattering function from NAMDAnalyzer
-        to a namedtuple that can directly be used by nPDyn fitting
-        and plotting methods.
+            Several methods are available to convert Elastic Incoherent
+            Neutron Scattering or scattering function from NAMDAnalyzer
+            to a namedtuple that can directly be used by nPDyn fitting
+            and plotting methods.
 
-        The getTempRampEISF methods need several .dcd files that will
-        treated sequentially to extract mean-squared displacements. 
+            The getTempRampEISF methods need several .dcd files that will
+            treated sequentially to extract mean-squared displacements. 
 
-    """
+        """
 
 
         MDDataset.__init__(self, fileList)

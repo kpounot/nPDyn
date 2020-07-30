@@ -15,43 +15,43 @@ class Dataset:
     def __init__(self, QENSFiles=None, FWSFiles=None, TempRampFiles=None,
                  ECFile=None, fECFile=None, tECFile=None, resFiles=None,
                  D2OFile=None, fD2OFile=None):
-    """ Master class of nPDyn, contains a list of dataFiles, which can be
-        sample, resolution, D2O data or anything else as long as the format
-        can be recognized.
+        """ Master class of nPDyn, contains a list of dataFiles, which can be
+            sample, resolution, D2O data or anything else as long as the format
+            can be recognized.
 
-        For call with ipython, the dataSet can be initialized directly from
-        command line using the following:
-        ``ipython -i Dataset.py -- [dataSet related optional arguments]``
+            For call with ipython, the dataSet can be initialized directly from
+            command line using the following:
+            ``ipython -i Dataset.py -- [dataSet related optional arguments]``
 
-        :arg QENSFiles:     list of Quasi-Elastic Neutron Scattering data
-                            files to be loaded (optional)
-        :arg FWSFiles:      list of Fixed Window Scans data files to be
-                            loaded (optional)
-        :arg TempRampFiles: list of temperature ramps data files to be
-                            loaded (optional)
-        :arg ECFile:        Empty cell data to be loaded (optional)
-        :arg resFiles:      list of resolution function related data to
-                            be loaded
-        :arg D2OFiles:      list of D2O data to be loaded
+            :arg QENSFiles:     list of Quasi-Elastic Neutron Scattering data
+                                files to be loaded (optional)
+            :arg FWSFiles:      list of Fixed Window Scans data files to be
+                                loaded (optional)
+            :arg TempRampFiles: list of temperature ramps data files to be
+                                loaded (optional)
+            :arg ECFile:        Empty cell data to be loaded (optional)
+            :arg resFiles:      list of resolution function related data to
+                                be loaded
+            :arg D2OFiles:      list of D2O data to be loaded
 
-        It goes like this, when a file is imported, data are loaded into
-        a class, depending on the given data type. This class will inherit
-        from :class:`baseType`, and might have specific methods or can
-        redefine methods if needed by the data type.
+            It goes like this, when a file is imported, data are loaded into
+            a class, depending on the given data type. This class will inherit
+            from :class:`baseType`, and might have specific methods or can
+            redefine methods if needed by the data type.
 
-        Then, using a decorator pattern, a model can be assigned to this
-        class by using the provided :py:func:`assignModeltoData` method
-        in :class:`Dataset` or simply by using the following:
-        ``myClass = Builtin_ModelClass(myClass)``
+            Then, using a decorator pattern, a model can be assigned to this
+            class by using the provided :py:func:`assignModeltoData` method
+            in :class:`Dataset` or simply by using the following:
+            ``myClass = Builtin_ModelClass(myClass)``
 
-        Each builtin model have a *fit* method, with a *qWise* argument
-        that allow to perform either a global or a q-wis fit. They contains
-        several methods to easily access fitted parameters and curves.
+            Each builtin model have a *fit* method, with a *qWise* argument
+            that allow to perform either a global or a q-wis fit. They contains
+            several methods to easily access fitted parameters and curves.
 
-        Finally, various plotting methods are available, each corresponding
-        to a given data type.
+            Finally, various plotting methods are available, each corresponding
+            to a given data type.
 
-    """
+        """
 
 
 
