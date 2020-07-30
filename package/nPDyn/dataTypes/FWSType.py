@@ -155,7 +155,7 @@ class FWSType(BaseType):
                                      self-attenuation
             :arg neutron_wavelength: incident neutrons wavelength
             :arg absco_kwargs:       geometry arguments for absco library
-                                     from Joachim Wuttke [#]_ . 
+                                     from Joachim Wuttke [#]_ .
 
             References:
 
