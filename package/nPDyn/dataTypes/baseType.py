@@ -265,10 +265,9 @@ class BaseType:
 
         # Use normalized resolution function if data were normalized
         if self.data.norm:
-            f_res = np.array([self.resData.model(self.data.X,
-                                                 1,
-                                                 *params[i][1:])
-                              for i in self.data.qIdx])
+            f_res = np.array(
+                [self.resData.model(self.data.X, 1, *params[i][1:])
+                 for i in self.data.qIdx])
         else:
             f_res = np.array([self.resData.model(self.data.X, *params[i])
                               for i in self.data.qIdx])

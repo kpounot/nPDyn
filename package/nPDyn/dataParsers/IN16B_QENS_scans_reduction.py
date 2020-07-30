@@ -139,7 +139,7 @@ class IN16B_QENS:
             maxDeltaE  = dataset[
                 'entry0/instrument/Doppler/maximum_delta_energy'][()]
             energies   = 2 * np.arange(nbrChn)
-            energies  *= (maxDeltaE / nbrChn) - maxDeltaE
+            energies   = energies * (maxDeltaE / nbrChn) - maxDeltaE
 
             wavelength = dataset['entry0/wavelength'][()]
 
