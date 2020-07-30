@@ -3,6 +3,8 @@
     :target: https://npdyn.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
+.. image:: https://circleci.com/gh/kpounot/nPDyn.svg?style=svg
+    :target: https://circleci.com/gh/kpounot/nPDyn
 
 
 nPDyn
