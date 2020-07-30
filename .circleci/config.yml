@@ -16,7 +16,7 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip install -r package/requirements.txt
+            python3 -m pip install -r package/requirements.txt
       # Step 3: install nPDyn
       - run:
           name: install nPDyn
