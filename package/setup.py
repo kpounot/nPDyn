@@ -6,7 +6,12 @@ from Cython.Build import cythonize
 
 
 
-with open('../README.rst', 'r') as f:
+filePath = os.path.abspath(__file__)
+dirPath = filePath[:filePath.find('setup.py')]
+
+   
+
+with open(filePath[:filePath.find('package')] + 'README.rst', 'r') as f:
     description = f.read()
 
 
@@ -28,32 +33,30 @@ if 'win32' in sys.platform:
 
 
 
-packagesList = [    'nPDyn',
-                    'nPDyn.dataManipulation',
-                    'nPDyn.dataParsers',
-                    'nPDyn.dataTypes',
-                    'nPDyn.dataTypes.models',
-                    'nPDyn.deprecated',
-                    'nPDyn.fit',
-                    'nPDyn.plot',
-                    'nPDyn.lib'     ]
+packagesList = ['nPDyn',
+                'nPDyn.dataManipulation',
+                'nPDyn.dataParsers',
+                'nPDyn.dataTypes',
+                'nPDyn.dataTypes.models',
+                'nPDyn.fit',
+                'nPDyn.plot',
+                'nPDyn.lib']
 
 
 
-pyabsco_ext = Extension( "nPDyn.lib.pyabsco", 
-                         ["nPDyn/lib/src/absco.c", "nPDyn/lib/pyabsco.pyx"],
-                         include_dirs=["nPDyn/lib/src"],
-                         libraries=gsl_lib )
+pyabsco_ext = Extension("nPDyn.lib.pyabsco", 
+                        [dirPath + "nPDyn/lib/src/absco.c", dirPath + "nPDyn/lib/pyabsco.pyx"],
+                        include_dirs=[dirPath + "nPDyn/lib/src"],
+                        libraries=gsl_lib)
 
 
-setup(  name='nPDyn',
-        version='1.0',
-        description=description,
-        author='Kevin Pounot',
-        author_email='kpounot@hotmail.fr',
-        url='github.com/kpounot/nPDyn',
-        packages=packagesList,
-        package_dir={'nPDyn':'nPDyn'},
-        package_data={'nPDyn':['fit/D2O_data/*.dat']},
-        ext_modules = cythonize([pyabsco_ext]) )
-
+setup(name='nPDyn',
+      version='1.0',
+      description=description,
+      author='Kevin Pounot',
+      author_email='kpounot@hotmail.fr',
+      url='github.com/kpounot/nPDyn',
+      packages=packagesList,
+      package_dir={'nPDyn': dirPath + 'nPDyn'},
+      package_data={'nPDyn': [dirPath + 'nPDyn/fit/D2O_data/*.dat']},
+      ext_modules = cythonize([pyabsco_ext]))
