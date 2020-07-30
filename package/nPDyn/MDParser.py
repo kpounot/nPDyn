@@ -32,7 +32,7 @@ class MDData(MDDataset, BackScatData):
             and plotting methods.
 
             The getTempRampEISF methods need several .dcd files that will
-            treated sequentially to extract mean-squared displacements. 
+            treated sequentially to extract mean-squared displacements.
 
         """
 
