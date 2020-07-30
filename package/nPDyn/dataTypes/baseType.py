@@ -284,13 +284,13 @@ class BaseType:
 
 
         bkgd = np.array([self.resData.params[i][0][-1]
-                         for i in self.data.qIdx] )
+                         for i in self.data.qIdx])
 
         # Use normalized resolution function if data were normalized
         if not self.data.norm:
-            bkgd = np.array([self.resData.params[i][0][-1] *
-                             self.resData.params[i][0][0]
-                             for i in self.data.qIdx])
+            bkgd = np.array(
+                [self.resData.params[i][0][-1] * self.resData.params[i][0][0]
+                 for i in self.data.qIdx])
 
 
         return bkgd
