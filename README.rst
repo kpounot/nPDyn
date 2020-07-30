@@ -6,6 +6,10 @@
 .. image:: https://circleci.com/gh/kpounot/nPDyn.svg?style=svg
     :target: https://circleci.com/gh/kpounot/nPDyn
 
+.. image:: https://codecov.io/gh/kpounot/nPDyn/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/kpounot/nPDyn
+
+
 
 nPDyn
 =====
