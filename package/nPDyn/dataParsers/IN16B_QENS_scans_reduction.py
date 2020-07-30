@@ -369,7 +369,7 @@ class IN16B_QENS:
 
             detRanges = xmlData.getPSDValues()
 
-            out = np.zeros( data.shape[0], data.shape[2]))
+            out = np.zeros(data.shape[0], data.shape[2])
             for detId, vals in enumerate(detRanges):
                 out[detId] = data[detId, vals[0]:vals[1]].sum(0)
 

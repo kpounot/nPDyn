@@ -261,7 +261,7 @@ class BaseType:
                       in range(self.data.qVals.size)]
         else:
             params = [np.append(self.resData.params[i][0][:-1], 0)
-                      for i in range(self.data.qVals.size)
+                      for i in range(self.data.qVals.size)]
 
         # Use normalized resolution function if data were normalized
         if self.data.norm:
