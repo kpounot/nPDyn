@@ -35,3 +35,9 @@ jobs:
             flake8 package/nPDyn --exclude=venv* --config package/.flake8 --statistics
             pytest package/tests -v --cov=nPDyn
 
+      # Step 5: run codecov
+          -run:
+              name: run codecov
+              command: |
+                . venv/bin/activate
+                codecov -t cf18761b-33e4-4d86-807f-bb986cc6a398
