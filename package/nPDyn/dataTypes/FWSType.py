@@ -15,10 +15,10 @@ try:
     from ..lib.pyabsco import py_absco_slab, py_absco_tube
 except ImportError:
     print('\nAbsorption correction libraries are not available. \
-            Paalman_Pings correction cannot be used.\n \
-            Verify that GSL libraries are available on this computer, \
-            and the path was correctly \n \
-            set in the setup.cfg file during package installation.\n')
+           Paalman_Pings correction cannot be used.\n \
+           Verify that GSL libraries are available on this computer, \
+           and the path was correctly \n \
+           set in the setup.cfg file during package installation.')
     pass
 
 
@@ -155,8 +155,11 @@ class FWSType(BaseType):
                                      self-attenuation
             :arg neutron_wavelength: incident neutrons wavelength
             :arg absco_kwargs:       geometry arguments for absco library
-                                     from Joachim Wuttke. See:
-                                http://apps.jcns.fz-juelich.de/doku/sc/absco
+                                     from Joachim Wuttke [#]_ . 
+
+            References:
+
+            .. [#] http://apps.jcns.fz-juelich.de/doku/sc/absco
 
         """
 

@@ -1,3 +1,10 @@
+"""
+
+Classes
+^^^^^^^
+
+"""
+
 import numpy as np
 
 from nPDyn.dataTypes import *
@@ -21,21 +28,21 @@ except ImportError:
 
 
 class MDData(MDDataset, BackScatData):
+    """ This class wraps the NAMDAnalyzer Dataset class.
+        It's initialized with the __init__ method of the class and
+        the given file list.
+
+        Several methods are available to convert Elastic Incoherent
+        Neutron Scattering or scattering function from NAMDAnalyzer
+        to a namedtuple that can directly be used by nPDyn fitting
+        and plotting methods.
+
+        The getTempRampEISF methods need several .dcd files that will
+        treated sequentially to extract mean-squared displacements.
+
+    """
+
     def __init__(self, expData, fileList):
-        """ This class wraps the NAMDAnalyzer Dataset class.
-            It's initialized with the __init__ method of the class and
-            the given file list.
-
-            Several methods are available to convert Elastic Incoherent
-            Neutron Scattering or scattering function from NAMDAnalyzer
-            to a namedtuple that can directly be used by nPDyn fitting
-            and plotting methods.
-
-            The getTempRampEISF methods need several .dcd files that will
-            treated sequentially to extract mean-squared displacements.
-
-        """
-
 
         MDDataset.__init__(self, fileList)
         BackScatData.__init__(self, self)
@@ -85,12 +92,11 @@ class MDData(MDDataset, BackScatData):
                                    use it explicitly.
 
 
-            The result is added to *datasetList* in :class:`Dataset` class.
+            The result is added to *datasetList* in :py:class:`Dataset` class.
 
 
             For NAMDAnalyzer BackScatData module, see:
-            https://namdanalyzer.readthedocs.io/en/latest/\
-            dataAnalysis/BackscatteringDataConvert
+            https://namdanalyzer.readthedocs.io/en/latest/
 
         """
 
@@ -167,11 +173,10 @@ class MDData(MDDataset, BackScatData):
                                    compScatFunc method
 
             The result is added to nPDyn *datasetList* attribute
-            in :class:`Dataset` class.
+            in :py:class:`Dataset` class.
 
             For NAMDAnalyzer BackScatData module, see:
-            https://namdanalyzer.readthedocs.io/en/latest/\
-            dataAnalysis/BackscatteringDataConvert
+            https://namdanalyzer.readthedocs.io/en/latest/
 
         """
 
@@ -236,8 +241,7 @@ class MDData(MDDataset, BackScatData):
             BackScatData module
 
             For NAMDAnalyzer BackScatData module, see:
-            https://namdanalyzer.readthedocs.io/en/latest/\
-            dataAnalysis/BackscatteringDataConvert
+            https://namdanalyzer.readthedocs.io/en/latest/
 
         """
 
