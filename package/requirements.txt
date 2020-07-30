@@ -1,5 +1,6 @@
 CythonGSL
 Cython
+cython
 scipy 
 numpy
 matplotlib
