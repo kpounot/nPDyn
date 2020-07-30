@@ -4,3 +4,4 @@ matplotlib
 PyQt5
 h5py
 sphinx_rtd_theme
+iminuit
