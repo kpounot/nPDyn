@@ -206,6 +206,21 @@ class TestDataProcess(unittest.TestCase):
 
 
 
+    def test_absorptionCorr_dataQENS_ecQENS(self):
+
+        dataPath = testsPath + 'sample_data/'
+
+        data = nPDyn.Dataset(QENSFiles=[dataPath + 'lys_part_01_QENS_before_280K.nxs'],
+                             resFiles=[dataPath + 'vana_QENS_280K.nxs'],
+                             ECFile=dataPath + 'empty_cell_QENS_280K.nxs')
+
+        data.absorptionCorrection(D2O=False, res=False)
+
+        self.assertTrue(data.datasetList[0].data.intensities.sum() < 9)
+
+
+
+
     def test_discardDetectors(self):
 
         dataPath = testsPath + 'sample_data/'

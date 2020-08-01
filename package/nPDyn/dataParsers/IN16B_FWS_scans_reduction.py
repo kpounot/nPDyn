@@ -22,8 +22,7 @@ from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
 
 
 class IN16B_FWS:
-    """
-        This class can handle raw E/IFWS data from IN16B at
+    """ This class can handle raw E/IFWS data from IN16B at
         the ILL in the hdf5 format.
 
         :arg scanList:       a string or a list of files to be read

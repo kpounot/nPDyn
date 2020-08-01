@@ -99,7 +99,3 @@ class TestFileImport(unittest.TestCase):
         data = nPDyn.Dataset(TempRampFiles=dataList)
 
         self.assertIsNotNone(data.datasetList[1].data.qVals)
-
-
-if __name__ == '__main__':
-    unittest.main()

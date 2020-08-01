@@ -16,11 +16,7 @@ def readFile(fileFormat, dataFile, FWS=False):
 
     """
 
-    try:
-        data = fileImporters[fileFormat](dataFile, FWS)
-    except Exception as e:
-        print(e)
-        return
+    data = fileImporters[fileFormat](dataFile, FWS)
 
     return data
 
