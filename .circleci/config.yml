@@ -36,8 +36,8 @@ jobs:
             pytest package/tests -v --cov=nPDyn
 
       # Step 5: run codecov
-          -run:
-              name: run codecov
-              command: |
-                . venv/bin/activate
-                bash <(curl -s https://codecov.io/bash)
+      - run:
+          name: run codecov
+          command: |
+            . venv/bin/activate
+            bash <(curl -s https://codecov.io/bash)
