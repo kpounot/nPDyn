@@ -29,8 +29,8 @@ def convert(datafile, FWS=None):
 
     datafile = datafile
 
-    qData = namedtuple('qData', 'qVals X intensities \
-                                 errors temp norm qIdx')
+    qData = namedtuple('qData', 'qVals X intensities '
+                                'errors temp norm qIdx')
 
     with open(datafile, 'r') as fileinput:
         data = fileinput.read().splitlines()

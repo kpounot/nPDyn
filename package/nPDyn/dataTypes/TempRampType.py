@@ -16,11 +16,11 @@ from nPDyn.fileFormatParser import guessFileFormat, readFile
 try:
     from ..lib.pyabsco import py_absco_slab, py_absco_tube
 except ImportError:
-    print('\nAbsorption correction libraries are not available. \
-            Paalman_Pings correction cannot be used.\n \
-            Verify that GSL libraries are available on this computer, \
-            and the path was correctly \n \
-            set in the setup.cfg file during package installation.\n')
+    print('\nAbsorption correction libraries are not available. '
+          'Paalman_Pings correction cannot be used.\n '
+          'Verify that GSL libraries are available on this computer, '
+          'and the path was correctly \n '
+          'set in the setup.cfg file during package installation.\n')
     pass
 
 

@@ -70,9 +70,9 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None,
                         / (resG1 * np.sqrt(2 * np.pi)))
 
     else:
-        print("The resolution function model used is \
-               not supported by this model.\n \
-               Please use either resFunc_pseudoVoigt or resFunc_gaussian.\n")
+        print("The resolution function model used is "
+              "not supported by this model.\n "
+              "Please use either resFunc_pseudoVoigt or resFunc_gaussian.\n")
         return
 
 

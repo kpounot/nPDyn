@@ -343,9 +343,9 @@ class FWSPlot(QWidget):
         try:
             if self.dataset[0].params is None:
                 print("WARNING: no fitted parameters were found for data.\n"
-                      + "Some plotting methods might not work properly.\n")
+                      "Some plotting methods might not work properly.\n")
         except AttributeError:
             print("No parameters for dataset were found.\n"
-                  + "Please assign a model and use a fitting method \
-                  before plotting.\n")
+                  "Please assign a model and use a fitting method "
+                  "before plotting.\n")
             pass

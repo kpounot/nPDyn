@@ -267,6 +267,6 @@ class ResPlot(QWidget):
             for idx, data in enumerate(self.dataset):
                 data.params
         except AttributeError:
-            print("No parameters for resolution function at \
-                   index %i were found.\n" % idx
-                  + "Please use a fitting method before plotting.\n")
+            print("No parameters for resolution function at "
+                  "index %i were found.\n"
+                  "Please use a fitting method before plotting.\n" % idx)

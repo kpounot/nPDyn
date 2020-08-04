@@ -14,11 +14,11 @@ from nPDyn.dataParsers import *
 try:
     from ..lib.pyabsco import py_absco_slab, py_absco_tube
 except ImportError:
-    print('\nAbsorption correction libraries are not available. \
-            Paalman_Pings correction cannot be used.\n \
-            Verify that GSL libraries are available on this computer, \
-            and the path was correctly \n \
-            set in the setup.cfg file during package installation.\n')
+    print('\nAbsorption correction libraries are not available. '
+          'Paalman_Pings correction cannot be used.\n'
+          'Verify that GSL libraries are available on this computer, '
+          'and the path was correctly \n'
+          'set in the setup.cfg file during package installation.\n')
     pass
 
 
@@ -409,7 +409,7 @@ class BaseType:
             ECFunc = []
             for qIdx, qVal in enumerate(self.data.qVals):
                 ECFunc.append(self.ECData.model(self.data.X,
-                              * self.ECData.params[qIdx][0]))
+                              *self.ECData.params[qIdx][0]))
 
             ECFunc = np.array(ECFunc)
 

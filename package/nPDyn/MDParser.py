@@ -22,9 +22,9 @@ except ImportError:
     class BackScatData:
         pass
 
-    print("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was \
-           not installed within your python framework.\n\
-           MD simulations related methods won't work.\n")
+    print("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was "
+          "not installed within your python framework.\n"
+          "MD simulations related methods won't work.\n")
 
 
 class MDData(MDDataset, BackScatData):
@@ -50,8 +50,8 @@ class MDData(MDDataset, BackScatData):
         self.expData = expData
         self.msdSeriesList = []
 
-        self.MDDataT = namedtuple('MDDataT', 'qVals X intensities \
-                                              errors temp norm qIdx')
+        self.MDDataT = namedtuple('MDDataT', 'qVals X intensities '
+                                             'errors temp norm qIdx')
 
 
 

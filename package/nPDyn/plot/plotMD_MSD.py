@@ -148,11 +148,11 @@ class plotMSDSeries(QWidget):
         for idx, dataset in enumerate(self.dataset):
             try:
                 if not dataset.params:
-                    print("WARNING: no fitted parameters were found \
-                           for data at index %i.\n" % idx
-                          + "Some plotting methods might \
-                             not work properly.\n")
+                    print("WARNING: no fitted parameters were found "
+                          "for data at index %i.\n"
+                          "Some plotting methods might "
+                          "not work properly.\n" % idx)
             except AttributeError:
-                print("No parameters for dataset at index \
-                       %i were found.\n" % idx
-                      + "Please use a fitting method before plotting.\n")
+                print("No parameters for dataset at index "
+                      "%i were found.\n"
+                      "Please use a fitting method before plotting.\n" % idx)

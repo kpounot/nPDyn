@@ -14,11 +14,11 @@ from nPDyn.dataTypes import fECType
 try:
     from ..lib.pyabsco import py_absco_slab, py_absco_tube
 except ImportError:
-    print('\nAbsorption correction libraries are not available. \
-           Paalman_Pings correction cannot be used.\n \
-           Verify that GSL libraries are available on this computer, \
-           and the path was correctly \n \
-           set in the setup.cfg file during package installation.')
+    print('\nAbsorption correction libraries are not available. '
+          'Paalman_Pings correction cannot be used.\n '
+          'Verify that GSL libraries are available on this computer, '
+          'and the path was correctly \n '
+          'set in the setup.cfg file during package installation.')
     pass
 
 
@@ -191,7 +191,7 @@ class FWSType(BaseType):
 
         # Empty cell data
         if isinstance(self.ECData, fECType.fECType):
-            ECFunc = self.fECData.data.intensities
+            ECFunc = self.ECData.data.intensities
 
         else:  # Assumes full QENS with fitted model
             # Tries to extract empty cell intensities, use an array
@@ -230,9 +230,14 @@ class FWSType(BaseType):
 
 
             # Applies correction
-            sampleSignal[:, qIdx] = ((1 / A_S_SC) * sampleSignal[:, qIdx]
-                                     - A_C_SC / (A_S_SC * A_C_C)
-                                     * canScaling * ECFunc[qIdx])
+            if sampleSignal.ndim == 3:
+                sampleSignal[:, qIdx] = ((1 / A_S_SC) * sampleSignal[:, qIdx]
+                                         - A_C_SC / (A_S_SC * A_C_C)
+                                         * canScaling * ECFunc[qIdx])
+            else:
+                sampleSignal[qIdx] = ((1 / A_S_SC) * sampleSignal[qIdx]
+                                      - A_C_SC / (A_S_SC * A_C_C)
+                                      * canScaling * ECFunc[qIdx])
 
 
 

@@ -599,30 +599,34 @@ class Dataset:
                                                  absco_kwargs)
                     resData.fit()
             except AttributeError:
-                print("No resolution data were loaded, corrections on \
-                       these cannot be applied\n")
+                print("No resolution data were loaded, corrections on "
+                      "these cannot be applied\n")
                 return
 
 
         if D2O:
-            try:
-                self.D2OData.absorptionCorrection(canType, canScaling,
-                                                  neutron_wavelength,
-                                                  absco_kwargs)
-                self.D2OData.qWiseFit()
-            except AttributeError:
-                print("No D2O data were loaded, corrections on these \
-                       cannot be applied\n")
-                return
+            if self.D2OData is not None:
+                try:
+                    self.D2OData.absorptionCorrection(canType, canScaling,
+                                                      neutron_wavelength,
+                                                      absco_kwargs)
+                    self.D2OData.fit()
+                except AttributeError as e:
+                    print("No D2O data were loaded, corrections on these "
+                          "cannot be applied\n")
+                    print(e)
+                    return
 
-            try:
-                self.fD2OData.absorptionCorrection(canType, canScaling,
-                                                   neutron_wavelength,
-                                                   absco_kwargs)
-            except AttributeError:
-                print("No fD2O data were loaded, corrections on these \
-                       cannot be applied\n")
-                return
+            if self.fD2OData is not None:
+                try:
+                    self.fD2OData.absorptionCorrection(canType, canScaling,
+                                                       neutron_wavelength,
+                                                       absco_kwargs)
+                except AttributeError as e:
+                    print("No fD2O data were loaded, corrections on these "
+                          "cannot be applied\n")
+                    print(e)
+                    return
 
 
 
@@ -716,8 +720,8 @@ class Dataset:
                     resData.discardOutliers(meanScale)
                     resData.fit()
                 except AttributeError:
-                    print("No resolution data were loaded, outliers \
-                           couldn't be discarded")
+                    print("No resolution data were loaded, outliers "
+                          "couldn't be discarded")
                     pass
 
 
@@ -726,8 +730,8 @@ class Dataset:
                 self.ECData.discardOutliers(meanScale)
                 self.ECData.fit()
             except AttributeError:
-                print("No empty cell data were loaded, outliers couldn't \
-                       be discarded")
+                print("No empty cell data were loaded, outliers couldn't "
+                      "be discarded")
                 pass
 
 
@@ -737,8 +741,8 @@ class Dataset:
                 self.D2OData.discardOutliers(meanScale)
                 self.D2OData.qWiseFit()
             except AttributeError:
-                print("No D2O data were loaded, outliers couldn't be \
-                       discarded")
+                print("No D2O data were loaded, outliers couldn't be "
+                      "discarded")
                 pass
 
 

@@ -216,7 +216,67 @@ class TestDataProcess(unittest.TestCase):
 
         data.absorptionCorrection(D2O=False, res=False)
 
-        self.assertTrue(data.datasetList[0].data.intensities.sum() < 9)
+        self.assertTrue(data.datasetList[0].data.intensities.sum() > 11)
+
+
+
+    def test_absorptionCorr_dataFWS_ecQENS(self):
+
+        dataPath = testsPath + 'sample_data/'
+
+        data = nPDyn.Dataset(FWSFiles=[dataPath + 'lys_part_01_FWS.nxs'],
+                             resFiles=[dataPath + 'vana_QENS_280K.nxs'],
+                             ECFile=dataPath + 'empty_cell_QENS_280K.nxs')
+
+        data.absorptionCorrection(D2O=False, res=False)
+
+        self.assertTrue(data.datasetList[0].data.intensities.sum() < 1.41)
+
+
+
+    def test_absorptionCorr_dataFWS_fecQENS(self):
+
+        dataPath = testsPath + 'sample_data/'
+
+        data = nPDyn.Dataset(FWSFiles=[dataPath + 'lys_part_01_FWS.nxs'],
+                             resFiles=[dataPath + 'vana_QENS_280K.nxs'],
+                             fECFile=dataPath + 'empty_cell_FWS_280K.nxs')
+
+        data.absorptionCorrection(D2O=False, res=False)
+
+        self.assertTrue(data.datasetList[0].data.intensities.sum() < 1.97)
+
+
+
+    def test_absorptionCorr_dataQENS_ecQENS_D2O_and_res(self):
+
+        dataPath = testsPath + 'sample_data/'
+
+        data = nPDyn.Dataset(QENSFiles=[dataPath + 'lys_part_01_QENS_before_280K.nxs'],
+                             resFiles=[dataPath + 'vana_QENS_280K.nxs'],
+                             ECFile=dataPath + 'empty_cell_QENS_280K.nxs',
+                             D2OFile=dataPath + 'D2O_QENS_280K.nxs')
+
+        data.absorptionCorrection()
+
+        self.assertTrue(data.resData[0].data.intensities.sum() > 34)
+        self.assertTrue(data.D2OData.data.intensities.sum() > 98)
+
+
+
+    def test_absorptionCorr_dataFWS_fecQENS_fD2O_and_res(self):
+
+        dataPath = testsPath + 'sample_data/'
+
+        data = nPDyn.Dataset(FWSFiles=[dataPath + 'lys_part_01_FWS.nxs'],
+                             resFiles=[dataPath + 'vana_QENS_280K.nxs'],
+                             fECFile=dataPath + 'empty_cell_FWS_280K.nxs',
+                             fD2OFile=dataPath + 'D2O_FWS_280K.nxs')
+
+        data.absorptionCorrection()
+
+        self.assertTrue(data.resData[0].data.intensities.sum() > 36)
+        self.assertTrue(data.fD2OData.data.intensities.sum() > 0.09712)
 
 
 

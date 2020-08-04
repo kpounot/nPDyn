@@ -49,8 +49,8 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
     # Fixed window scan processing
     if FWS is True:
-        FWSData = namedtuple('FWSData', 'qVals X Y intensities \
-                                         errors temp norm qIdx')
+        FWSData = namedtuple('FWSData', 'qVals X Y intensities '
+                                        'errors temp norm qIdx')
 
         interp = False
 
