@@ -40,4 +40,4 @@ jobs:
               name: run codecov
               command: |
                 . venv/bin/activate
-                codecov -t cf18761b-33e4-4d86-807f-bb986cc6a398
+                bash <(curl -s https://codecov.io/bash)
