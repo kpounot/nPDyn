@@ -241,14 +241,14 @@ class TempRampPlot(QWidget):
                     label += self.dataset[i].paramsNames[pIdx]
                     label += ": " + val + "\n"
 
-            subplot.plot(self.dataset[i].data.qVals**2,
+            subplot.plot(self.dataset[i].data.qVals,
                          self.dataset[i].model(
                              self.dataset[i].data.qVals,
                              *self.dataset[i].params[tempIdx][0]),
                          label=label)
 
             subplot.set_title(self.dataset[i].fileName, fontsize=10)
-            subplot.set_xlabel(r'$Scattering \ vector \ q^2 \ (\AA^{-2})$')
+            subplot.set_xlabel(r'Scattering vector $q^2$ [$\AA^{-2})$]')
             subplot.set_ylabel(r'EISF at %d K' % tempToShow)
             subplot.legend(framealpha=0.5, fontsize=12)
 

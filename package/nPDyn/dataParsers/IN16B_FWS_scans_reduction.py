@@ -29,6 +29,8 @@ class IN16B_FWS:
                              and parsed to extract the data.
                              It can be a path to a folder as well.
         :arg sumScans:       whether the scans should be summed or not
+        :arg alignPeaks:     if True, will try to align peaks of the monitor
+                             with the ones from the PSD data.
         :arg peakFindWindow: the size (in number of channels) of the window
                              to find and align the peaks
                              of the monitor to the peaks of the data.
@@ -45,19 +47,27 @@ class IN16B_FWS:
                              a path to an xml file as used in Mantid.
         :arg normalize:      whether the data should be normalized
                              to the monitor
+        :arg observable:     the observable that might be changing over scans.
+                             It can be `time` or `temperature`
+        :arg offset:         If not None, only the data with energy offset
+                             that equals the given value will be imported.
 
     """
 
     def __init__(self, scanList,
                  sumScans=False,
+                 alignPeaks=True,
                  peakFindWindow=6,
                  detGroup=None,
-                 normalize=True):
+                 normalize=True,
+                 observable='time',
+                 offset=None):
 
 
         self.FWSData = namedtuple('FWSData',
                                   'qVals X Y intensities \
-                                   errors temp norm qIdx')
+                                   errors temp norm qIdx \
+                                   time')
 
         # Process the scanList argument in case a single string is given
         self.scanList = scanList
@@ -76,11 +86,17 @@ class IN16B_FWS:
 
         self.sumScans = sumScans
 
+        self.alignPeaks = alignPeaks
+
         self.peakFindWindow = peakFindWindow
 
         self.detGroup = detGroup
 
         self.normalize = normalize
+
+        self.observable = observable
+
+        self.offset = offset
 
 
         self.dataList       = []
@@ -117,6 +133,11 @@ class IN16B_FWS:
             dataset = h5py.File(dataFile, mode='r')
 
             data = dataset['entry0/data/PSD_data'][()]
+            maxDeltaE  = dataset[
+                'entry0/instrument/Doppler/maximum_delta_energy'][(0)]
+            if self.offset is not None:
+                if maxDeltaE != self.offset:
+                    continue
 
             # Gets the monitor data
             monitor = dataset[
@@ -128,8 +149,7 @@ class IN16B_FWS:
 
             nbrDet = data.shape[0]
 
-            maxDeltaE  = dataset[
-                'entry0/instrument/Doppler/maximum_delta_energy'][(0)]
+
             self.energyList.append(maxDeltaE)
 
             wavelength = dataset['entry0/wavelength'][()]
@@ -137,6 +157,10 @@ class IN16B_FWS:
             angles     = [dataset[
                 'entry0/instrument/PSD/PSD angle %s' % int(val + 1)][()]
                 for val in range(nbrDet)]
+
+
+            data, angles = self._getSingleD(dataset, data, angles)
+
 
             angles     = 4 * np.pi * np.sin(
                 np.pi * np.array(angles).squeeze() / 360) / wavelength
@@ -170,8 +194,15 @@ class IN16B_FWS:
         for idx, data in enumerate(self.dataList):
 
             if self.normalize:
-                normData, errData = self._normalizeToMonitor(
-                    data, self.monitor[idx])
+                if self.alignPeaks:
+                    normData, errData = self._normalizeToMonitor(
+                        data, self.monitor[idx])
+                else:
+                    np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
+                    errData  = np.sqrt(data)
+                    normData = (data / self.monitor[idx]).sum(1)
+                    errData  = (errData / self.monitor[idx]).sum(1)
+
             else:
                 normData, errData = (data.sum(1), np.sqrt(data.sum(1)))
 
@@ -181,6 +212,35 @@ class IN16B_FWS:
 
 
         self._convertDataset()
+
+
+
+    def _getSingleD(self, dataset, data, angles):
+        """ Determines the number of single detector used and add the data
+            and angles to the existing data and angles arrays.
+
+            :returns: data and angles arrays with the single detector data.
+
+        """
+
+        dataSD   = []
+        anglesSD = []
+
+        keysSD = ['SD1 angle', 'SD2 angle', 'SD3 angle', 'SD4 angle', 
+                  'SD5 angle', 'SD6 angle', 'SD7 angle', 'SD8 angle']
+
+        for idx, key in enumerate(keysSD):
+            angle = dataset['entry0/instrument/SingleD/%s' % key][()]
+
+            if angle > 0:
+                anglesSD.append(angle)
+                dataSD.append(
+                    dataset['entry0/instrument/SingleD/data'][(idx)].squeeze())
+
+        data   = np.row_stack((np.array(dataSD).squeeze(), data))
+        angles = np.concatenate((anglesSD, angles))
+
+        return data, angles
 
 
 
@@ -195,17 +255,24 @@ class IN16B_FWS:
 
         np.place(errors, errors == 0.0, np.inf)
         np.place(errors, errors == np.nan, np.inf)
+        np.place(data, data == np.nan, 0)
         np.place(data, data / errors < 0.5, 0)
         np.place(errors, data / errors < 0.5, np.inf)
 
+        if self.observable == 'time':
+            Y = times
+        elif self.observable == 'temperature':
+            Y = temps
+
         self.outTuple = self.FWSData(self.qList[0],
                                      energies,
-                                     times,
+                                     Y,
                                      data,
                                      errors,
                                      temps,
                                      False,
-                                     np.arange(self.qList[0].shape[0]))
+                                     np.arange(self.qList[0].shape[0]),
+                                     times)
 
 
 
@@ -384,7 +451,7 @@ class IN16B_FWS:
 
             data.append(dataAtdE)
             errors.append(errAtdE)
-            temps.append(np.array(self.tempList)[dEidx])
+            temps.append(np.array(self.tempList)[dEidx].squeeze())
             deltaTime[idx] = maxX
 
 

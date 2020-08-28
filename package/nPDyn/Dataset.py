@@ -88,8 +88,6 @@ class Dataset:
                             'resFunc_pseudoVoigt resFunc_gaussian \
                             ECFunc_pseudoVoigt \
                             ECFunc_Gaussian \
-                            D2OFunc_lorentzian_and_elastic_Min \
-                            D2OFunc_singleLorentzian_Min \
                             D2OFunc_singleLorentzian_CF \
                             QENS_prot_powder_dblLorentzian_BH \
                             QENS_prot_powder_sglLorentzian_BH \
@@ -97,7 +95,9 @@ class Dataset:
                             QENS_water_powder_minuit \
                             QENS_protein_liquid_analytic_voigt_BH \
                             QENS_protein_liquid_analytic_voigt_CF \
-                            TempRamp_gaussian TempRamp_q4 TempRamp_gamma \
+                            QENS_protein_liquid_switchDiff_internal_BH \
+                            TempRamp_gaussian TempRamp_linearMSD \
+                            TempRamp_q4 TempRamp_gamma \
                             FWS_protein_liquid_BH \
                             FWS_protein_liquid_CF \
                             FWS_protein_liquid_withImmobileFrac_BH')
@@ -107,8 +107,6 @@ class Dataset:
                              resFunc_gaussian.Model,
                              ECFunc_pseudoVoigt.Model,
                              ECFunc_Gaussian.Model,
-                             D2OFunc_lorentzian_and_elastic_Min.Model,
-                             D2OFunc_singleLorentzian_Min.Model,
                              D2OFunc_singleLorentzian_CF.Model,
                              QENS_prot_powder_doubleLorentzian_BH.Model,
                              QENS_prot_powder_singleLorentzian_BH.Model,
@@ -116,7 +114,9 @@ class Dataset:
                              QENS_water_powder_minuit.Model,
                              QENS_protein_liquid_analytic_voigt_BH.Model,
                              QENS_protein_liquid_analytic_voigt_CF.Model,
+                             QENS_protein_liquid_switchDiff_internal_BH.Model,
                              TempRamp_gaussian.Model,
+                             TempRamp_linearMSD.Model,
                              TempRamp_q4.Model,
                              TempRamp_gamma.Model,
                              FWS_protein_liquid_BH.Model,
@@ -385,12 +385,11 @@ class Dataset:
             data.rawData = data.rawData[0]
             data.data    = data.data[0]
 
-            data = D2OFunc_singleLorentzian_Min.Model(data)
+            data = D2OFunc_singleLorentzian_CF.Model(data)
             data.assignECData(self.ECData)
 
             if self.resData != []:
                 data.assignResData(self.resData[0])
-                data.normalize()
                 data.fit()
 
             self.D2OData = data
@@ -409,6 +408,26 @@ class Dataset:
 
 
             self.fD2OData = data
+
+
+        elif dataType == 'TempRamp':
+            data = TempRampType.TempRampType(dataList)
+            data.importRawData(dataList, instrument, dataType, kwargs)
+
+            if self.fECData is not None:
+                data.assignECData(self.fECData)
+            else:
+                data.assignECData(self.ECData)
+
+
+            if self.fD2OData is not None:
+                data.assignD2OData(self.fD2OData)
+            else:
+                data.assignD2OData(self.D2OData)
+
+
+            self.datasetList.append(data)
+
 
 
 
@@ -818,7 +837,8 @@ class Dataset:
 
 
 
-    def fitData(self, *fileIdxList, p0=None, bounds=None, qWise=False):
+    def fitData(self, *fileIdxList, p0=None, bounds=None, 
+                qWise=False, kwargs={}):
         """ Helper function to quickly call fit method in all class instances
             present in self.datasetList for the given indices in fileIdxList.
             Check first for the presence of a fit method and print a warning
@@ -833,9 +853,9 @@ class Dataset:
 
         for idx in fileIdxList:
             if qWise:
-                self.datasetList[idx].qWiseFit(p0=p0, bounds=bounds)
+                self.datasetList[idx].qWiseFit(p0, bounds, kwargs)
             else:
-                self.datasetList[idx].fit(p0=p0, bounds=bounds)
+                self.datasetList[idx].fit(p0, bounds, kwargs)
 
 
 

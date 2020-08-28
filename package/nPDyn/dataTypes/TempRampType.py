@@ -53,15 +53,64 @@ class TempRampType(BaseType):
         else:
             data = guessFileFormat(self.fileName, True)
 
+
+        # Switch X and Y for data from Mantid Workspace and squeeze
+        if len(data.Y) > 0:
+            data = data._replace(X=data.Y.squeeze(), 
+                                 Y=data.X,
+                                 intensities=data.intensities.squeeze().T,
+                                 errors=data.intensities.squeeze().T)
+
         self.data       = data
         self.rawData    = self.data._replace(
             qVals       = np.copy(self.data.qVals),
             X           = np.copy(self.data.X),
+            Y           = np.copy(self.data.Y),
             intensities = np.copy(self.data.intensities),
             errors      = np.copy(self.data.errors),
             temp        = np.copy(self.data.temp),
             norm        = False,
             qIdx        = np.copy(self.data.qIdx))
+
+
+
+    def importRawData(self, dataList, instrument, dataType, kwargs):
+        """ This method uses instrument-specific algorithm to process raw data.
+
+            :arg dataList:      a list of data files to be imported
+            :arg instrument:    the instrument used to record data
+                                (only 'IN16B' possible for now)
+            :arg dataType:      type of data recorded (can be 'QENS' or 'FWS')
+            :arg kwargs:        keyword arguments to be passed to the algorithm
+                                (see algorithm in dataParsers for details)
+
+        """
+
+        data = self.FWS_redAlgo[instrument](dataList, **kwargs)
+        data.process()
+
+        self.data    = data.outTuple
+
+        # Performs some correction to adapt to TempRamp type.
+        # For FWS data, the presence of only one energy offset is assumed.
+        X = self.data.temp[0]
+        intensities = self.data.intensities.squeeze().T
+        errors = self.data.errors.squeeze().T
+        self.data = self.data._replace(X=X, 
+                                       intensities=intensities, 
+                                       errors=errors)
+
+        self.rawData = self.data._replace(
+            qVals       = np.copy(self.data.qVals),
+            X           = np.copy(self.data.X),
+            Y           = np.copy(self.data.Y),
+            intensities = np.copy(self.data.intensities),
+            errors      = np.copy(self.data.errors),
+            temp        = np.copy(self.data.temp),
+            norm        = False,
+            qIdx        = np.copy(self.data.qIdx),
+            time        = np.copy(self.data.time))
+
 
 
 
@@ -79,7 +128,7 @@ class TempRampType(BaseType):
         self.data = self.data._replace(
             intensities = self.data.intensities / normFList,
             errors      = self.data.errors / normFList,
-            norm=True)
+            norm        = True)
 
         self._normFList = normFList
 

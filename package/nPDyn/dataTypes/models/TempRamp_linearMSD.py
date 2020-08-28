@@ -12,16 +12,16 @@ class Model(DataTypeDecorator):
         signal measured during as a series,
         during a temperature ramp for instance.
 
-        A simple gaussian is used here.
+        A linear model is used here.
 
     """
 
     def __init__(self, dataType):
         super().__init__(dataType)
 
-        self.model      = models.gaussian
+        self.model      = models.linearMSD
         self.params     = None
-        self.paramsNames = ["MSD", "shift"]  # For plotting purpose
+        self.paramsNames = ["MSD", "y0"]  # For plotting purpose
 
 
 
@@ -39,13 +39,15 @@ class Model(DataTypeDecorator):
         params = []
         for idx, temp in enumerate(self.data.X):
 
+            Y = np.log(self.data.intensities[qIdxList, idx])
+
             if bounds is None:
                 bounds = self.defaultBounds
 
 
             params.append(curve_fit(self.model,
-                                    self.data.qVals[qIdxList],
-                                    self.data.intensities[qIdxList, idx],
+                                    self.data.qVals[qIdxList]**2,
+                                    Y,
                                     p0=p0,
                                     bounds=bounds,
                                     sigma=self.data.errors[qIdxList, idx], 

@@ -142,12 +142,18 @@ class IN16B_QENS:
 
             wavelength = dataset['entry0/wavelength'][()]
 
-            angles = [dataset[
+            angles = np.array([dataset[
                 'entry0/instrument/PSD/PSD angle %s' % int(val + 1)][()]
-                for val in range(nbrDet)]
+                for val in range(nbrDet)])
+
+
+            data, angles = self._getSingleD(dataset, data, angles)
+
 
             angles = 4 * np.pi * np.sin(
                 np.pi * np.array(angles).squeeze() / 360) / wavelength
+
+
 
             temp = dataset['entry0/sample/temperature'][()]
 
@@ -175,11 +181,13 @@ class IN16B_QENS:
                     data = self._unmirrorData(data)
                     self.monitor = self._unmirrorData(
                         self.monitor.reshape(1, 2 * nbrChn))
+                    np.place(self.monitor, self.monitor == 0, np.inf)
                 else:
                     self._findPeaks(data)
                     data = self._unmirrorData(data)
                     self.monitor = self._unmirrorData(
                         self.monitor.reshape(1, 2 * nbrChn))
+                    np.place(self.monitor, self.monitor == 0, np.inf)
 
                 errData = np.sqrt(data)
 
@@ -201,6 +209,35 @@ class IN16B_QENS:
 
 
         self._convertDataset()
+
+
+
+    def _getSingleD(self, dataset, data, angles):
+        """ Determines the number of single detector used and add the data
+            and angles to the existing data and angles arrays.
+
+            :returns: data and angles arrays with the single detector data.
+
+        """
+
+        dataSD   = []
+        anglesSD = []
+
+        keysSD = ['SD1 angle', 'SD2 angle', 'SD3 angle', 'SD4 angle', 
+                  'SD5 angle', 'SD6 angle', 'SD7 angle', 'SD8 angle']
+
+        for idx, key in enumerate(keysSD):
+            angle = dataset['entry0/instrument/SingleD/%s' % key][()]
+
+            if angle > 0:
+                anglesSD.append(angle)
+                dataSD.append(
+                    dataset['entry0/instrument/SingleD/data'][(idx)].squeeze())
+
+        data   = np.row_stack((np.array(dataSD).squeeze(), data))
+        angles = np.concatenate((anglesSD, angles))
+
+        return data, angles
 
 
 
@@ -368,7 +405,7 @@ class IN16B_QENS:
 
             detRanges = xmlData.getPSDValues()
 
-            out = np.zeros(data.shape[0], data.shape[2])
+            out = np.zeros((data.shape[0], data.shape[2]))
             for detId, vals in enumerate(detRanges):
                 out[detId] = data[detId, vals[0]:vals[1]].sum(0)
 

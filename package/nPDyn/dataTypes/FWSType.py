@@ -60,10 +60,12 @@ class FWSType(BaseType):
         self.rawData    = self.data._replace(
             qVals       = np.copy(self.data.qVals),
             X           = np.copy(self.data.X),
+            Y           = np.copy(self.data.Y),
             intensities = np.copy(self.data.intensities),
             errors      = np.copy(self.data.errors),
             temp        = np.copy(self.data.temp),
             norm        = False,
+            time        = np.copy(self.data.time),
             qIdx        = np.copy(self.data.qIdx))
 
 
@@ -94,6 +96,27 @@ class FWSType(BaseType):
             errors      = (self.data.errors
                            / normFList[np.newaxis, :, np.newaxis]),
             norm        = True)
+
+
+
+    def normalize_usingLowTemp(self, nbrBins):
+        """ Normalizes data using low temperature signal.
+            An average is performed over the given
+            number of bins for each q value and data
+            are divided by the result.
+
+        """
+
+        normFList = np.mean(
+            self.data.intensities[:, :nbrBins], axis=1)[:, np.newaxis]
+
+        self.data = self.data._replace(
+            intensities = self.data.intensities / normFList,
+            errors      = self.data.errors / normFList,
+            norm        = True)
+
+        self._normFList = normFList
+
 
 
 

@@ -255,8 +255,7 @@ class D2OPlot(QWidget):
             ax[idx].plot(dataset.data.X,
                          dataset.model(dataset.getParams(qValIdx),
                                        dataset,
-                                       qIdx=qValIdx,
-                                       returnCost=False),
+                                       qIdx=qValIdx),
                          label='Model',
                          zorder=4)
 

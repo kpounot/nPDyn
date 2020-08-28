@@ -29,7 +29,7 @@ def convert(datafile, FWS=None):
 
     datafile = datafile
 
-    qData = namedtuple('qData', 'qVals X intensities '
+    qData = namedtuple('qData', 'qVals X Y intensities '
                                 'errors temp norm qIdx')
 
     with open(datafile, 'r') as fileinput:
@@ -48,6 +48,7 @@ def convert(datafile, FWS=None):
     qVals       = []
     intensities = []
     X           = []
+    Y           = []
     errors      = []
     for i, value in enumerate(indexList):
         if i < len(indexList) - 1:  # While we're not at the last angle entries
@@ -81,7 +82,7 @@ def convert(datafile, FWS=None):
     np.place(errors, intensities / errors < 0.1, np.inf)
 
     # Creating the named tuple (no temp with .inx)
-    dataSet = qData(qVals, X, intensities, errors,
+    dataSet = qData(qVals, X, Y, intensities, errors,
                     None, False, np.arange(qVals.size))
 
     return dataSet

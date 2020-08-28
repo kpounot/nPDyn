@@ -5,6 +5,8 @@ Classes
 
 """
 
+from collections import namedtuple
+
 import numpy as np
 
 from nPDyn.dataTypes import *
@@ -14,8 +16,8 @@ from nPDyn.plot.plotMD_MSD import plotMSDSeries
 
 try:
     from NAMDAnalyzer.Dataset import Dataset as MDDataset
-    from NAMDAnalyzer.dataAnalysis.BackscatteringDataConvert \
-        import BackScatData
+    from NAMDAnalyzer.dataAnalysis.IncoherentScat \
+        import IncoherentScat
 except ImportError:
     class MDDataset:
         pass
@@ -27,7 +29,7 @@ except ImportError:
           "MD simulations related methods won't work.\n")
 
 
-class MDData(MDDataset, BackScatData):
+class MDData(MDDataset, IncoherentScat):
     """ This class wraps the NAMDAnalyzer Dataset class.
         It's initialized with the __init__ method of the class and
         the given file list.
@@ -45,7 +47,7 @@ class MDData(MDDataset, BackScatData):
     def __init__(self, expData, fileList):
 
         MDDataset.__init__(self, fileList)
-        BackScatData.__init__(self, self)
+        IncoherentScat.__init__(self, self)
 
         self.expData = expData
         self.msdSeriesList = []
@@ -101,7 +103,7 @@ class MDData(MDDataset, BackScatData):
         """
 
         qIdx  = self.expData.datasetList[datasetIdx].data.qIdx
-        qVals = self.expData.datasetList[datasetIdx].data.qVals[qIdx]
+        qVals = self.expData.datasetList[datasetIdx].data.qVals
 
         tempDataSeries  = []
 
@@ -120,7 +122,7 @@ class MDData(MDDataset, BackScatData):
             tempDataSeries.append(self.convertScatFunctoEISF().real)
 
         intensities = np.array(tempDataSeries).T
-        errors      = 1e-6 * np.ones_like(intensities)
+        errors      = 1e-2 * np.sqrt(intensities)
 
         dataTuple = self.MDDataT(qVals, np.array(tempList).astype('f'),
                                  intensities, errors, 0, False,
@@ -182,7 +184,7 @@ class MDData(MDDataset, BackScatData):
 
 
         qIdx  = self.expData.datasetList[datasetIdx].data.qIdx
-        qVals = self.expData.datasetList[datasetIdx].data.qVals[qIdx]
+        qVals = self.expData.datasetList[datasetIdx].data.qVals
 
         # Defining some defaults arguments
         kwargs = {'qValList': qVals}
@@ -196,7 +198,7 @@ class MDData(MDDataset, BackScatData):
         self.compScatteringFunc(**kwargs)
 
         scatF = self.scatFunc
-        errors = np.zeros_like(scatF[0])
+        errors = 1e-3 * np.sqrt(scatF[0])
         MDDataT = self.MDDataT(qVals, scatF[1], scatF[0], errors,
                                0, False, np.arange(qVals.size))
 

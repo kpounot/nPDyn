@@ -1,3 +1,5 @@
+import numpy as np
+
 from scipy.optimize import curve_fit
 
 from nPDyn.dataTypes.TempRampType import DataTypeDecorator
@@ -34,22 +36,17 @@ class Model(DataTypeDecorator):
 
         self.model      = models.q4_corrected_gaussian
         self.params     = None
-        self.paramsNames = ["MSD", "sigma", "scaleF"]  # For plotting purpose
-
-
-        self.defaultBounds = (0., [6., 10., 10000.])
+        self.paramsNames = ["MSD", "sigma", "shift"]
 
 
 
 
-    def fit(self, p0=None, bounds=None):
+
+    def fit(self, p0=None, bounds=None, kwargs={}):
         """ Fitting procedure that makes use of Scipy *curve_fit*. """
 
         if not bounds:
-            bounds = self.defaultBounds
-
-        if not p0:
-            p0 = [0.0, 0.5, 1]
+            bounds = (-np.inf, np.inf)
 
         qIdxList = self.data.qIdx
 
@@ -64,7 +61,8 @@ class Model(DataTypeDecorator):
                                     self.data.intensities[qIdxList, idx],
                                     p0=p0,
                                     bounds=bounds,
-                                    sigma=self.data.errors[qIdxList, idx]))
+                                    sigma=self.data.errors[qIdxList, idx],
+                                    **kwargs))
 
 
 

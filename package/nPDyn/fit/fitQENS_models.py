@@ -417,8 +417,8 @@ def protein_liquid_analytic_voigt(params, dataset, D2OSignal=None,
         conv_G_resG0 = (g0 + resG0) / (np.pi * (X**2 + (g0 + resG0)**2))
         conv_G_resG1 = wofz((X + 1j * g0) / (resG1 * np.sqrt(2))).real
         conv_G_resG1 /= (resG1 * np.sqrt(2 * np.pi))
-        conv_I_resG0 = (g0 + g1 + resG0)
-        conv_I_resG0 /= (np.pi * (X**2 + (g0 + g1 + resG0)**2))
+        conv_I_resG0 = ((g0 + g1 + resG0)
+                        / (np.pi * (X**2 + (g0 + g1 + resG0)**2)))
         conv_I_resG1 = wofz((X + 1j * (g1 + g0)) / (resG1 * np.sqrt(2))).real
         conv_I_resG1 /= (resG1 * np.sqrt(2 * np.pi))
 
@@ -732,3 +732,189 @@ def protein_liquid_withImmobileFrac(params, dataset, D2OSignal=None,
 
     else:
         return model
+
+
+
+
+
+def protein_liquid_switchingDiff_internal(params, dataset, D2OSignal=None,
+                                          qIdx=None, returnCost=True,
+                                          scanIdx=slice(0, None),
+                                          returnSubCurves=False):
+    """ Fitting function for protein in liquid D2O environment.
+        This makes use of the switching diffusive states model
+        for the internal dynamics [#]_ .
+
+        This makes uses of an analytic expression for convolution with the
+        resolution function, therefore the resolution function used here 
+        should be a sum of two gaussians or pseudo-voigt implemented
+        in the package.
+
+        :arg params:          parameters for the model (described below),
+                              usually given by Scipy routines
+        :arg dataset:         dataset namedtuple containing x-axis values,
+                              intensities, errors,...
+        :arg D2OSignal:       D2O signal data as a 2D array with shape
+                              (nbr q-values, S(q, :math:`\\omega`))
+        :arg qIdx:            index of the current q-value
+                              if None, a global fit is performed over
+                              all q-values
+        :arg returnCost:      if True, return the standard deviation of the
+                              model to experimental data
+                              if False, return only the model
+        :arg scanIdx:         only for FWS (or QENS) data series, index of
+                              the scan being fitted
+        :arg returnSubCurves: if True, returns each individual component of
+                              the model after convolution
+
+
+        References:
+
+        .. [#] https://doi.org/10.1039/C4CP04944F
+
+    """
+
+
+    g0      = params[0]     # global diffusion linewidth
+    g1      = params[1]     # internal diffusion 1 linewidth
+    g2      = params[2]     # internal diffusion 2 linewidth
+    tau1    = params[3]     # residence time for g1
+    tau2    = params[4]     # residence time for g2
+    beta    = params[5]     # contribution factor of protein
+    a0      = params[6]     # contribution factor of EISF
+
+
+    if params.size != 7:
+        betaSlice   = dataset.get_betaSlice()
+        a0Slice     = dataset.get_a0Slice()
+        beta        = params[betaSlice][:, np.newaxis]
+        a0          = params[a0Slice][:, np.newaxis]
+
+
+    X = dataset.data.X
+    qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis]
+    resFunc = dataset.getResFunc()
+
+
+    if D2OSignal is None:
+        D2OSignal = dataset.getD2OSignal()
+
+
+    if qIdx is None:
+        g0 = qVals**2 * g0
+        g1 = qVals**2 * g1
+        g2 = qVals**2 * g2
+
+
+
+    # Computes the different components of the convolution
+    resG0 = np.array([dataset.resData.params[qIdx][0][2]
+                      for qIdx in dataset.data.qIdx])[:, np.newaxis]
+    resG1 = np.array([dataset.resData.params[qIdx][0][3]
+                      for qIdx in dataset.data.qIdx])[:, np.newaxis]
+    resS  = np.array([dataset.resData.params[qIdx][0][1]
+                      for qIdx in dataset.data.qIdx])[:, np.newaxis]
+
+    if isinstance(dataset.resData, resFunc_pseudoVoigt.Model):
+        conv_G_resG0 = (g0 + resG0) / (np.pi * (X**2 + (g0 + resG0)**2))
+        conv_G_resG1 = wofz((X + 1j * g0) / (resG1 * np.sqrt(2))).real
+        conv_G_resG1 /= (resG1 * np.sqrt(2 * np.pi))
+        conv_I1_resG0 = ((g0 + g1 + resG0)
+                         / (np.pi * (X**2 + (g0 + g1 + resG0)**2)))
+        conv_I1_resG1 = wofz((X + 1j * (g1 + g0)) / (resG1 * np.sqrt(2))).real
+        conv_I1_resG1 /= (resG1 * np.sqrt(2 * np.pi))
+        conv_I2_resG0 = ((g0 + g2 + resG0)
+                         / (np.pi * (X**2 + (g0 + g2 + resG0)**2)))
+        conv_I2_resG1 = wofz((X + 1j * (g2 + g0)) / (resG1 * np.sqrt(2))).real
+        conv_I2_resG1 /= (resG1 * np.sqrt(2 * np.pi))
+
+
+    elif isinstance(dataset.resData, resFunc_gaussian.Model):
+        conv_G_resG0 = wofz((X + 1j * g0) / (resG0 * np.sqrt(2))).real
+        conv_G_resG0 /= (resG0 * np.sqrt(2 * np.pi))
+        conv_G_resG1 = wofz((X + 1j * g0) / (resG1 * np.sqrt(2))).real
+        conv_G_resG1 /= (resG1 * np.sqrt(2 * np.pi))
+        conv_I1_resG0 = wofz((X + 1j * (g1 + g0)) / (resG0 * np.sqrt(2))).real
+        conv_I1_resG0 /= (resG0 * np.sqrt(2 * np.pi))
+        conv_I1_resG1 = wofz((X + 1j * (g1 + g0)) / (resG1 * np.sqrt(2))).real
+        conv_I1_resG1 /= (resG1 * np.sqrt(2 * np.pi))
+        conv_I2_resG0 = wofz((X + 1j * (g2 + g0)) / (resG0 * np.sqrt(2))).real
+        conv_I2_resG0 /= (resG0 * np.sqrt(2 * np.pi))
+        conv_I2_resG1 = wofz((X + 1j * (g2 + g0)) / (resG1 * np.sqrt(2))).real
+        conv_I2_resG1 /= (resG1 * np.sqrt(2 * np.pi))
+
+    else:
+        print("The resolution function model used is not \
+               supported by this model.\n \
+               Please use either resFunc_pseudoVoigt or \
+               resFunc_gaussian.\n")
+        return
+
+    # Computes the dynamic structure factor for the two Lorentzian
+    # describing the internal dynamics
+    bigLambda = ((g1 - g2 
+                + 1 / tau1 - 1 / tau2)**2
+                + 4 / (tau1 * tau2))
+
+    lambda1 = ((1/2) * (g1 + 1 / tau1
+                       + g2 + 1 / tau2 + bigLambda))
+
+    lambda2 = ((1/2) * (g1 + 1 / tau1
+                       + g2 + 1 / tau2 - bigLambda))
+
+
+    alpha = ((1 / (lambda2 - lambda1)) 
+            * tau1 * (g2 + 1 / tau1 
+                     + 1 / tau2 - lambda1) 
+             / (tau1 + tau2))
+
+    alpha += ((1 / (lambda2 - lambda1)) 
+              * tau2 * (g1 + 1 / tau1 
+                       + 1 / tau2 - lambda1) 
+              / (tau1 + tau2))
+
+
+    
+    gLor  = beta * a0 * (resS * conv_G_resG0 + (1 - resS) * conv_G_resG1)
+    iLor1 = resS * conv_I1_resG0 + (1 - resS) * conv_I1_resG1
+    iLor1 *= beta * (1 - a0) * alpha 
+    iLor2 = resS * conv_I2_resG0 + (1 - resS) * conv_I2_resG1
+    iLor2 *= beta * (1 - a0) * (1 - alpha) 
+
+
+
+
+    model = gLor + iLor1 + iLor2 + D2OSignal
+
+
+    cost = np.sum(
+        (dataset.data.intensities[scanIdx][dataset.data.qIdx] - model)**2
+        / dataset.data.errors[scanIdx][dataset.data.qIdx]**2, axis=1)
+
+
+    if qIdx is not None:
+        cost    = cost[qIdx]
+        model   = model[qIdx]
+    else:
+        cost = np.sum(cost)
+
+
+
+    if returnCost:
+        return cost
+
+    elif returnSubCurves:
+        res   = resFunc
+        gLor  = beta * a0 * (resS * conv_G_resG0 + (1 - resS) * conv_G_resG1)
+        iLor1 = beta * (1 - a0) * alpha 
+        iLor1 *= (resS * conv_I1_resG0 + (1 - resS) * conv_I1_resG1)
+        iLor2 = beta * (1 - a0) * (1 - alpha) 
+        iLor2 *= (resS * conv_I2_resG0 + (1 - resS) * conv_I2_resG1)
+
+        return res, gLor, iLor1, iLor2
+
+    else:
+        return model
+
+
+

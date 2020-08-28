@@ -50,7 +50,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
     # Fixed window scan processing
     if FWS is True:
         FWSData = namedtuple('FWSData', 'qVals X Y intensities '
-                                        'errors temp norm qIdx')
+                                        'errors temp norm qIdx time')
 
         interp = False
 
@@ -63,9 +63,16 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
         wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'][()]
 
-        twoThetaList = h5File['mantid_workspace_1/workspace/axis2'][()]
-        listQ = np.array(4 * np.pi / wavelength
-                         * np.sin(np.pi  * twoThetaList / 360))
+        time  = h5File['mantid_workspace_1/logs/start_time/value'][()]
+
+        listQ = h5File['mantid_workspace_1/workspace/axis2'][()]
+
+        if listQ[0] > 10:  # converts to q
+            listQ = np.array(4 * np.pi / wavelength
+                             * np.sin(np.pi * listQ / 360))
+        if listQ[0] < 0.05:  # converts to q
+            listQ = np.array(4 * np.pi / wavelength
+                             * np.sin(np.pi * listQ))
 
         dataList = []  # Stores the full dataset for a given data file
 
@@ -93,7 +100,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
         # Converts intensities and errors to numpy and array and transpose
         # to get (# frames, # qVals, # energies) shaped array
-        listY   = np.array(listY) / 3600
+        listY   = np.array(listY) 
         listI   = np.array(listI).T
         listErr = np.array(listErr).T
         deltaE  = np.array(deltaE)[:, 0]
@@ -106,7 +113,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
 
         dataList = FWSData(listQ, deltaE, listY, listI, listErr,
-                           temp, False, np.arange(listQ.size))
+                           temp, False, np.arange(listQ.size), time)
 
         return dataList
 
@@ -122,9 +129,14 @@ def processData(dataFile, FWS=False, averageTemp=True):
         temp        = np.mean(h5File[
             'mantid_workspace_1/logs/sample.temperature/value'][()])
 
-        twoThetaList = h5File['mantid_workspace_1/workspace/axis2'][()]
-        listQ = np.array(4 * np.pi / wavelength
-                         * np.sin(np.pi  * twoThetaList / 360))
+        listQ = h5File['mantid_workspace_1/workspace/axis2'][()]
+
+        if listQ[0] > 10:  # converts to q
+            listQ = np.array(4 * np.pi / wavelength
+                             * np.sin(np.pi * listQ / 360))
+        if listQ[0] < 0.05:  # converts to q
+            listQ = np.array(4 * np.pi / wavelength
+                             * np.sin(np.pi * listQ))
 
         listE = h5File['mantid_workspace_1/workspace/axis1'][()][:-1] * 1e3
 

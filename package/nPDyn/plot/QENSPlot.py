@@ -292,27 +292,36 @@ class QENSPlot(QWidget):
 
         for dIdx, dataset in enumerate(self.dataset):
             # Get parameters for each q-value
-            paramsList = np.array([dataset.getWeights_and_lorWidths(idx)
-                                   for idx in qIds])
+            weights   = []
+            lorWidths = []
+            labels    = []
+            for idx in qIds:
+                params = dataset.getWeights_and_lorWidths(idx)
+                weights.append(params[0].astype(float))
+                lorWidths.append(params[1].astype(float))
+                labels = params[2]
 
-            # Extracts labels
-            labels = paramsList[0, -1]
+            weights = np.row_stack(weights)
+            lorWidths = np.row_stack(lorWidths)
 
-            # Extracts parameters values
-            paramsList = paramsList[:, :-1].astype(float)
 
             if self.errBox.isChecked():  # Whether or not using error bars
-                errList = np.array(
-                    [dataset.getWeights_and_lorErrors(idx) for idx in qIds])
-            else:
-                errList = np.zeros_like(paramsList)
+                for idx in qIds:
+                    params = dataset.getWeights_and_lorErrors(idx)
+                    weightErr.append(params[0].astype(float))
+                    lorWidthErr.append(params[1].astype(float))
 
+                weightErr = np.row_stack(weightErr)
+                lorWidthErr = np.row_stack(lorWidthErr)
+            else:
+                weightErr   = np.zeros((qVals.size, weights[0].size))
+                lorWidthErr = np.zeros((qVals.size, lorWidths[0].size))
 
 
             for idx, row in enumerate(ax):
                 row[0].errorbar(qVals,
-                                paramsList[:, 0, idx],
-                                errList[:, 0, idx],
+                                weights[:, idx],
+                                weightErr[:, idx],
                                 marker='o',
                                 label=dataset.fileName)
                 row[0].set_ylabel('Weight - %s' % labels[idx])
@@ -320,8 +329,8 @@ class QENSPlot(QWidget):
                 row[0].set_ylim(0, 1)
 
                 row[1].errorbar(qVals,
-                                paramsList[:, 1, idx],
-                                errList[:, 1, idx],
+                                lorWidths[:, idx],
+                                lorWidthErr[:, idx],
                                 marker='o',
                                 label=dataset.fileName)
                 row[1].set_ylabel('Width - %s' % labels[idx])
@@ -355,10 +364,16 @@ class QENSPlot(QWidget):
         # integrated curves at low temperature
         for idx, dataset in enumerate(self.dataset):
             # Plot the experimental data
+            if self.errBox.isChecked():
+                errors = dataset.data.errors[dataset.data.qIdx][qValIdx]
+            else:
+                errors = np.zeros_like(
+                    dataset.data.intensities[dataset.data.qIdx][qValIdx])
+
             ax[idx].errorbar(
                 dataset.data.X,
                 dataset.data.intensities[dataset.data.qIdx][qValIdx],
-                dataset.data.errors[dataset.data.qIdx][qValIdx],
+                errors,
                 label='Experimental',
                 fmt='o',
                 zorder=1)

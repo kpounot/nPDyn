@@ -52,7 +52,7 @@ class Model(DataTypeDecorator):
         result = []
         for qIdx, qVal in enumerate(self.data.qVals):
             result.append(optimize.curve_fit(
-                lambda x, *p0: self.model(p0, self, qIdx, False),
+                lambda x, *p0: self.model(p0, self, qIdx),
                 self.data.X,
                 self.data.intensities[qIdx],
                 sigma=self.data.errors[qIdx],
@@ -72,7 +72,7 @@ class Model(DataTypeDecorator):
 
 
 
-    def getD2OSignal(self, qIdx=None):
+    def getD2OSignal(self, energies=None):
         """ Computes D2O line shape for each q values.
 
             If a qIdx is given, returns D2O signal only
@@ -80,9 +80,20 @@ class Model(DataTypeDecorator):
 
         """
 
-        D2OSignal = np.array([
-            self.model(self.params[idx][0], self, idx, False)
-            for idx in self.data.qIdx])
+        if energies is None:
+            D2OSignal = np.array([
+                self.model(self.params[idx][0], self, idx)
+                for idx in self.data.qIdx])
+        else:
+            tmpE = self.data.X
+            self.data = self.data._replace(X = energies)
+
+            D2OSignal = np.array([
+                self.model(self.params[idx][0], self, idx)
+                for idx in self.data.qIdx])
+            
+            self.data = self.data._replace(X = tmpE)
+
 
         D2OSignal *= self.volFraction
 
@@ -111,7 +122,7 @@ class Model(DataTypeDecorator):
 # -------------------------------------------------
 # model
 # -------------------------------------------------
-def model(params, dataset, qIdx=None, returnCost=True):
+def model(params, dataset, qIdx=None):
     """ This class can be used to fit data from D2O - q-wise or
         globally - using a single lorentzian and D2O data from IN6 at the ILL.
 
@@ -131,7 +142,8 @@ def model(params, dataset, qIdx=None, returnCost=True):
     a0 = params[0]  # contribution factor of lorentzian
 
 
-    X = dataset.data.X
+    X = dataset.data.X 
+
     # Reshape to a column vector
     qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis]
     resFunc = dataset.getResFunc()
@@ -156,19 +168,7 @@ def model(params, dataset, qIdx=None, returnCost=True):
             model[idx], resFunc[idx], mode='same') + resBkgd[idx]
 
 
-    cost = np.sum((1 + np.log((
-        dataset.data.intensities[dataset.data.qIdx] - model)**2))
-        / dataset.data.errors[dataset.data.qIdx]**2, axis=1)
-
-
     if qIdx is not None:
-        cost    = cost[qIdx]
         model   = model[qIdx]
-    else:
-        cost = np.sum(cost)
 
-
-    if returnCost:
-        return cost
-    else:
-        return model
+    return model

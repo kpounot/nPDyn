@@ -125,7 +125,8 @@ class BaseType:
                 errors      = np.copy(self.data.errors),
                 temp        = np.copy(self.data.temp),
                 norm        = False,
-                qIdx        = np.copy(self.data.qIdx))
+                qIdx        = np.copy(self.data.qIdx),
+                time        = np.copy(self.data.time))
 
 
 
@@ -318,7 +319,8 @@ class BaseType:
 
         """
 
-        D2OSignal = self.D2OData.getD2OSignal()[self.data.qIdx]
+        D2OSignal = self.D2OData.getD2OSignal(
+                energies=self.data.X)[self.data.qIdx]
 
 
         # Check for difference in normalization state

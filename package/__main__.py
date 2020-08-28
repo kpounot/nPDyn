@@ -1,7 +1,6 @@
 import sys
 import argparse
 
-from PyQt5.QtWidgets import QApplication 
 
 from nPDyn.Dataset import Dataset
 from nPDyn.dataTypes.models import *
