@@ -320,7 +320,7 @@ class BaseType:
         """
 
         D2OSignal = self.D2OData.getD2OSignal(
-                energies=self.data.X)[self.data.qIdx]
+            energies=self.data.X)[self.data.qIdx]
 
 
         # Check for difference in normalization state

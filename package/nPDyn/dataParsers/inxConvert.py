@@ -82,7 +82,8 @@ def convert(datafile, FWS=None):
     np.place(errors, intensities / errors < 0.1, np.inf)
 
     # Creating the named tuple (no temp with .inx)
-    dataSet = qData(qVals, X, Y, intensities, errors,
+    dataSet = qData(qVals, X, Y, intensities[np.newaxis, :, :],
+                    errors[np.newaxis, :, :],
                     None, False, np.arange(qVals.size))
 
     return dataSet

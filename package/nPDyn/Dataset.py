@@ -837,7 +837,7 @@ class Dataset:
 
 
 
-    def fitData(self, *fileIdxList, p0=None, bounds=None, 
+    def fitData(self, *fileIdxList, p0=None, bounds=None,
                 qWise=False, kwargs={}):
         """ Helper function to quickly call fit method in all class instances
             present in self.datasetList for the given indices in fileIdxList.

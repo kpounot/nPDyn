@@ -50,7 +50,7 @@ class Model(DataTypeDecorator):
                                     Y,
                                     p0=p0,
                                     bounds=bounds,
-                                    sigma=self.data.errors[qIdxList, idx], 
+                                    sigma=self.data.errors[qIdxList, idx],
                                     **kwargs))
 
 

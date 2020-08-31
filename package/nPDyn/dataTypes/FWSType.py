@@ -108,7 +108,7 @@ class FWSType(BaseType):
         """
 
         normFList = np.mean(
-            self.data.intensities[:, :nbrBins], axis=1)[:, np.newaxis]
+            self.data.intensities[:nbrBins, :, :], axis=0)[np.newaxis, :, :]
 
         self.data = self.data._replace(
             intensities = self.data.intensities / normFList,

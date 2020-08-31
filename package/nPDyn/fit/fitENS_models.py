@@ -6,19 +6,19 @@ def gaussian(x, msd, shift):
         It makes use of simple gaussian approximation.
 
         :arg msd:    mean-squared displacement
-        :arg shift:  shift from 0 in abscissa 
+        :arg shift:  shift from 0 in abscissa
 
     """
 
-    return  (np.sqrt(6 / (np.pi * msd))
-            *np.exp(-(1 / 6) * (x - shift)**2 * msd))
+    return (np.sqrt(6 / (np.pi * msd))
+            * np.exp(-(1 / 6) * (x - shift)**2 * msd))
 
 
 
 def linearMSD(x, msd, y0):
     """ This function can be used to fit elastic data to
         exctract the msd.
-        
+
         The elastic data are assumed to have been linearized.
 
         :arg msd:   mean-square displacement
@@ -37,7 +37,7 @@ def q4_corrected_gaussian(x, msd, sigma, shift):
 
         :arg msd:    mean-squared displacement
         :arg sigma:  extra correction term for q**4 contribution
-        :arg shift:  shift from 0 in abscissa 
+        :arg shift:  shift from 0 in abscissa
 
     """
 
@@ -57,7 +57,7 @@ def gamma(x, msd, beta, shift):
         :arg msd:    mean-squared displacement
         :arg beta:   beta parameter that represents motion
                      homogeneity in the sample
-        :arg shift:  shift from 0 in abscissa 
+        :arg shift:  shift from 0 in abscissa
 
     """
 
