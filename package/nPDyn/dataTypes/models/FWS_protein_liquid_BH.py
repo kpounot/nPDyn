@@ -50,7 +50,7 @@ class Model(DataTypeDecorator):
 
 
 
-    def fit(self, p0=None, bounds=None):
+    def fit(self, p0=None, bounds=None, kwargs={}):
         """ Global fit making use of Scipy basinhopping routine. """
 
         print("\nStarting basinhopping fitting for file: %s"
@@ -88,7 +88,8 @@ class Model(DataTypeDecorator):
                 disp=self.disp,
                 minimizer_kwargs={
                     'args': (self, D2OSignal, None, True, tIdx),
-                    'bounds': bounds})
+                    'bounds': bounds},
+                **kwargs)
 
 
 
@@ -109,7 +110,7 @@ class Model(DataTypeDecorator):
 
 
 
-    def qWiseFit(self, p0=None, bounds=None):
+    def qWiseFit(self, p0=None, bounds=None, kwargs={}):
         """ q-wise fit making use of Scipy basinhopping routine. """
 
         print("\nStarting basinhopping fitting for file: %s\n"
@@ -146,7 +147,8 @@ class Model(DataTypeDecorator):
                     disp=self.disp,
                     minimizer_kwargs={
                         'args': (self, D2OSignal, i, True, tIdx),
-                        'bounds': bounds}))
+                        'bounds': bounds},
+                    **kwargs))
 
 
                 r  = ("\nFinal result for scan %i and q-value %i:\n"

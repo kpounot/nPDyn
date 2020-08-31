@@ -48,7 +48,7 @@ class Model(DataTypeDecorator):
                                     self.data.intensities[qIdxList, idx],
                                     p0=p0,
                                     bounds=bounds,
-                                    sigma=self.data.errors[qIdxList, idx], 
+                                    sigma=self.data.errors[qIdxList, idx],
                                     **kwargs))
 
 

@@ -56,7 +56,7 @@ class TempRampType(BaseType):
 
         # Switch X and Y for data from Mantid Workspace and squeeze
         if len(data.Y) > 0:
-            data = data._replace(X=data.Y.squeeze(), 
+            data = data._replace(X=data.Y.squeeze(),
                                  Y=data.X,
                                  intensities=data.intensities.squeeze().T,
                                  errors=data.intensities.squeeze().T)
@@ -96,8 +96,8 @@ class TempRampType(BaseType):
         X = self.data.temp[0]
         intensities = self.data.intensities.squeeze().T
         errors = self.data.errors.squeeze().T
-        self.data = self.data._replace(X=X, 
-                                       intensities=intensities, 
+        self.data = self.data._replace(X=X,
+                                       intensities=intensities,
                                        errors=errors)
 
         self.rawData = self.data._replace(

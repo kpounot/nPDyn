@@ -21,7 +21,7 @@ try:
 except ImportError:
     class MDDataset:
         pass
-    class BackScatData:
+    class IncoherentScat:
         pass
 
     print("\nNAMDAnalyzer (github.com/kpounot/NAMDAnalyzer) was "

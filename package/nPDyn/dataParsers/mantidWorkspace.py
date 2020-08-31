@@ -100,7 +100,7 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
         # Converts intensities and errors to numpy and array and transpose
         # to get (# frames, # qVals, # energies) shaped array
-        listY   = np.array(listY) 
+        listY   = np.array(listY)
         listI   = np.array(listI).T
         listErr = np.array(listErr).T
         deltaE  = np.array(deltaE)[:, 0]

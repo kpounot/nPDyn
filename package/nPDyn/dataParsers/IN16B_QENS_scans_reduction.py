@@ -223,7 +223,7 @@ class IN16B_QENS:
         dataSD   = []
         anglesSD = []
 
-        keysSD = ['SD1 angle', 'SD2 angle', 'SD3 angle', 'SD4 angle', 
+        keysSD = ['SD1 angle', 'SD2 angle', 'SD3 angle', 'SD4 angle',
                   'SD5 angle', 'SD6 angle', 'SD7 angle', 'SD8 angle']
 
         for idx, key in enumerate(keysSD):

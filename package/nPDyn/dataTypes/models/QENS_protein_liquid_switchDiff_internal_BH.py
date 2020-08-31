@@ -20,8 +20,8 @@ class Model(DataTypeDecorator):
             S(q, \\omega) = R(q, \\omega ) \\otimes \\left[ \\beta ( a_{0}
                             \\mathcal{L}_{\\gamma }
                             + (1 - a_{0}) [
-                                \\alpha \\mathcal{L}_{\\lambda_1 + \\gamma} 
-                                + (1 - \\alpha ) 
+                                \\alpha \\mathcal{L}_{\\lambda_1 + \\gamma}
+                                + (1 - \\alpha )
                                 \\mathcal{L}_{\\lambda_2 + \\gamma}
                             \\right]
                             + \\beta_{D_{2}O} \\mathcal{L}_{D_{2}O}
@@ -29,10 +29,10 @@ class Model(DataTypeDecorator):
         where, R is the resolution function, q is the scattering angle,
         :math:`\\omega` the energy offset,
         :math:`\\mathcal{L}_{\\gamma}` is a single Lorentzian accounting
-        for global diffusion motions, :math:`\\alpha` and 
-        :math:`\\mathcal{L}_{\\lamba_{1,2}}` are respectively the dynamic 
+        for global diffusion motions, :math:`\\alpha` and
+        :math:`\\mathcal{L}_{\\lamba_{1,2}}` are respectively the dynamic
         sturcture factor and the Lorentzian given by the switching diffusive
-        states model for two states of internal dynamics [#]_ , 
+        states model for two states of internal dynamics [#]_ ,
         :math:`\\mathcal{L}_{D_{2}O}` is the
         :math:`D_{2}O` lineshape, :math:`a_{0}` acts as an EISF,
         and :math:`\\beta` and :math:`\\beta_{D_{2}O}` are scalars.
@@ -51,7 +51,7 @@ class Model(DataTypeDecorator):
         self.model      = model
         self.params     = None
         self.paramsNames = ['$D_s$', '$D_{i,1}$', '$D_{i,2}$',
-                            '$\\tau_1$', '$\\tau_2$','$\\beta$', '$a_0$']
+                            '$\\tau_1$', '$\\tau_2$', '$\\beta$', '$a_0$']
         self.BH_iter    = 20
         self.disp       = True
 
@@ -219,25 +219,25 @@ class Model(DataTypeDecorator):
 
         lorWidths  = self.params[qIdx].x[0:3]
 
-        bigLambda = ((lorWidths[0] - lorWidths[1] 
+        bigLambda = ((lorWidths[0] - lorWidths[1]
                      + 1 / weights[0] - 1 / weights[1])**2
                      + 4 / (weights[0] * weights[1]))
 
-        lambda1 = ((1/2) * (lorWidths[0] + 1 / weights[0]
-                            + lorWidths[1] + 1 / weights[1] + bigLambda))
+        lambda1 = ((1 / 2) * (lorWidths[0] + 1 / weights[0]
+                   + lorWidths[1] + 1 / weights[1] + bigLambda))
 
-        lambda2 = ((1/2) * (lorWidths[0] + 1 / weights[0]
-                            + lorWidths[1] + 1 / weights[1] - bigLambda))
+        lambda2 = ((1 / 2) * (lorWidths[0] + 1 / weights[0]
+                   + lorWidths[1] + 1 / weights[1] - bigLambda))
 
 
-        alpha = ((1 / (lambda2 - lambda1)) 
-                 * weights[0] * (lorWidths[1] + 1 / weights[0] 
-                                 + 1 / weights[1] - lambda1) 
+        alpha = ((1 / (lambda2 - lambda1))
+                 * weights[0] * (lorWidths[1] + 1 / weights[0]
+                 + 1 / weights[1] - lambda1)
                  / (weights[0] + weights[1]))
 
-        alpha += ((1 / (lambda2 - lambda1)) 
-                  * weights[1] * (lorWidths[0] + 1 / weights[0] 
-                                 + 1 / weights[1] - lambda1) 
+        alpha += ((1 / (lambda2 - lambda1))
+                  * weights[1] * (lorWidths[0] + 1 / weights[0]
+                  + 1 / weights[1] - lambda1)
                   / (weights[0] + weights[1]))
 
         weights[0] = alpha

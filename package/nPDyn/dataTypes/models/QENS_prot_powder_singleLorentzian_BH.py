@@ -47,7 +47,7 @@ class Model(DataTypeDecorator):
         self.globalFit      = False
 
 
-    def fit(self, p0=None, bounds=None):
+    def fit(self, p0=None, bounds=None, kwargs={}):
         """ Global fit """
 
         print("\nStarting basinhopping fitting for file: %s"
@@ -71,7 +71,8 @@ class Model(DataTypeDecorator):
                                        interval=5,
                                        disp=self.disp,
                                        minimizer_kwargs={'args': (self,),
-                                                         'bounds': bounds})
+                                                         'bounds': bounds},
+                                       **kwargs)
 
 
 
@@ -87,7 +88,7 @@ class Model(DataTypeDecorator):
 
 
 
-    def qWiseFit(self, p0=None, bounds=(-np.inf, np.inf)):
+    def qWiseFit(self, p0=None, bounds=(-np.inf, np.inf), kwargs={}):
         """ q-wise fit """
 
         print("\nStarting basinhopping fitting for file: %s\n"
@@ -111,7 +112,8 @@ class Model(DataTypeDecorator):
                 niter_success = 0.5 * self.BH_iter,
                 disp=self.disp,
                 minimizer_kwargs={'args': (self, i),
-                                  'bounds': bounds}))
+                                  'bounds': bounds},
+                **kwargs))
 
 
         self.params = result

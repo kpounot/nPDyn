@@ -304,6 +304,8 @@ class QENSPlot(QWidget):
             weights = np.row_stack(weights)
             lorWidths = np.row_stack(lorWidths)
 
+            weightErr   = np.zeros((qVals.size, weights[0].size))
+            lorWidthErr = np.zeros((qVals.size, lorWidths[0].size))
 
             if self.errBox.isChecked():  # Whether or not using error bars
                 for idx in qIds:
@@ -313,9 +315,6 @@ class QENSPlot(QWidget):
 
                 weightErr = np.row_stack(weightErr)
                 lorWidthErr = np.row_stack(lorWidthErr)
-            else:
-                weightErr   = np.zeros((qVals.size, weights[0].size))
-                lorWidthErr = np.zeros((qVals.size, lorWidths[0].size))
 
 
             for idx, row in enumerate(ax):

@@ -91,7 +91,7 @@ class Model(DataTypeDecorator):
             D2OSignal = np.array([
                 self.model(self.params[idx][0], self, idx)
                 for idx in self.data.qIdx])
-            
+
             self.data = self.data._replace(X = tmpE)
 
 
@@ -142,7 +142,7 @@ def model(params, dataset, qIdx=None):
     a0 = params[0]  # contribution factor of lorentzian
 
 
-    X = dataset.data.X 
+    X = dataset.data.X
 
     # Reshape to a column vector
     qVals = dataset.data.qVals[dataset.data.qIdx, np.newaxis]

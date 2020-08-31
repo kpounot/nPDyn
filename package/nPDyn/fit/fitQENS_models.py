@@ -6,7 +6,8 @@ from nPDyn.dataTypes.models import resFunc_gaussian, resFunc_pseudoVoigt
 
 
 def protein_powder_2Lorentzians(params, dataset, qIdx=None,
-                                returnCost=True, returnSubCurves=False):
+                                returnCost=True, returnSubCurves=False,
+                                scanIdx=slice(0, None)):
     """ This class can be used to fit data from powder protein samples
         - q-wise or globally - using two Lorentzians.
 
@@ -22,6 +23,8 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None,
                               if False, return only the model
         :arg returnSubCurves: if True, returns each individual component
                               of the model after convolution
+        :arg scanIdx:         only for FWS or QENS data series, index of
+                              the scan being fitted
 
     """
 
@@ -85,8 +88,9 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None,
     # convolutions and background
     model = np.exp(-qVals**2 * msd / 3) * (s0 * resFunc + lor1 + lor2) + bkgd
 
-    cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2
-                  / dataset.data.errors[dataset.data.qIdx]**2, axis=1)
+    cost = np.sum((
+        dataset.data.intensities[scanIdx][dataset.data.qIdx] - model)**2
+        / dataset.data.errors[scanIdx][dataset.data.qIdx]**2, axis=1)
 
 
     if qIdx is not None:
@@ -111,7 +115,8 @@ def protein_powder_2Lorentzians(params, dataset, qIdx=None,
 
 
 def protein_powder_1Lorentzian(params, dataset, qIdx=None,
-                               returnCost=True, returnSubCurves=False):
+                               returnCost=True, returnSubCurves=False,
+                               scanIdx=slice(0, None)):
     """ This class can be used to fit data from powder protein
         samples - q-wise or globally - using one Lorentzian.
 
@@ -126,6 +131,8 @@ def protein_powder_1Lorentzian(params, dataset, qIdx=None,
                               if False, return only the model
         :arg returnSubCurves: if True, returns each individual component of
                               the model after convolution
+        :arg scanIdx:         only for FWS or QENS data series, index of
+                              the scan being fitted
 
     """
 
@@ -175,8 +182,9 @@ def protein_powder_1Lorentzian(params, dataset, qIdx=None,
     # Final model, with Debye-Waller factor, EISF, convolutions and background
     model = np.exp(-qVals**2 * msd / 3) * (s0 * resFunc + lor1)  + bkgd
 
-    cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2
-                  / dataset.data.errors[dataset.data.qIdx]**2, axis=1)
+    cost = np.sum((
+        dataset.data.intensities[scanIdx][dataset.data.qIdx] - model)**2
+        / dataset.data.errors[scanIdx][dataset.data.qIdx]**2, axis=1)
 
 
     if qIdx is not None:
@@ -205,7 +213,7 @@ def protein_powder_1Lorentzian(params, dataset, qIdx=None,
 
 
 def water_powder(params, dataset, qIdx=None, returnCost=True,
-                 returnSubCurves=False):
+                 returnSubCurves=False, scanIdx=slice(0, None)):
     """ This class can be used to fit data from powder protein
         samples - q-wise or globally - focusing on water dynamics.
         Signal is decomposed in its rotational and translational motions
@@ -223,6 +231,8 @@ def water_powder(params, dataset, qIdx=None, returnCost=True,
                               if False, return only the model
         :arg returnSubCurves: if True, returns each individual component of
                               the model after convolution
+        :arg scanIdx:         only for FWS or QENS data series, index of
+                              the scan being fitted
 
     """
 
@@ -316,8 +326,9 @@ def water_powder(params, dataset, qIdx=None, returnCost=True,
 
     model += bkgd
 
-    cost = np.sum((dataset.data.intensities[dataset.data.qIdx] - model)**2
-                  / dataset.data.errors[dataset.data.qIdx]**2, axis=1)
+    cost = np.sum((
+        dataset.data.intensities[scanIdx][dataset.data.qIdx] - model)**2
+        / dataset.data.errors[scanIdx][dataset.data.qIdx]**2, axis=1)
 
 
     if qIdx is not None:
@@ -368,7 +379,7 @@ def protein_liquid_analytic_voigt(params, dataset, D2OSignal=None,
         :arg returnCost:      if True, return the standard deviation of the
                               model to experimental data
                               if False, return only the model
-        :arg scanIdx:         only for FWS (or QENS) data series, index of
+        :arg scanIdx:         only for FWS or QENS data series, index of
                               the scan being fitted
         :arg returnSubCurves: if True, returns each individual component of
                               the model after convolution
@@ -746,7 +757,7 @@ def protein_liquid_switchingDiff_internal(params, dataset, D2OSignal=None,
         for the internal dynamics [#]_ .
 
         This makes uses of an analytic expression for convolution with the
-        resolution function, therefore the resolution function used here 
+        resolution function, therefore the resolution function used here
         should be a sum of two gaussians or pseudo-voigt implemented
         in the package.
 
@@ -852,34 +863,34 @@ def protein_liquid_switchingDiff_internal(params, dataset, D2OSignal=None,
 
     # Computes the dynamic structure factor for the two Lorentzian
     # describing the internal dynamics
-    bigLambda = ((g1 - g2 
-                + 1 / tau1 - 1 / tau2)**2
-                + 4 / (tau1 * tau2))
+    bigLambda = ((g1 - g2
+                 + 1 / tau1 - 1 / tau2)**2
+                 + 4 / (tau1 * tau2))
 
-    lambda1 = ((1/2) * (g1 + 1 / tau1
-                       + g2 + 1 / tau2 + bigLambda))
+    lambda1 = ((1 / 2) * (g1 + 1 / tau1
+               + g2 + 1 / tau2 + bigLambda))
 
-    lambda2 = ((1/2) * (g1 + 1 / tau1
-                       + g2 + 1 / tau2 - bigLambda))
+    lambda2 = ((1 / 2) * (g1 + 1 / tau1
+               + g2 + 1 / tau2 - bigLambda))
 
 
-    alpha = ((1 / (lambda2 - lambda1)) 
-            * tau1 * (g2 + 1 / tau1 
-                     + 1 / tau2 - lambda1) 
+    alpha = ((1 / (lambda2 - lambda1))
+             * tau1 * (g2 + 1 / tau1
+             + 1 / tau2 - lambda1)
              / (tau1 + tau2))
 
-    alpha += ((1 / (lambda2 - lambda1)) 
-              * tau2 * (g1 + 1 / tau1 
-                       + 1 / tau2 - lambda1) 
+    alpha += ((1 / (lambda2 - lambda1))
+              * tau2 * (g1 + 1 / tau1
+              + 1 / tau2 - lambda1)
               / (tau1 + tau2))
 
 
-    
+
     gLor  = beta * a0 * (resS * conv_G_resG0 + (1 - resS) * conv_G_resG1)
     iLor1 = resS * conv_I1_resG0 + (1 - resS) * conv_I1_resG1
-    iLor1 *= beta * (1 - a0) * alpha 
+    iLor1 *= beta * (1 - a0) * alpha
     iLor2 = resS * conv_I2_resG0 + (1 - resS) * conv_I2_resG1
-    iLor2 *= beta * (1 - a0) * (1 - alpha) 
+    iLor2 *= beta * (1 - a0) * (1 - alpha)
 
 
 
@@ -906,15 +917,12 @@ def protein_liquid_switchingDiff_internal(params, dataset, D2OSignal=None,
     elif returnSubCurves:
         res   = resFunc
         gLor  = beta * a0 * (resS * conv_G_resG0 + (1 - resS) * conv_G_resG1)
-        iLor1 = beta * (1 - a0) * alpha 
+        iLor1 = beta * (1 - a0) * alpha
         iLor1 *= (resS * conv_I1_resG0 + (1 - resS) * conv_I1_resG1)
-        iLor2 = beta * (1 - a0) * (1 - alpha) 
+        iLor2 = beta * (1 - a0) * (1 - alpha)
         iLor2 *= (resS * conv_I2_resG0 + (1 - resS) * conv_I2_resG1)
 
         return res, gLor, iLor1, iLor2
 
     else:
         return model
-
-
-
