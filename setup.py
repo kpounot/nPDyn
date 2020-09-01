@@ -11,7 +11,7 @@ dirPath = filePath[:filePath.find('setup.py')]
 
    
 
-with open(filePath[:filePath.find('package')] + 'README.rst', 'r') as f:
+with open(dirPath + '/README.rst', 'r') as f:
     description = f.read()
 
 
@@ -45,8 +45,8 @@ packagesList = ['nPDyn',
 
 
 pyabsco_ext = Extension("nPDyn.lib.pyabsco", 
-                        [dirPath + "nPDyn/lib/src/absco.c", dirPath + "nPDyn/lib/pyabsco.pyx"],
-                        include_dirs=[dirPath + "nPDyn/lib/src"],
+                        [dirPath + "package/nPDyn/lib/src/absco.c", dirPath + "package/nPDyn/lib/pyabsco.pyx"],
+                        include_dirs=[dirPath + "package/nPDyn/lib/src"],
                         libraries=gsl_lib)
 
 
@@ -57,6 +57,6 @@ setup(name='nPDyn',
       author_email='kpounot@hotmail.fr',
       url='github.com/kpounot/nPDyn',
       packages=packagesList,
-      package_dir={'nPDyn': dirPath + 'nPDyn'},
+      package_dir={'nPDyn': dirPath + 'package/nPDyn'},
       package_data={'nPDyn': [dirPath + 'nPDyn/fit/D2O_data/*.dat']},
       ext_modules = cythonize([pyabsco_ext]))

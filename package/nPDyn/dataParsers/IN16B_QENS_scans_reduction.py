@@ -7,6 +7,8 @@ Classes
 
 import os
 
+from dateutil.parser import parse
+
 import h5py
 import numpy as np
 
@@ -23,30 +25,32 @@ class IN16B_QENS:
     """ This class can handle raw QENS data from IN16B
         at the ILL in the hdf5 format.
 
-        :arg scanList:          a string or a list of files to be read and
-                                parsed to extract the data.
-                                It can be a path to a folder as well.
-        :arg sumScans:          whether the scans should be summed or not.
-        :arg unmirroring:       whether the data should be unmirrored or not.
-        :arg vanadiumRef:       if :arg unmirroring: is True, then the peaks
-                                positions are identified
-                                using the data provided with this argument.
-                                If it is None, then the peaks positions are
-                                identified using the data in scanList.
-        :arg detGroup:          detector grouping, i.e. the channels that
-                                are summed over along the position-sensitive
-                                detector tubes. It can be an integer, then the
-                                same number is used for all detectors, where
-                                the integer defines a region (middle of the
-                                detector +/- detGroup). It can be a list of
-                                integers, then each integers of the list
-                                should corresponds to a detector. Or it can
-                                be a string, defining a path to an xml file
-                                as used in Mantid.
-        :arg normalize:         whether the data should be normalized to the
-                                monitor
-        :arg strip:             an integer defining the number of points that
-                                are ignored at each extremity of the spectrum.
+        :arg scanList:    a string or a list of files to be read and
+                          parsed to extract the data.
+                          It can be a path to a folder as well.
+        :arg sumScans:    whether the scans should be summed or not.
+        :arg unmirroring: whether the data should be unmirrored or not.
+        :arg vanadiumRef: if :arg unmirroring: is True, then the peaks
+                          positions are identified
+                          using the data provided with this argument.
+                          If it is None, then the peaks positions are
+                          identified using the data in scanList.
+        :arg detGroup:    detector grouping, i.e. the channels that
+                          are summed over along the position-sensitive
+                          detector tubes. It can be an integer, then the
+                          same number is used for all detectors, where
+                          the integer defines a region (middle of the
+                          detector +/- detGroup). It can be a list of
+                          integers, then each integers of the list
+                          should corresponds to a detector. Or it can
+                          be a string, defining a path to an xml file
+                          as used in Mantid.
+        :arg normalize:   whether the data should be normalized to the
+                          monitor
+        :arg strip:       an integer defining the number of points that
+                          are ignored at each extremity of the spectrum.
+        :arg observable:  the observable that might be changing over scans.
+                          It can be `time` or `temperature`
 
     """
 
@@ -57,11 +61,16 @@ class IN16B_QENS:
                  peakFindingMask=None,
                  detGroup=None,
                  normalize=True,
-                 strip=10):
+                 strip=10,
+                 observable='time'):
 
 
-        self.QENSData = namedtuple('QENSData', 'qVals X intensities \
-                                                errors temp norm qIdx')
+        self.data = namedtuple('data',
+                               'intensities errors energies '
+                               'temps times name qVals '
+                               'selQ qIdx observable '
+                               'observable_name norm')
+
 
         # Process the scanList argument in case a single string is given
         self.scanList = scanList
@@ -96,6 +105,8 @@ class IN16B_QENS:
 
         self.normalize = normalize
 
+        self.observable = observable
+
         self.strip = strip
 
         self.dataList   = []
@@ -115,19 +126,26 @@ class IN16B_QENS:
 
         """
 
-        self.dataList   = []
-        self.energyList = []
-        self.qList      = []
-        self.tempList   = []
+        self.dataList       = []
+        self.energyList     = []
+        self.qList          = []
+        self.tempList       = []
+        self.startTimeList  = []
+        self.monitor        = []
 
 
         for dataFile in self.scanList:
             dataset = h5py.File(dataFile, mode='r')
 
             data = dataset['entry0/data/PSD_data'][()]
-            self.monitor = dataset[
+
+            self.name = dataset['entry0/subtitle'][(0)].astype(str)
+
+            monitor = dataset[
                 'entry0/monitor/data'][()].squeeze().astype('float')
-            np.place(self.monitor, self.monitor == 0, np.inf)
+
+            self.monitor.append(monitor)
+
 
             # Sum along the selected region of the tubes
             data   = self._detGrouping(data)
@@ -157,16 +175,19 @@ class IN16B_QENS:
 
             temp = dataset['entry0/sample/temperature'][()]
 
+            time = parse(dataset['entry0/start_time'][0])
+
             self.dataList.append(np.copy(data))
             self.energyList.append(np.copy(energies))
             self.qList.append(np.copy(angles))
             self.tempList.append(np.copy(temp))
+            self.startTimeList.append(time)
 
             dataset.close()
 
 
         if self.sumScans:
-            self.monitor  = len(self.dataList) * self.monitor
+            self.monitor  = [np.sum(np.array(self.monitor), 0)]
             self.dataList = [np.sum(np.array(self.dataList), 0)]
 
         for idx, data in enumerate(self.dataList):
@@ -178,16 +199,13 @@ class IN16B_QENS:
                     vana.process()
                     self.leftPeak  = vana.leftPeak
                     self.rightPeak = vana.rightPeak
-                    data = self._unmirrorData(data)
-                    self.monitor = self._unmirrorData(
-                        self.monitor.reshape(1, 2 * nbrChn))
-                    np.place(self.monitor, self.monitor == 0, np.inf)
                 else:
                     self._findPeaks(data)
-                    data = self._unmirrorData(data)
-                    self.monitor = self._unmirrorData(
-                        self.monitor.reshape(1, 2 * nbrChn))
-                    np.place(self.monitor, self.monitor == 0, np.inf)
+
+                data = self._unmirrorData(data)
+                self.monitor[idx] = self._unmirrorData(
+                    self.monitor[idx].reshape(1, self.monitor[idx].shape[0]))
+                np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
 
                 errData = np.sqrt(data)
 
@@ -196,8 +214,9 @@ class IN16B_QENS:
 
 
             if self.normalize:
-                data    = data / self.monitor
-                errData = errData / self.monitor
+                np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
+                data    = data / self.monitor[idx]
+                errData = errData / self.monitor[idx]
 
             np.place(errData, errData == 0.0, np.inf)
             np.place(errData, errData == np.nan, np.inf)
@@ -247,17 +266,44 @@ class IN16B_QENS:
 
         """
 
-        self.outTuple = []
-        for idx, data in enumerate(self.dataList):
-            self.outTuple.append(self.QENSData(self.qList[idx],
-                                 self.energyList[idx][self.strip:-self.strip],
-                                 data[:, self.strip:-self.strip],
-                                 self.errList[idx][:, self.strip:-self.strip],
-                                 self.tempList[idx],
-                                 False,
-                                 np.arange(self.qList[idx].shape[0])))
+
+        data     = np.array(self.dataList)[:, :, self.strip:-self.strip]
+        errors   = np.array(self.errList)[:, :, self.strip:-self.strip]
+        energies = self.energyList[0][self.strip:-self.strip]
+
+        # converts the times to hours
+        times = np.array(self.startTimeList)
+
+        if self.sumScans:
+            temps = np.array([[np.mean(self.tempList)]])
+            times = np.array([times[0].ctime()])
+        else:
+            times = times - times[0]
+            for idx, t in enumerate(times):
+                times[idx] = t.total_seconds() / 3600
+
+            times = times[np.newaxis, :]
+
+            temps = self.tempList
+
+        if self.observable == 'time':
+            Y = times
+        elif self.observable == 'temperature':
+            Y = temps
 
 
+        self.outTuple = self.data(data,
+                                  errors,
+                                  energies,
+                                  temps,
+                                  times,
+                                  self.name,
+                                  self.qList[0],
+                                  self.qList[0],
+                                  np.arange(self.qList[0].shape[0]),
+                                  Y,
+                                  self.observable,
+                                  False)
 
 
 
@@ -294,38 +340,44 @@ class IN16B_QENS:
             normF * np.exp(-((x - shift)**2) / (2 * gauW**2))
             / (gauW * np.sqrt(2 * np.pi)) + bkgd)
 
-        leftPeaks  = []
-        rightPeaks = []
-        for qIdx, qData in enumerate(maskedData):
-            errors = np.sqrt(qData)
-            np.place(errors, errors == 0, np.inf)
-            params = curve_fit(Gaussian,
-                               np.arange(midChannel),
-                               qData[:midChannel],
-                               sigma=errors[:midChannel],
-                               p0=[qData[:midChannel].max(),
-                                   1,
-                                   midChannel / 2, 0])
-            leftPeaks.append(params[0][2])
 
-            params = curve_fit(Gaussian,
-                               np.arange(midChannel),
-                               qData[midChannel:],
-                               sigma=errors[midChannel:],
-                               p0=[qData[midChannel:].max(),
-                                   1,
-                                   midChannel / 2, 0])
-            rightPeaks.append(params[0][2])
+        try:
+            leftPeaks  = []
+            rightPeaks = []
+            for qIdx, qData in enumerate(maskedData):
+                errors = np.sqrt(qData)
+                np.place(errors, errors == 0, np.inf)
+                params = curve_fit(Gaussian,
+                                   np.arange(midChannel),
+                                   qData[:midChannel],
+                                   sigma=errors[:midChannel],
+                                   p0=[qData[:midChannel].max(),
+                                       1,
+                                       midChannel / 2, 0])
+                leftPeaks.append(params[0][2])
 
-
-        gauss_leftPeak  = np.array(leftPeaks)
-        gauss_rightPeak = np.array(rightPeaks)
+                params = curve_fit(Gaussian,
+                                   np.arange(midChannel),
+                                   qData[midChannel:],
+                                   sigma=errors[midChannel:],
+                                   p0=[qData[midChannel:].max(),
+                                       1,
+                                       midChannel / 2, 0])
+                rightPeaks.append(params[0][2])
 
 
-        self.leftPeak  = (0.85 * gauss_leftPeak
-                          + 0.15 * savGol_leftPeak).astype(int)
-        self.rightPeak = (0.85 * gauss_rightPeak
-                          + 0.15 * savGol_rightPeak).astype(int)
+            gauss_leftPeak  = np.array(leftPeaks)
+            gauss_rightPeak = np.array(rightPeaks)
+
+
+            self.leftPeak  = (0.85 * gauss_leftPeak
+                              + 0.15 * savGol_leftPeak).astype(int)
+            self.rightPeak = (0.85 * gauss_rightPeak
+                              + 0.15 * savGol_rightPeak).astype(int)
+
+        except RuntimeError:
+            self.leftPeak = savGol_leftPeak.astype(int)
+            self.rightPeak = savGol_rightPeak.astype(int)
 
 
 

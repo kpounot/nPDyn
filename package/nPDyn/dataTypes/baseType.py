@@ -1,7 +1,11 @@
-"""
+""" Base type for all data imported in nPDyn.
 
-Classes
-^^^^^^^
+    This module contains a :class:`BaseType` class definition which is used
+    for all data imported in nPDyn.
+
+    Its role is to handle files, importation of data, and common data processing
+    routines. Moreover, each dataset created with this class can have associated
+    data for corrections and fitting (see :class:`BaseType` documentation)
 
 """
 
@@ -23,18 +27,32 @@ except ImportError:
 
 
 class BaseType:
-    """ Initialize a base type that will be inherited by all other
-        specialized types through its decorator.
+    """ Initialize a base type that can handle files, their parsing
+        and importation as well as common data processing routines.
 
-        :arg fileName: name of the file being read
-        :arg data:     resulting namedtuple from data parsers
-        :arg rawData:  used by the decorator
-        :arg resData:  data for resolution function
-        :type resData: :class:`resType`
-        :arg D2OData:  D2O data if needed
-        :type D2OData: :class:`D2OType`
-        :arg ECData:   empty cell measurement data
-        :type ECData:  :class:`ECType`
+        Note
+        ----
+        This class is usually not used directly, but rather decorated by
+        more specialized class depending on the type of data that is 
+        imported (see :class:`QENSType`, :class:`FWSType`, 
+        :class:`TempRampType`)
+
+        Parameters
+        ----------
+        fileName : str or list(str), optional
+            name of the file(s) to be read, can also be a directory for 
+            raw data (in this case, all files in the directory are imported)
+        data : data namedtuple, optional    
+            resulting namedtuple from data parsers
+        rawData : data namedtuple, optional
+            named tuple containing the imported data without any further 
+            processing. Used by the decorator for specialized classes 
+        resData : :class:`resType`, optional 
+            data for resolution function
+        D2OData : :class:`D2OType` or :class:`fD2OType`, optional
+            D2O (or buffer) data if needed
+        ECData : :class:`ECType` or :class:`fECType`, optional
+            empty cell measurement data
 
     """
 
@@ -61,6 +79,11 @@ class BaseType:
             If no fileFormat is given, tries to guess it, try hdf5 format
             if format cannot be guessed.
 
+            Parameters
+            ----------
+            fileFormat : str, optional
+                file format to be used, can be 'inx' or 'mantid'
+
         """
 
         if fileFormat:
@@ -72,12 +95,16 @@ class BaseType:
         self.data    = data
         self.rawData = self.data._replace(
             qVals       = np.copy(self.data.qVals),
-            X           = np.copy(self.data.X),
+            selQ        = np.copy(self.data.selQ),
+            times       = np.copy(self.data.times),
             intensities = np.copy(self.data.intensities),
             errors      = np.copy(self.data.errors),
-            temp        = np.copy(self.data.temp),
+            temps       = np.copy(self.data.temps),
             norm        = False,
-            qIdx        = np.copy(self.data.qIdx))
+            qIdx        = np.copy(self.data.qIdx),
+            energies    = np.copy(self.data.energies),
+            observable  = np.copy(self.data.observable),
+            observable_name = np.copy(self.data.observable_name))
 
 
 
@@ -100,33 +127,26 @@ class BaseType:
 
             self.data = data.outTuple
 
-            self.rawData = []
-            for data in self.data:
-                self.rawData.append(data._replace(
-                    qVals       = np.copy(data.qVals),
-                    X           = np.copy(data.X),
-                    intensities = np.copy(data.intensities),
-                    errors      = np.copy(data.errors),
-                    temp        = np.copy(data.temp),
-                    norm        = False,
-                    qIdx        = np.copy(data.qIdx)))
-
-
         elif dataType in ['FWS', 'fec', 'fD2O']:
             data = self.FWS_redAlgo[instrument](dataList, **kwargs)
             data.process()
 
-            self.data    = data.outTuple
-            self.rawData = self.data._replace(
-                qVals       = np.copy(self.data.qVals),
-                X           = np.copy(self.data.X),
-                Y           = np.copy(self.data.Y),
-                intensities = np.copy(self.data.intensities),
-                errors      = np.copy(self.data.errors),
-                temp        = np.copy(self.data.temp),
-                norm        = False,
-                qIdx        = np.copy(self.data.qIdx),
-                time        = np.copy(self.data.time))
+            self.data = data.outTuple
+
+        self.rawData = self.data._replace(
+            qVals       = np.copy(self.data.qVals),
+            selQ        = np.copy(self.data.selQ),
+            times       = np.copy(self.data.times),
+            intensities = np.copy(self.data.intensities),
+            errors      = np.copy(self.data.errors),
+            temps       = np.copy(self.data.temps),
+            norm        = False,
+            qIdx        = np.copy(self.data.qIdx),
+            energies    = np.copy(self.data.energies),
+            observable  = np.copy(self.data.observable),
+            observable_name = np.copy(self.data.observable_name))
+
+
 
 
 

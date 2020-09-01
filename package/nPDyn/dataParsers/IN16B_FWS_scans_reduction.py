@@ -64,10 +64,11 @@ class IN16B_FWS:
                  offset=None):
 
 
-        self.FWSData = namedtuple('FWSData',
-                                  'qVals X Y intensities \
-                                   errors temp norm qIdx \
-                                   time')
+        self.data = namedtuple('data',
+                               'intensities errors energies '
+                               'temps times name qVals '
+                               'selQ qIdx observable '
+                               'observable_name norm')
 
         # Process the scanList argument in case a single string is given
         self.scanList = scanList
@@ -133,6 +134,9 @@ class IN16B_FWS:
             dataset = h5py.File(dataFile, mode='r')
 
             data = dataset['entry0/data/PSD_data'][()]
+
+            self.name = dataset['entry0/subtitle'][(0)].astype(str)
+
             maxDeltaE  = dataset[
                 'entry0/instrument/Doppler/maximum_delta_energy'][(0)]
             if self.offset is not None:
@@ -175,20 +179,6 @@ class IN16B_FWS:
             self.tempList.append(np.copy(temp))
 
             dataset.close()
-
-
-
-
-        if self.sumScans:
-            sumData = np.zeros_like(self.dataList[0])
-            sumMoni = np.zeros_like(self.monitor[0])
-            for idx, data in enumerate(self.dataList):
-                sumData += data
-                sumMoni += self.monitor[idx]
-
-            self.dataList = [sumData]
-            self.monitor  = [sumMoni]
-
 
 
         for idx, data in enumerate(self.dataList):
@@ -259,21 +249,30 @@ class IN16B_FWS:
         np.place(data, data / errors < 0.5, 0)
         np.place(errors, data / errors < 0.5, np.inf)
 
+        if self.sumScans:
+            data   = data.sum(0)[np.newaxis, :, :]
+            errors = errors.sum(0)[np.newaxis, :, :]
+            temps  = [[val.mean() for val in temps]] 
+            times  = [[val.mean() for val in times]] 
+
         if self.observable == 'time':
             Y = times
         elif self.observable == 'temperature':
             Y = temps
 
-        self.outTuple = self.FWSData(self.qList[0],
-                                     energies,
-                                     Y,
-                                     data,
-                                     errors,
-                                     temps,
-                                     False,
-                                     np.arange(self.qList[0].shape[0]),
-                                     times)
 
+        self.outTuple = self.data(data,
+                                  errors,
+                                  energies,
+                                  temps,
+                                  times,
+                                  self.name,
+                                  self.qList[0],
+                                  self.qList[0],
+                                  np.arange(self.qList[0].shape[0]),
+                                  Y,
+                                  self.observable,
+                                  False)
 
 
 

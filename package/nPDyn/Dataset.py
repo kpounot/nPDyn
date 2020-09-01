@@ -301,17 +301,10 @@ class Dataset:
 
             data.importRawData(dataList, instrument, dataType, kwargs)
 
-            tmpData = data.data
-            tmpRaw  = data.rawData
-            for idx, val in enumerate(data.data):
-                tmp = QENSType.QENSType(dataList[idx])
-                tmp.assignD2OData(self.D2OData)
-                tmp.assignECData(self.ECData)
+            data.assignD2OData(self.D2OData)
+            data.assignECData(self.ECData)
 
-                tmp.data = tmpData[idx]
-                tmp.rawData = tmpRaw[idx]
-
-                self.datasetList.append(tmp)
+            self.datasetList.append(data)
 
 
 

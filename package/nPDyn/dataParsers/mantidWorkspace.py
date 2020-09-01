@@ -12,7 +12,6 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
         It can handle both QENS and fixed-window scans.
 
-        For QENS, data can be binned and averaged over all scans.
         Then the result is stored as a namedtuple containing several
         members (all being numpy arrays):
             - qVals         - list of q values
@@ -26,40 +25,25 @@ def processData(dataFile, FWS=False, averageTemp=True):
             - qIdx          - list of indices of q-values, used
                               for fitting and plotting
 
-        For FWS, data are stored as list of namedtuple, each corresponding
-        to one energy offset.They containing several members
-        (all being numpy arrays):
-            - qVals         - list of q values
-            - X             - energy offset
-            - Y             - observable values (time, temperature
-                              or other varying parameter)
-            - intensities   - 2D array of counts values for each
-                              q-value (axis 0) and scan number (axis 1)
-            - errors        - 2D array of errors values for each
-                              q-value (axis 0) and scan number (axis 1)
-            - temp          - temperature value (for time-resolved FWS
-                              performed at fixed temperature)
-            - norm          - boolean, wether data were normalized or not
-            - qIdx          - list of indices of q-values, used for fitting
-                              and plotting
 
     """
+
+    self.data = namedtuple('data',
+                           'intensities errors energies '
+                           'temps times name qVals '
+                           'selQ qIdx observable '
+                           'observable_name norm')
 
     h5File = h5.File(dataFile, 'r')
 
     # Fixed window scan processing
     if FWS is True:
-        FWSData = namedtuple('FWSData', 'qVals X Y intensities '
-                                        'errors temp norm qIdx time')
-
         interp = False
 
-        if averageTemp:
-            temp    = np.mean(h5File[
-                'mantid_workspace_1/logs/sample.temperature/value'][()])
-        else:
-            temp    = h5File[
-                'mantid_workspace_1/logs/sample.temperature/value'][()]
+        name = h5File['mantid_workspace_1/logs/subtitle/value'][()].astype(str)
+
+        temp = h5File[
+            'mantid_workspace_1/logs/sample.temperature/value'][()]
 
         wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'][()]
 
@@ -122,9 +106,6 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
     # Assumes QENS data
     else:
-        QENSData = namedtuple('QENSData', 'qVals X intensities \
-                                           errors temp norm qIdx')
-
         wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'][()]
         temp        = np.mean(h5File[
             'mantid_workspace_1/logs/sample.temperature/value'][()])
