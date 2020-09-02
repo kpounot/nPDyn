@@ -252,8 +252,8 @@ class IN16B_FWS:
         if self.sumScans:
             data   = data.sum(0)[np.newaxis, :, :]
             errors = errors.sum(0)[np.newaxis, :, :]
-            temps  = [[val.mean() for val in temps]] 
-            times  = [[val.mean() for val in times]] 
+            temps  = np.array([[val.mean() for val in temps]])
+            times  = np.array([[val.mean() for val in times]])
 
         if self.observable == 'time':
             Y = times
@@ -461,4 +461,4 @@ class IN16B_FWS:
                 np.array(deltaTime),
                 np.array(data).transpose(1, 2, 0),
                 np.array(errors).transpose(1, 2, 0),
-                temps)
+                np.array(temps))

@@ -284,7 +284,7 @@ class IN16B_QENS:
 
             times = times[np.newaxis, :]
 
-            temps = self.tempList
+            temps = np.array(self.tempList)
 
         if self.observable == 'time':
             Y = times

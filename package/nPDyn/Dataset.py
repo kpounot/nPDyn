@@ -1,7 +1,7 @@
-"""
-
-Classes
-^^^^^^^
+""" The module contains the central class of nPDyn, the :class:`Dataset`
+    class, which handles the various dataset loaded and provides
+    methods to quicly perform processing and fitting operations in the
+    experimental data.
 
 """
 
@@ -12,7 +12,7 @@ from collections import namedtuple
 from nPDyn.dataTypes import (ECType, fECType, resType,
                              D2OType, fD2OType, FWSType, QENSType,
                              TempRampType)
-from nPDyn.dataTypes.models import *
+
 from nPDyn.plot import (QENSPlot, FWSPlot, TempRampPlot, D2OPlot,
                         ECPlot, resPlot)
 
@@ -24,28 +24,21 @@ class Dataset:
 
         For call with ipython, the dataSet can be initialized directly from
         command line using the following:
-        ``ipython -i Dataset.py -- [dataSet related optional arguments]``
 
-        :arg QENSFiles:     list of Quasi-Elastic Neutron Scattering data
-                            files to be loaded (optional)
-        :arg FWSFiles:      list of Fixed Window Scans data files to be
-                            loaded (optional)
-        :arg TempRampFiles: list of temperature ramps data files to be
-                            loaded (optional)
-        :arg ECFile:        Empty cell data to be loaded (optional)
-        :arg resFiles:      list of resolution function related data to
-                            be loaded
-        :arg D2OFiles:      list of D2O data to be loaded
+        .. code-block:: bash
+
+            $ ipython -i Dataset.py -- [dataSet related optional arguments]
 
         It goes like this, when a file is imported, data are loaded into
         a class, depending on the given data type. This class will inherit
-        from :py:class:`baseType`, and might have specific methods or can
+        from :class:`baseType`, and might have specific methods or can
         redefine methods if needed by the data type.
 
         Then, using a decorator pattern, a model can be assigned to this
         class by using the provided :py:func:`assignModeltoData` method
-        in :py:class:`Dataset` or simply by using the following:
-        ``myClass = Builtin_ModelClass(myClass)``
+        in :class:`Dataset` or simply by using the following:
+        
+            >>> myClass = Builtin_ModelClass(myClass)
 
         Each builtin model have a *fit* method, with a *qWise* argument
         that allow to perform either a global or a q-wis fit. They contains
@@ -53,6 +46,23 @@ class Dataset:
 
         Finally, various plotting methods are available, each corresponding
         to a given data type.
+
+        Parameters
+        ----------
+        QENSFiles : list(str), optional
+            list of Quasi-Elastic Neutron Scattering data
+            files to be loaded
+        FWSFiles : list(str), optional
+            list of Fixed Window Scans data files to be loaded
+        TempRampFiles : list(str), optional 
+            list of temperature ramps data files to be loaded
+        ECFile : str, optional        
+            Empty cell data to be loaded
+        resFiles : str, optional      
+            list of resolution function related data to be loaded
+        D2OFile : str, optional      
+            D2O data to be loaded
+
 
     """
 
@@ -81,47 +91,6 @@ class Dataset:
         # Used to store msd from trajectories, present here to allow for
         # different psf files loading
         self.msdSeriesList      = []
-
-
-
-        modelT = namedtuple('models',
-                            'resFunc_pseudoVoigt resFunc_gaussian \
-                            ECFunc_pseudoVoigt \
-                            ECFunc_Gaussian \
-                            D2OFunc_singleLorentzian_CF \
-                            QENS_prot_powder_dblLorentzian_BH \
-                            QENS_prot_powder_sglLorentzian_BH \
-                            QENS_water_powder_BH \
-                            QENS_water_powder_minuit \
-                            QENS_protein_liquid_analytic_voigt_BH \
-                            QENS_protein_liquid_analytic_voigt_CF \
-                            QENS_protein_liquid_switchDiff_internal_BH \
-                            TempRamp_gaussian TempRamp_linearMSD \
-                            TempRamp_q4 TempRamp_gamma \
-                            FWS_protein_liquid_BH \
-                            FWS_protein_liquid_CF \
-                            FWS_protein_liquid_withImmobileFrac_BH')
-
-
-        self.models = modelT(resFunc_pseudoVoigt.Model,
-                             resFunc_gaussian.Model,
-                             ECFunc_pseudoVoigt.Model,
-                             ECFunc_Gaussian.Model,
-                             D2OFunc_singleLorentzian_CF.Model,
-                             QENS_prot_powder_doubleLorentzian_BH.Model,
-                             QENS_prot_powder_singleLorentzian_BH.Model,
-                             QENS_water_powder_BH.Model,
-                             QENS_water_powder_minuit.Model,
-                             QENS_protein_liquid_analytic_voigt_BH.Model,
-                             QENS_protein_liquid_analytic_voigt_CF.Model,
-                             QENS_protein_liquid_switchDiff_internal_BH.Model,
-                             TempRamp_gaussian.Model,
-                             TempRamp_linearMSD.Model,
-                             TempRamp_q4.Model,
-                             TempRamp_gamma.Model,
-                             FWS_protein_liquid_BH.Model,
-                             FWS_protein_liquid_CF.Model,
-                             FWS_protein_liquid_withImmobileFrac_BH.Model)
 
 
         self.importFiles(None, **{'QENSFiles': QENSFiles,

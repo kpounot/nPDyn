@@ -54,24 +54,19 @@ class TempRampType(BaseType):
             data = guessFileFormat(self.fileName, True)
 
 
-        # Switch X and Y for data from Mantid Workspace and squeeze
-        if len(data.Y) > 0:
-            data = data._replace(X=data.Y.squeeze(),
-                                 Y=data.X,
-                                 intensities=data.intensities.squeeze().T,
-                                 errors=data.intensities.squeeze().T)
-
         self.data       = data
-        self.rawData    = self.data._replace(
+        self.rawData = self.data._replace(
             qVals       = np.copy(self.data.qVals),
-            X           = np.copy(self.data.X),
-            Y           = np.copy(self.data.Y),
+            selQ        = np.copy(self.data.selQ),
+            times       = np.copy(self.data.times),
             intensities = np.copy(self.data.intensities),
             errors      = np.copy(self.data.errors),
-            temp        = np.copy(self.data.temp),
+            temps       = np.copy(self.data.temps),
             norm        = False,
-            qIdx        = np.copy(self.data.qIdx))
-
+            qIdx        = np.copy(self.data.qIdx),
+            energies    = np.copy(self.data.energies),
+            observable  = np.copy(self.data.observable),
+            observable_name = np.copy(self.data.observable_name))
 
 
     def importRawData(self, dataList, instrument, dataType, kwargs):
@@ -91,27 +86,18 @@ class TempRampType(BaseType):
 
         self.data    = data.outTuple
 
-        # Performs some correction to adapt to TempRamp type.
-        # For FWS data, the presence of only one energy offset is assumed.
-        X = self.data.temp[0]
-        intensities = self.data.intensities.squeeze().T
-        errors = self.data.errors.squeeze().T
-        self.data = self.data._replace(X=X,
-                                       intensities=intensities,
-                                       errors=errors)
-
         self.rawData = self.data._replace(
             qVals       = np.copy(self.data.qVals),
-            X           = np.copy(self.data.X),
-            Y           = np.copy(self.data.Y),
+            selQ        = np.copy(self.data.selQ),
+            times       = np.copy(self.data.times),
             intensities = np.copy(self.data.intensities),
             errors      = np.copy(self.data.errors),
-            temp        = np.copy(self.data.temp),
+            temps       = np.copy(self.data.temps),
             norm        = False,
             qIdx        = np.copy(self.data.qIdx),
-            time        = np.copy(self.data.time))
-
-
+            energies    = np.copy(self.data.energies),
+            observable  = np.copy(self.data.observable),
+            observable_name = np.copy(self.data.observable_name))
 
 
     def normalize_usingLowTemp(self, nbrBins):

@@ -7,30 +7,42 @@ def convert(datafile, FWS=None):
     """ This method takes a single dataFile as argument and
         returns the corresponding dataSet.
 
-        The dataset is a namedtuple containing the following entries:
-            - qVals       - list of momentum transfer (q) values
-                            (in inverse Angström)
-            - X           - list of energy transfers (in micro eV, for QENS)
-                            or other x-axis parameter
-                            (e.g. temperature for elastic temperature ramp)
-            - intensities - 2D numpy array with energy transfer dependant
-                            scattering intensities (axis 1),
-                            for each q-value (axis 0)
-            - errors      - same as intensities but this one contains the
-                            experimental errors
-            - temp        - not used with .inx files, present here for
-                            consistency with hdf5 files
-            - norm        - boolean, wether data were normalized or not
-            - qIdx        - list of indices of q-value, used for fitting
-                            and plotting
+        Then the result is stored as a namedtuple containing several
+        members (all being numpy arrays).
+            - intensities   - 3D array of counts values for each frame 
+                              (axis 0), q-value (axis 1) and energy channels 
+                              (axis 2)
+            - errors        - 3D array of errors values for each frame 
+                              (axis 0), q-value (axis 0) and energy channels 
+                              (axis 2)
+            - energies      - 1D array of energy offsets used
+            - temps         - 2D array of temperatures, the first dimension
+                              is of size 1 for QENS, and of the same size 
+                              as the number of energy offsets for FWS. The
+                              second dimensions represents the frames
+            - times         - same structure as for temps but representing
+                              the time
+            - name          - name that is stored in the 'subtitle' entry
+            - qVals         - 1D array of q-values used 
+            - selQ          - same as qVals, used later to define a q-range
+                              for analysis
+            - qIdx          - same as selQ but storing the indices
+            - observable    - data for the observable used for data series 
+                              ('time' or 'temperature')
+            - observable_name - name of the observable used for data series
+            - norm          - boolean, wether data were normalized or not
 
     """
 
 
     datafile = datafile
 
-    qData = namedtuple('qData', 'qVals X Y intensities '
-                                'errors temp norm qIdx')
+    dataTuple = namedtuple('dataTuple',
+                           'intensities errors energies '
+                           'temps times name qVals '
+                           'selQ qIdx observable '
+                           'observable_name norm')
+
 
     with open(datafile, 'r') as fileinput:
         data = fileinput.read().splitlines()
@@ -42,38 +54,58 @@ def convert(datafile, FWS=None):
             indexList.append(i)
 
 
-    # Create namedtuple containing lists of q-values, energies,
-    # intensities, errors and temperature
     data        = [val.split() for i, val in enumerate(data)]
     qVals       = []
     intensities = []
-    X           = []
-    Y           = []
+    X           = []  # can be energies or temperatures
     errors      = []
+    temps       = None
+    times       = np.array([[0.0]])
+    obs         = None
+    obs_name    = ""
+    energies    = None
+
     for i, value in enumerate(indexList):
         if i < len(indexList) - 1:  # While we're not at the last angle entries
             qVals.append(data[value + 2][0])
+
             X.append([val[0] for j, val in enumerate(data)
                       if indexList[i] + 3 < j < indexList[i + 1]])
+
             intensities.append([val[1] for j, val in enumerate(data)
                                 if indexList[i] + 3 < j < indexList[i + 1]])
+
             errors.append([val[2] for j, val in enumerate(data)
                            if indexList[i] + 3 < j < indexList[i + 1]])
 
         else:  # Used for the last entries
             qVals.append(data[value + 2][0])
+
             X.append([val[0] for j, val in enumerate(data)
                       if j > indexList[i] + 3])
+
             intensities.append([val[1] for j, val in enumerate(data)
                                 if j > indexList[i] + 3])
+
             errors.append([val[2] for j, val in enumerate(data)
                            if j > indexList[i] + 3])
 
     # Converting to floats
     qVals       = np.array(qVals).astype(float)
     X           = np.array(X[0]).astype(float)
-    intensities = np.array(intensities).astype(float)
-    errors      = np.array(errors).astype(float)
+    intensities = np.array(intensities).astype(float)[np.newaxis, :, :]
+    errors      = np.array(errors).astype(float)[np.newaxis, :, :]
+
+    if X[X < 0].size != 0:  # X probably refers to energies (QENS)
+        energies = X
+        obs = np.array([[0]])
+        obs_name = ""
+        temps = np.array([[0.0]])
+    else:  # X probably refers to temperatures
+        energies = np.array([[0.0]])
+        temps = X[np.newaxis, :]
+        obs = temps
+        obs_name = 'temperature'
 
     # Clean useless values from intensities and errors arrays
     np.place(errors, errors == 0, np.inf)
@@ -82,7 +114,17 @@ def convert(datafile, FWS=None):
     np.place(errors, intensities / errors < 0.1, np.inf)
 
     # Creating the named tuple (no temp with .inx)
-    dataSet = qData(qVals, X, Y, intensities, errors,
-                    None, False, np.arange(qVals.size))
+    dataSet = dataTuple(intensities,
+                        errors,
+                        energies,
+                        temps,
+                        times,
+                        obs_name,
+                        qVals,
+                        qVals,
+                        np.arange(qVals.size),
+                        obs,
+                        obs_name,
+                        False)
 
     return dataSet

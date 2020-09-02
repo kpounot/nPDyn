@@ -18,14 +18,14 @@ jobs:
             sudo apt-get install libgsl-dev
             python3 -m venv venv
             . venv/bin/activate
-            python3 -m pip install -r package/requirements.txt
+            python3 -m pip install -r requirements.txt
             #
       # Step 3: install nPDyn
       - run:
           name: install nPDyn
           command: |
             . venv/bin/activate
-            python3 package/setup.py install 
+            python3 setup.py install 
 
       # Step 4: run linter and tests
       - run:

@@ -13,22 +13,34 @@ def processData(dataFile, FWS=False, averageTemp=True):
         It can handle both QENS and fixed-window scans.
 
         Then the result is stored as a namedtuple containing several
-        members (all being numpy arrays):
-            - qVals         - list of q values
-            - X             - list of energy channels
-            - intensities   - 2D array of counts values for each
-                              q-value (axis 0) and energy channels (axis 1)
-            - errors        - 2D array of errors values for each
-                              q-value (axis 0) and energy channels (axis 1)
-            - temp          - temperature value
+        members (all being numpy arrays).
+            - intensities   - 3D array of counts values for each frame 
+                              (axis 0), q-value (axis 1) and energy channels 
+                              (axis 2)
+            - errors        - 3D array of errors values for each frame 
+                              (axis 0), q-value (axis 0) and energy channels 
+                              (axis 2)
+            - energies      - 1D array of energy offsets used
+            - temps         - 2D array of temperatures, the first dimension
+                              is of size 1 for QENS, and of the same size 
+                              as the number of energy offsets for FWS. The
+                              second dimensions represents the frames
+            - times         - same structure as for temps but representing
+                              the time
+            - name          - name that is stored in the 'subtitle' entry
+            - qVals         - 1D array of q-values used 
+            - selQ          - same as qVals, used later to define a q-range
+                              for analysis
+            - qIdx          - same as selQ but storing the indices
+            - observable    - data for the observable used for data series 
+                              ('time' or 'temperature')
+            - observable_name - name of the observable used for data series
             - norm          - boolean, wether data were normalized or not
-            - qIdx          - list of indices of q-values, used
-                              for fitting and plotting
 
 
     """
 
-    self.data = namedtuple('data',
+    dataTuple = namedtuple('dataTuple',
                            'intensities errors energies '
                            'temps times name qVals '
                            'selQ qIdx observable '
@@ -42,62 +54,84 @@ def processData(dataFile, FWS=False, averageTemp=True):
 
         name = h5File['mantid_workspace_1/logs/subtitle/value'][()].astype(str)
 
-        temp = h5File[
-            'mantid_workspace_1/logs/sample.temperature/value'][()]
+
+        times = h5File[
+            'mantid_workspace_1/logs/start_time/value'][(0)].decode()
 
         wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'][()]
 
-        time  = h5File['mantid_workspace_1/logs/start_time/value'][()]
-
         listQ = h5File['mantid_workspace_1/workspace/axis2'][()]
 
-        if listQ[0] > 10:  # converts to q
+        observable_name, spectrum_axis = _processAlgoInfo(h5File)
+
+
+        if spectrum_axis == "2Theta":  # converts to q
             listQ = np.array(4 * np.pi / wavelength
                              * np.sin(np.pi * listQ / 360))
-        if listQ[0] < 0.05:  # converts to q
-            listQ = np.array(4 * np.pi / wavelength
-                             * np.sin(np.pi * listQ))
+        if spectrum_axis == "Q2":  # converts to q
+            listQ = np.sqrt(np.array(listQ))
 
         dataList = []  # Stores the full dataset for a given data file
 
         # Initialize some lists and store energies,
         # intensities and errors in them
-        listY    = []
+        listObs  = []
         listI    = []
         listErr  = []
         deltaE   = []
+        listT    = []
         for j, workspace in enumerate(h5File):
-            listY.append(h5File[workspace + '/workspace/axis1'][()])
+            listObs.append(h5File[workspace + '/workspace/axis1'][()])
             listI.append(h5File[workspace + '/workspace/values'][()])
             listErr.append(h5File[workspace + '/workspace/errors'][()])
             deltaE.append(h5File[
                 workspace + '/logs/Doppler.maximum_delta_energy/value'][()])
+            listT.append(h5File[
+                workspace + '/logs/sample.temperature/value'][()])
 
 
-        for data in listY:
-            if data.shape[0] != listY[0].shape[0]:
+        for data in listObs:
+            if data.shape[0] != listObs[0].shape[0]:
                 interp = True
 
         if interp:
-            listY, listI, listErr = _interpFWS(listY, listI, listErr)
+            listObs, listI, listErr = _interpFWS(listObs, listI, listErr)
 
 
-        # Converts intensities and errors to numpy and array and transpose
+        # converts intensities and errors to numpy and array and transpose
         # to get (# frames, # qVals, # energies) shaped array
-        listY   = np.array(listY)
+        listObs = np.array(listObs)
         listI   = np.array(listI).T
         listErr = np.array(listErr).T
         deltaE  = np.array(deltaE)[:, 0]
+        listT   = np.array(listT)
 
-        # Clean useless values from intensities and errors arrays
+        # cleans useless values from intensities and errors arrays
         np.place(listErr, listErr == 0, np.inf)
         np.place(listErr, listErr == np.nan, np.inf)
         np.place(listI, listI / listErr < 0.5, 0)
         np.place(listErr, listI / listErr < 0.5, np.inf)
 
 
-        dataList = FWSData(listQ, deltaE, listY, listI, listErr,
-                           temp, False, np.arange(listQ.size), time)
+        # process observable name
+        if observable_name == "time":
+            listObs = listObs / 3600  # converts to hours
+            times = listObs 
+        if observable_name == "temperature":
+            listT = listObs
+
+        dataList = dataTuple(listI,
+                             listErr,
+                             deltaE,
+                             listT,
+                             times,
+                             name,
+                             listQ,
+                             listQ, 
+                             np.arange(listQ.size),
+                             listObs,
+                             observable_name,
+                             False)
 
         return dataList
 
@@ -107,18 +141,27 @@ def processData(dataFile, FWS=False, averageTemp=True):
     # Assumes QENS data
     else:
         wavelength  = h5File['mantid_workspace_1/logs/wavelength/value'][()]
-        temp        = np.mean(h5File[
-            'mantid_workspace_1/logs/sample.temperature/value'][()])
+
+        name = h5File['mantid_workspace_1/logs/subtitle/value'][()].astype(str)
+
+        observable_name, spectrum_axis = _processAlgoInfo(h5File)
+
+        temps = np.array([[np.mean(h5File[
+            'mantid_workspace_1/logs/sample.temperature/value'][()])]])
+
+        times = np.array([[h5File[
+            'mantid_workspace_1/logs/start_time/value'][(0)].decode()]])
 
         listQ = h5File['mantid_workspace_1/workspace/axis2'][()]
 
-        if listQ[0] > 10:  # converts to q
+
+        if spectrum_axis == "2Theta":  # converts to q
             listQ = np.array(4 * np.pi / wavelength
                              * np.sin(np.pi * listQ / 360))
-        if listQ[0] < 0.05:  # converts to q
-            listQ = np.array(4 * np.pi / wavelength
-                             * np.sin(np.pi * listQ))
+        if spectrum_axis == "Q2":  # converts to q
+            listQ = np.sqrt(np.array(listQ))
 
+        listObs  = []
         listE = h5File['mantid_workspace_1/workspace/axis1'][()][:-1] * 1e3
 
         listI   = h5File['mantid_workspace_1/workspace/values'][()]
@@ -131,10 +174,37 @@ def processData(dataFile, FWS=False, averageTemp=True):
         np.place(listI, listI / listErr < 1e-1, 0)
         np.place(listErr, listI / listErr < 1e-1, np.inf)
 
-        dataSet = QENSData(listQ, listE, listI, listErr,
-                           temp, False, np.arange(listQ.size))
 
-        return dataSet
+        # make shapes consistent with the nPDyn format
+        times = times[np.newaxis, :]
+        temps = temps[np.newaxis, :]
+
+        listI = listI[np.newaxis, :, :]
+        listErr = listErr[np.newaxis, :, :]
+
+
+        # process observable name
+        if observable_name == "time":
+            listObs = times 
+        if observable_name == "temperature":
+            listObs = temps
+
+
+        dataList = dataTuple(listI,
+                             listErr,
+                             listE,
+                             temps,
+                             times,
+                             name,
+                             listQ,
+                             listQ, 
+                             np.arange(listQ.size),
+                             listObs,
+                             observable_name,
+                             False)
+
+
+        return dataList
 
 
 
@@ -180,3 +250,38 @@ def _interpFWS(listX, listI, listErr):
 
 
     return listX, listI, listErr
+
+
+def _processAlgoInfo(f):
+    """ This function is used to extract information about the parameters
+        that were used in Mantid for data reduction.
+
+        In particular, it extracts the observable used as well as the 
+        spectrum axis (either 'SpectrumNumber', '2Theta', 'Q', 'Q2')
+
+        Note
+        ----
+        The function assumes that the configuration is the same for 
+        all workspaces in the file and that the first algorithm is
+        the one corresponding to data reduction.
+
+    """
+
+    algoConfig = f['mantid_workspace_1/process/MantidAlgorithm_1/data'][(0)]
+    algoConfig = algoConfig.decode().splitlines()
+
+    obs = ""
+    specAx = ""
+
+    for l in algoConfig:
+        if 'Observable' in l:
+            obs = l.split(',')[1]
+            obs = obs[obs.find(':') + 2:]
+        if 'SpectrumAxis' in l:
+            specAx = l.split(',')[1]
+            specAx = specAx[specAx.find(':') + 2:]
+
+    if obs == "start_time":
+        obs = "time"
+
+    return obs, specAx

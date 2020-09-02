@@ -57,17 +57,18 @@ class FWSType(BaseType):
             data = guessFileFormat(self.fileName, True)
 
         self.data       = data
-        self.rawData    = self.data._replace(
+        self.rawData = self.data._replace(
             qVals       = np.copy(self.data.qVals),
-            X           = np.copy(self.data.X),
-            Y           = np.copy(self.data.Y),
+            selQ        = np.copy(self.data.selQ),
+            times       = np.copy(self.data.times),
             intensities = np.copy(self.data.intensities),
             errors      = np.copy(self.data.errors),
-            temp        = np.copy(self.data.temp),
+            temps       = np.copy(self.data.temps),
             norm        = False,
-            time        = np.copy(self.data.time),
-            qIdx        = np.copy(self.data.qIdx))
-
+            qIdx        = np.copy(self.data.qIdx),
+            energies    = np.copy(self.data.energies),
+            observable  = np.copy(self.data.observable),
+            observable_name = np.copy(self.data.observable_name))
 
 
 
