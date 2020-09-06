@@ -146,12 +146,15 @@ class IN16B_QENS:
 
             self.monitor.append(monitor)
 
-
-            # Sum along the selected region of the tubes
-            data   = self._detGrouping(data)
-
-            nbrDet = data.shape[0]
-            nbrChn = int(data.shape[1] / 2)
+            if self.detGroup == "no":
+                self.observable = '$q_z$'
+                nbrDet = data.shape[0]
+                nbrChn = int(data.shape[2] / 2)
+            else:
+                # Sum along the selected region of the tubes
+                data = self._detGrouping(data)
+                nbrDet = data.shape[0]
+                nbrChn = int(data.shape[1] / 2)
 
             maxDeltaE  = dataset[
                 'entry0/instrument/Doppler/maximum_delta_energy'][()]
@@ -170,7 +173,6 @@ class IN16B_QENS:
 
             angles = 4 * np.pi * np.sin(
                 np.pi * np.array(angles).squeeze() / 360) / wavelength
-
 
 
             temp = dataset['entry0/sample/temperature'][()]
@@ -194,7 +196,7 @@ class IN16B_QENS:
             if self.unmirroring:
                 if self.vanadiumRef is not None:
                     vana = IN16B_QENS(self.vanadiumRef,
-                                      detGroup=self.detGroup,
+                                      detGroup=None,
                                       peakFindingMask=self.peakFindingMask)
                     vana.process()
                     self.leftPeak  = vana.leftPeak
@@ -215,8 +217,14 @@ class IN16B_QENS:
 
             if self.normalize:
                 np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
-                data    = data / self.monitor[idx]
-                errData = errData / self.monitor[idx]
+
+                if self.detGroup == 'no':
+                    monitor = self.monitor[idx][:, :, np.newaxis]
+                else:
+                    monitor = self.monitor[idx]
+
+                data    = data / monitor
+                errData = errData / monitor
 
             np.place(errData, errData == 0.0, np.inf)
             np.place(errData, errData == np.nan, np.inf)
@@ -253,7 +261,13 @@ class IN16B_QENS:
                 dataSD.append(
                     dataset['entry0/instrument/SingleD/data'][(idx)].squeeze())
 
-        data   = np.row_stack((np.array(dataSD).squeeze(), data))
+        if self.observable == '$q_z$':
+            tmpSD = np.zeros((len(dataSD), data.shape[1], data.shape[2])) 
+            tmpSD[:, 64] += np.array(dataSD)
+            data  = np.row_stack((tmpSD, data)).transpose(0, 2, 1)
+        else:
+            data   = np.row_stack((np.array(dataSD).squeeze(), data))
+
         angles = np.concatenate((anglesSD, angles))
 
         return data, angles
@@ -265,7 +279,6 @@ class IN16B_QENS:
             that can be directly used by nPDyn.
 
         """
-
 
         data     = np.array(self.dataList)[:, :, self.strip:-self.strip]
         errors   = np.array(self.errList)[:, :, self.strip:-self.strip]
@@ -290,6 +303,10 @@ class IN16B_QENS:
             Y = times
         elif self.observable == 'temperature':
             Y = temps
+        elif self.observable == '$q_z$':
+            Y = np.arange(0, 1.5, 0.1)
+            data = data.transpose(3, 1, 2, 0).squeeze()
+            errors = errors.transpose(3, 1, 2, 0).squeeze()
 
 
         self.outTuple = self.data(data,
@@ -312,6 +329,11 @@ class IN16B_QENS:
             using the selected method.
 
         """
+
+        # if detGroup is not, sum over all vertical positions to find 
+        # peaks more effectively
+        if data.ndim == 3:
+            data = data.sum(2)
 
         nbrChannels = data.shape[1]
         midChannel  = int(nbrChannels / 2)
@@ -347,6 +369,7 @@ class IN16B_QENS:
             for qIdx, qData in enumerate(maskedData):
                 errors = np.sqrt(qData)
                 np.place(errors, errors == 0, np.inf)
+
                 params = curve_fit(Gaussian,
                                    np.arange(midChannel),
                                    qData[:midChannel],
@@ -394,7 +417,7 @@ class IN16B_QENS:
 
         """
 
-        nbrChannels = data.shape[-1]
+        nbrChannels = data.shape[1]
         midChannel  = int(nbrChannels / 2)
 
         out = np.zeros_like(data)

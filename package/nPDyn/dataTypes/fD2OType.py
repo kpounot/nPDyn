@@ -38,23 +38,20 @@ class fD2OType(FWSType):
         else:
             data = guessFileFormat(self.fileName, True)
 
-        self.data    = data._replace(
-            qVals       = data.qVals,
-            X           = data.X,
-            intensities = data.intensities[0],
-            errors      = data.errors[0],
-            temp        = data.temp,
-            norm        = False,
-            qIdx        = data.qIdx)
+        self.data = data
 
-        self.rawData    = self.data._replace(
-            qVals       = np.copy(self.data.qVals),
-            X           = np.copy(self.data.X),
-            intensities = np.copy(self.data.intensities),
-            errors      = np.copy(self.data.errors),
-            temp        = np.copy(self.data.temp),
+        self.rawData = self.data._replace(
+            qVals       = np.copy(self.rawData.qVals),
+            selQ        = np.copy(self.rawData.selQ),
+            times       = np.copy(self.rawData.times),
+            intensities = np.copy(self.rawData.intensities),
+            errors      = np.copy(self.rawData.errors),
+            temps       = np.copy(self.rawData.temps),
             norm        = False,
-            qIdx        = np.copy(self.data.qIdx))
+            qIdx        = np.copy(self.rawData.qIdx),
+            energies    = np.copy(self.rawData.energies),
+            observable  = np.copy(self.rawData.observable),
+            observable_name = np.copy(self.rawData.observable_name))
 
 
     def binData(self, binSize):

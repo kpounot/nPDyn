@@ -107,6 +107,8 @@ class BaseType:
             observable_name = np.copy(self.data.observable_name))
 
 
+        self.model = None
+
 
 
     def importRawData(self, dataList, instrument, dataType, kwargs):
@@ -240,12 +242,16 @@ class BaseType:
 
         self.data = self.data._replace(
             qVals       = np.copy(self.rawData.qVals),
-            X           = np.copy(self.rawData.X),
+            selQ        = np.copy(self.rawData.selQ),
+            times       = np.copy(self.rawData.times),
             intensities = np.copy(self.rawData.intensities),
             errors      = np.copy(self.rawData.errors),
-            temp        = np.copy(self.rawData.temp),
+            temps       = np.copy(self.rawData.temps),
             norm        = False,
-            qIdx        = np.copy(self.rawData.qIdx))
+            qIdx        = np.copy(self.rawData.qIdx),
+            energies    = np.copy(self.rawData.energies),
+            observable  = np.copy(self.rawData.observable),
+            observable_name = np.copy(self.rawData.observable_name))
 
 
 

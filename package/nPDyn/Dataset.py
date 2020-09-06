@@ -136,12 +136,6 @@ class Dataset:
         if ECFile:
             data = ECType.ECType(ECFile)
             data.importData(fileFormat=fileFormat)
-            data = ECFunc_pseudoVoigt.Model(data)
-            try:
-                data.fit()
-            except RuntimeError as e:
-                print('Error while fitting empty cell data\n')
-                print(e)
 
             self.ECData = data
 
@@ -164,9 +158,7 @@ class Dataset:
             for f in resFiles:
                 data = resType.ResType(f)
                 data.importData(fileFormat=fileFormat)
-                data = resFunc_pseudoVoigt.Model(data)
                 data.assignECData(self.ECData)
-                data.fit()
 
                 self.resData.append(data)
 
@@ -175,13 +167,11 @@ class Dataset:
         if D2OFile:
             data = D2OType.D2OType(D2OFile)
             data.importData(fileFormat=fileFormat)
-            data = D2OFunc_singleLorentzian_CF.Model(data)
             data.assignECData(self.ECData)
 
             if self.resData != []:
                 data.assignResData(self.resData[0])
                 data.normalize()
-                data.fit()
 
             self.D2OData = data
 
@@ -199,7 +189,6 @@ class Dataset:
 
             if self.resData != []:
                 data.assignResData(self.resData[0])
-
 
             self.fD2OData = data
 
@@ -310,9 +299,7 @@ class Dataset:
                 tmp.data = tmpData[idx]
                 tmp.rawData = tmpRaw[idx]
 
-                tmp = resFunc_pseudoVoigt.Model(tmp)
                 tmp.assignECData(self.ECData)
-                tmp.fit()
 
                 self.resData.append(tmp)
 
@@ -323,13 +310,6 @@ class Dataset:
             data.importRawData(dataList, instrument, dataType, kwargs)
             data.data    = data.data[0]
             data.rawData = data.rawData[0]
-
-            data = ECFunc_pseudoVoigt.Model(data)
-            try:
-                data.fit()
-            except RuntimeError as e:
-                print('Error while fitting empty cell data\n')
-                print(e)
 
             self.ECData = data
 
@@ -347,12 +327,10 @@ class Dataset:
             data.rawData = data.rawData[0]
             data.data    = data.data[0]
 
-            data = D2OFunc_singleLorentzian_CF.Model(data)
             data.assignECData(self.ECData)
 
             if self.resData != []:
                 data.assignResData(self.resData[0])
-                data.fit()
 
             self.D2OData = data
 
@@ -389,9 +367,6 @@ class Dataset:
 
 
             self.datasetList.append(data)
-
-
-
 
 
         self.resFuncAssign()

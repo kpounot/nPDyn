@@ -45,10 +45,15 @@ class IN16B_FWS:
                              the list should corresponds to a detector.
                              Or it can be a string, defining
                              a path to an xml file as used in Mantid.
+                             If set to `no`, no detector gouping is performed
+                             and the data represents the signal for each
+                             pixel on the detectors. In this case, the 
+                             observable become the momentum transfer q in
+                             the vertical direction.
         :arg normalize:      whether the data should be normalized
                              to the monitor
         :arg observable:     the observable that might be changing over scans.
-                             It can be `time` or `temperature`
+                             It can be `time`, `temperature`
         :arg offset:         If not None, only the data with energy offset
                              that equals the given value will be imported.
 
@@ -148,25 +153,26 @@ class IN16B_FWS:
                 'entry0/monitor/data'][()].squeeze().astype('float')
             self.monitor.append(np.copy(monitor))
 
-            # Sum along the selected region of the tubes
-            data = self._detGrouping(data)
+            if self.detGroup == "no":
+                self.observable = '$q_z$'
+            else:
+                # Sum along the selected region of the tubes
+                data = self._detGrouping(data)
 
             nbrDet = data.shape[0]
-
 
             self.energyList.append(maxDeltaE)
 
             wavelength = dataset['entry0/wavelength'][()]
 
-            angles     = [dataset[
+            angles = [dataset[
                 'entry0/instrument/PSD/PSD angle %s' % int(val + 1)][()]
                 for val in range(nbrDet)]
 
 
             data, angles = self._getSingleD(dataset, data, angles)
 
-
-            angles     = 4 * np.pi * np.sin(
+            angles = 4 * np.pi * np.sin(
                 np.pi * np.array(angles).squeeze() / 360) / wavelength
 
             temp = dataset['entry0/sample/temperature'][()]
@@ -180,7 +186,7 @@ class IN16B_FWS:
 
             dataset.close()
 
-
+        
         for idx, data in enumerate(self.dataList):
 
             if self.normalize:
@@ -190,8 +196,13 @@ class IN16B_FWS:
                 else:
                     np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
                     errData  = np.sqrt(data)
-                    normData = (data / self.monitor[idx]).sum(1)
-                    errData  = (errData / self.monitor[idx]).sum(1)
+                    if self.observable == '$q_z$':
+                        monitor = self.monitor[idx][:, np.newaxis]
+                    else:
+                        monitor = self.monitor[idx]
+
+                    normData = (data / monitor).sum(1)
+                    errData  = (errData / monitor).sum(1)
 
             else:
                 normData, errData = (data.sum(1), np.sqrt(data.sum(1)))
@@ -227,7 +238,13 @@ class IN16B_FWS:
                 dataSD.append(
                     dataset['entry0/instrument/SingleD/data'][(idx)].squeeze())
 
-        data   = np.row_stack((np.array(dataSD).squeeze(), data))
+        if self.observable == '$q_z$':
+            tmpSD = np.zeros((len(dataSD), data.shape[1], data.shape[2])) 
+            tmpSD += np.array(np.array(dataSD)[:, np.newaxis, :])
+            data  = np.row_stack((tmpSD, data)).transpose(0, 2, 1)
+        else:
+            data   = np.row_stack((np.array(dataSD).squeeze(), data))
+
         angles = np.concatenate((anglesSD, angles))
 
         return data, angles
@@ -259,6 +276,8 @@ class IN16B_FWS:
             Y = times
         elif self.observable == 'temperature':
             Y = temps
+        elif self.observable == '$q_z$':
+            Y = np.arange(0, 1.5, 0.1)
 
 
         self.outTuple = self.data(data,
@@ -297,13 +316,16 @@ class IN16B_FWS:
         peaks     = find_peaks(monitor, threshold=threshold)[0]
         monitor   = monitor[peaks]
 
+        if self.observable == '$q_z$':
+            monitor = monitor[:, np.newaxis]
+
         halfBin = int(self.peakFindWindow / 2)
 
         for idx, qData in enumerate(data):
             qDataPeaks = []
             for peak in peaks:
                 qDataPeaks.append(qData[
-                    int(np.heaviside(peak - halfBin, 0)):peak + halfBin].max())
+                    int(np.heaviside(peak - halfBin, 0)):peak + halfBin].max(0))
 
             qDataPeaks = np.array(qDataPeaks)
             errors     = np.sqrt(qDataPeaks)
@@ -311,8 +333,8 @@ class IN16B_FWS:
             qDataPeaks /= monitor
             errors     /= monitor
 
-            dataList.append(qDataPeaks.sum())
-            errList.append(errors.sum())
+            dataList.append(qDataPeaks.sum(0))
+            errList.append(errors.sum(0))
 
 
 
@@ -427,8 +449,8 @@ class IN16B_FWS:
         # Performs an interpolation for each dataset with a sampling
         # rate smaller than the maximum
         for idx, dEidx in enumerate(idxList):
-            dataAtdE = np.array(self.dataList)[dEidx]
-            errAtdE  = np.array(self.errList)[dEidx]
+            dataAtdE = np.array([self.dataList[pos] for pos in dEidx])
+            errAtdE  = np.array([self.errList[pos] for pos in dEidx])
             if dataAtdE.shape[0] < maxSize:
                 interpI = interp1d(deltaTime[idx],
                                    dataAtdE,
@@ -454,11 +476,15 @@ class IN16B_FWS:
             deltaTime[idx] = maxX
 
 
-
-
+        if self.detGroup == 'no':
+            data = np.array(data).sum(1).transpose(2, 1, 0)
+            errors = np.array(errors).sum(1).transpose(2, 1, 0)
+        else:
+            data = np.array(data).transpose(1, 2, 0)
+            errors = np.array(errors).transpose(1, 2, 0)
 
         return (energies,
                 np.array(deltaTime),
-                np.array(data).transpose(1, 2, 0),
-                np.array(errors).transpose(1, 2, 0),
+                data,
+                errors,
                 np.array(temps))

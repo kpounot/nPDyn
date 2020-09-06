@@ -37,8 +37,6 @@ packagesList = ['nPDyn',
                 'nPDyn.dataManipulation',
                 'nPDyn.dataParsers',
                 'nPDyn.dataTypes',
-                'nPDyn.dataTypes.models',
-                'nPDyn.fit',
                 'nPDyn.plot',
                 'nPDyn.lib']
 

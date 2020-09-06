@@ -34,8 +34,6 @@ class FWSType(BaseType):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
 
 
-        self.Ylabel = 'Time [h]'
-
         self.globalFit = True
 
 
@@ -299,8 +297,6 @@ class FWSType(BaseType):
             D2OSignal /= normF[:, np.newaxis]
         if not self.data.norm and self.D2OData.data.norm:
             D2OSignal *= normF[:, np.newaxis]
-
-
 
 
         xIdx = []

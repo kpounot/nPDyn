@@ -28,17 +28,21 @@ class ECType(BaseType):
             not pertain to the elastic peak. This can be useful for proper
             empty cell signal substraction.
 
-            :arg deltaE: energy offset corresponding to the end of the
-                         elastic peak, everything that is beyond
-                         + or - deltaE will be set to zero.
+
+            Parameters
+            ----------
+            deltaE : float, optional
+                energy offset corresponding to the end of the
+                elastic peak, everything that is beyond
+                + or - deltaE will be set to zero. (default 0.4)
 
         """
 
 
-        toDiscard = np.where(np.abs(self.data.X) > deltaE)
+        toDiscard = np.where(np.abs(self.data.energies) > deltaE)
 
         newIntensities = self.data.intensities
-        newIntensities[:, toDiscard] = 0
+        newIntensities[:, :, toDiscard] = 0
 
         self.data = self.data._replace(intensities=newIntensities)
 
