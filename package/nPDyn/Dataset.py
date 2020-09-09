@@ -13,9 +13,6 @@ from nPDyn.dataTypes import (ECType, fECType, resType,
                              D2OType, fD2OType, FWSType, QENSType,
                              TempRampType)
 
-from nPDyn.plot import (QENSPlot, FWSPlot, TempRampPlot, D2OPlot,
-                        ECPlot, resPlot)
-
 
 class Dataset:
     """ Master class of nPDyn, contains a list of dataFiles, which can be
