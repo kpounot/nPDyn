@@ -60,16 +60,16 @@ setup(name='nPDyn',
       package_dir={'nPDyn': dirPath + 'package/nPDyn'},
       package_data={'nPDyn': [dirPath + 'nPDyn/fit/D2O_data/*.dat']},
       ext_modules = cythonize([pyabsco_ext]),
-      install_requires=['CythonGSL'
-                        'cython'
-                        'scipy'
-                        'numpy'
-                        'iminuit'
-                        'matplotlib'
-                        'ipython'
-                        'PyQt5'
-                        'h5py'
-                        'flake8'
-                        'pytest'
-                        'pytest-cov'
+      install_requires=['CythonGSL',
+                        'cython',
+                        'scipy',
+                        'numpy',
+                        'iminuit',
+                        'matplotlib',
+                        'ipython',
+                        'PyQt5',
+                        'h5py',
+                        'flake8',
+                        'pytest',
+                        'pytest-cov',
                         'codecov'])
