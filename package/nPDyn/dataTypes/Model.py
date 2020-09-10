@@ -8,6 +8,8 @@
 """
 
 
+from inspect import signature
+
 
 class Model:
     """ This function can be used to define a model fully compatible
@@ -93,7 +95,8 @@ class Model:
     """
 
 
-    def __init__(self, dataset, 
+    def __init__(self, 
+                 dataset,
                  params={},
                  fixedParams={},
                  paramsErr={},
@@ -118,41 +121,34 @@ class Model:
         self.fitMethod = fitMethod
 
 
-    def addComponent(self, name, f, params, compType='eisf'):
-        """ This method defines a component to be used in the :class:`Model`.
+    def addComponent(self, comp, compType='eisf'):
+        """ This method adds a :class:`Component` to be used 
+            in the :class:`Model`.
 
-            A component is defined by its unique name, a callable function
-            that returns a specific lineshape and its parameters.
+            A component is defined by its unique name, 
+            a :class:`Component` and a type of component.
 
             The function add to the corresponding dictionary the component
             as a tuple entry of the form:
                 
-                - self.eisfComponents[name] = (f, params)
-                - self.qisfComponents[name] = (f, params)
-                - self.bkgdComponents[name] = (f, params)
+                - self.eisfComponents[name] = :class:`Component` instance
+                - self.qisfComponents[name] = :class:`Component` instance
+                - self.bkgdComponents[name] = :class:`Component` instance
 
             depending on the *compType* argument.
 
 
             Notes
             -----
-            The :class:`Model` class will call the function using a vector
-            *x* of shape (1, n) with n being the size of the :attr:`xVar` 
-            variable (energies, temperatures or other)
+            The :class:`Model` class will call the component's function
+            using a vector *x* of shape (1, n) with n being the size of 
+            the :attr:`xVar` variable (energies, temperatures or other).
 
 
             Parameters
             ----------
-            name : str
-                the name of the component
-            f : callable
-                a callable function of the form f(x, **params),
-                where x is the x-axis values (energies, temperature)
-                and params is a dictionary containing the parameters
-                names and their associated values.
-            params : dict
-                dictionary containing parameters names and 
-                their associated values.
+            comp : :class:`Component`
+                a :class:`Component` instance 
             compType : {'eisf', 'qisf', 'bkgd'}
                 can be 'eisf' if this component accounts for the 
                 elastic incoherent structure factor or 'qisf' for
@@ -162,11 +158,6 @@ class Model:
 
 
 
-
-    # --------------------------------------------------
-    # convolution
-    # --------------------------------------------------
-
     # --------------------------------------------------
     # fitting
     # --------------------------------------------------
@@ -174,11 +165,11 @@ class Model:
     # --------------------------------------------------
     # accessors
     # --------------------------------------------------
-
-    def getModel(self):
+    def getModel(self, convolve=True):
         """ Performs the assembly of the components and call
             the provided functions with their parameters to 
             compute the model.
+
 
             Returns
             -------
@@ -187,11 +178,53 @@ class Model:
 
         """
 
-    def getComponents(self):
+
+
+    def getComponents(self, convolve=True):
         """ Performs the calculation of the different components in the 
             model and returns the resulting arrays in a dictionary
             of with the components names as keys.
 
-
-        
         """
+
+
+
+
+
+class Component:
+    """ This class defines a component to be used within the 
+        :class:`Model` class.
+
+        The basic structure of the component is to have a set 
+        of parameters to be optimized and a callable that returns
+        a specific lineshape. Some parameters may also be fixed.
+
+        To allow for analytic convolution, the :class:`Component`
+        also contains a dictionary that link the other convoluted
+        component to a function that returns the convoluted
+        lineshape (e.g. sum of the half-width at half maximum for
+        two Lorentzians, or Voigt profile for a convolution 
+        between a Gaussian and a Lorentzian.).
+
+        Parameters
+        ----------
+        name : str
+            name of the component (used to define the rules for 
+            analytical convolutions)
+        convolutions : dict
+            dictionary in which the keys refers to the name of another
+            component to be convoluted with and the associated value is
+            a function that takes 
+    """
+
+    def __init__(self, 
+                 name,
+                 convolutions={}):
+
+        self.convolutions = convolutions
+
+    def getComponent(self, x, dataset):
+        """ Accessor to the component lineshape.
+
+            The function takes 
+

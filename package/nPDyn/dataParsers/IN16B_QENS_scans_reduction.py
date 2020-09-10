@@ -45,6 +45,11 @@ class IN16B_QENS:
                           should corresponds to a detector. Or it can
                           be a string, defining a path to an xml file
                           as used in Mantid.
+                          If set to `no`, no detector gouping is performed
+                          and the data represents the signal for each
+                          pixel on the detectors. In this case, the 
+                          observable become the momentum transfer q in
+                          the vertical direction.
         :arg normalize:   whether the data should be normalized to the
                           monitor
         :arg strip:       an integer defining the number of points that
