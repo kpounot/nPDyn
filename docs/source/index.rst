@@ -77,6 +77,7 @@ Reference
    dataManipulation/index
    dataParsers/index
    dataTypes/index
+   models/index
    fileFormatParser
    fit/index
    plot/index

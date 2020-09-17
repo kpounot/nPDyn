@@ -13,4 +13,3 @@ dataTypes
    QENSType
    resType
    TempRampType
-   Model

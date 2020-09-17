@@ -31,14 +31,11 @@ if 'win32' in sys.platform:
     else:
             gsl_lib = []
 
-else:
-    gsl_lib = os.popen('locate libgsl.so').read().splitlines()[0]
-    gsl_lib = gsl_lib
-
 packagesList = ['nPDyn',
                 'nPDyn.dataManipulation',
                 'nPDyn.dataParsers',
                 'nPDyn.dataTypes',
+                'nPDyn.models',
                 'nPDyn.plot',
                 'nPDyn.lib']
 

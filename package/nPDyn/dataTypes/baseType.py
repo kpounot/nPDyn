@@ -152,10 +152,10 @@ class BaseType:
 
 
 
-    def binData(self, binSize):
+    def binData(self, binSize, axis):
         """ Bin *data* attribute using the given *binSize*. """
 
-        self.data = binData(self.data, binSize)
+        self.data = binData(self.data, binSize, axis)
 
 
 
@@ -266,6 +266,8 @@ class BaseType:
         self.data = self.data._replace(qIdx=np.array(
             [val for val in self.data.qIdx if val not in qIdx]))
 
+        self.data = self.data._replace(selQ=self.data.selQ[self.data.qIdx])
+
 
 
 
@@ -275,6 +277,8 @@ class BaseType:
 
         self.data = self.data._replace(qIdx=np.array([idx for idx, val
                                        in enumerate(self.data.qVals)]))
+
+        self.data = self.data._replace(selQ=self.data.qVals)
 
 
 
@@ -522,6 +526,7 @@ class BaseType:
                                          self.data.qVals < maxQ)).flatten()
 
         self.data = self.data._replace(qIdx=self.data.qIdx[ids])
+        self.data = self.data._replace(selQ=self.data.selQ[self.data.qIdx])
 
 
 

@@ -798,7 +798,7 @@ class Dataset:
 # -------------------------------------------------
 # Binning methods
 # -------------------------------------------------
-    def binDataset(self, binS, *fileIdxList):
+    def binDataset(self, binS, *fileIdxList, axis='energies'):
         """ The method find the index corresponding to the file, perform
             the binning process, then replace the value in self.datasetList
             by the binned one.
@@ -817,12 +817,12 @@ class Dataset:
 
         # Calling binData for each dataSet in fileIdxList
         for idx in fileIdxList:
-            self.datasetList[idx].binData(binS)
+            self.datasetList[idx].binData(binS, axis=axis)
 
 
 
 
-    def binResData(self, binS, *fileIdxList):
+    def binResData(self, binS, *fileIdxList, axis='energies'):
         """ Same as binDataset but for resolution function data.
 
             :arg binS:        bin size
@@ -838,32 +838,32 @@ class Dataset:
 
         # Calling binData for each dataSet in fileIdxList
         for idx in fileIdxList:
-            self.resData[idx].binData(binS)
+            self.resData[idx].binData(binS, axis=axis)
 
 
 
 
-    def binAll(self, binS):
+    def binAll(self, binS, axis='energies'):
         """ Bin all dataSet in datasetList as well as resolutio,
             empty cell and D2O data if present.
 
         """
 
-        self.binDataset(binS)  # Bin the dataset list
+        self.binDataset(binS, axis=axis)  # Bin the dataset list
 
         # For other types of data, check if something was loaded, and if so,
         # perform the binning
         if self.resData:
-            self.binResData(binS)
+            self.binResData(binS, axis=axis)
 
         if self.ECData:
-            self.ECData.binData(binS)
+            self.ECData.binData(binS, axis=axis)
 
         if self.tECData:
-            self.tECData.binData(binS)
+            self.tECData.binData(binS, axis=axis)
 
         if self.D2OData:
-            self.D2OData.binData(binS)
+            self.D2OData.binData(binS, axis=axis)
 
 
 
