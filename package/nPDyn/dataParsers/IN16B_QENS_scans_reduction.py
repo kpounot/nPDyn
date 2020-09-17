@@ -309,10 +309,9 @@ class IN16B_QENS:
         elif self.observable == 'temperature':
             Y = temps
         elif self.observable == '$q_z$':
-            Y = np.arange(0, 1.5, 0.1)
             data = data.transpose(3, 1, 2, 0).squeeze()
             errors = errors.transpose(3, 1, 2, 0).squeeze()
-
+            Y = np.arange(data.shape[0])
 
         self.outTuple = self.data(data,
                                   errors,

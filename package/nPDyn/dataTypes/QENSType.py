@@ -14,23 +14,11 @@ class QENSType(BaseType):
         No extra or redefined methods, compared to
         :class:`baseType` are present for now.
 
-        Additional attributes are present for Scipy basinhopping
-        routine:
-
-        :attr:`BH_iter` - number of basinhopping iteration
-                          to perform (default 100)
-        :attr:`disp`    - if True, print basinhopping progression
-                          while it's running (default True)
-
     """
 
     def __init__(self, fileName, data=None, rawData=None,
                  resData=None, D2OData=None, ECData=None):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
-
-
-        self.BH_iter    = 100
-        self.disp       = True
 
 
 

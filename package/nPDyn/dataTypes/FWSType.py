@@ -34,42 +34,6 @@ class FWSType(BaseType):
         super().__init__(fileName, data, rawData, resData, D2OData, ECData)
 
 
-        self.globalFit = True
-
-
-    def importData(self, fileFormat=None):
-        """ Extract data from file and store them in *data*
-            and *rawData* attributes.
-
-            If no fileFormat is given, tries to guess it, try hdf5
-            format if format cannot be guessed.
-
-            This is redefined from :class:`baseType`, to take into
-            account FWS data specificities.
-
-        """
-
-        if fileFormat:
-            data = readFile(fileFormat, self.fileName, True)
-        else:
-            data = guessFileFormat(self.fileName, True)
-
-        self.data       = data
-        self.rawData = self.data._replace(
-            qVals       = np.copy(self.data.qVals),
-            selQ        = np.copy(self.data.selQ),
-            times       = np.copy(self.data.times),
-            intensities = np.copy(self.data.intensities),
-            errors      = np.copy(self.data.errors),
-            temps       = np.copy(self.data.temps),
-            norm        = False,
-            qIdx        = np.copy(self.data.qIdx),
-            energies    = np.copy(self.data.energies),
-            observable  = np.copy(self.data.observable),
-            observable_name = np.copy(self.data.observable_name))
-
-
-
     def binData(self, binSize):
         """ Binning in energy dimension does nothing as
             it make no sense for FWS data type. """

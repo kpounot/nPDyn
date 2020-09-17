@@ -2,8 +2,9 @@ import numpy as np
 
 
 def binData(data, binS, axis):
-    """ This method takes a dataSet, and return the binned one.
-        This cannot be used with FWS data processed from hdf5 files.
+    """ This method takes a dataset, and return the binned one.
+        This cannot be used with FWS data processed from hdf5 files
+        with axis being set to 'energies'.
 
         Parameters
         ----------
@@ -61,8 +62,8 @@ def binData(data, binS, axis):
             intSlice = tmpIntensities[i * binS:i * binS + binS]
             errSlice = tmpErrors[i * binS:i * binS + binS]
 
-            tmpIntensities[i] = np.mean(intSlice)
-            tmpErrors[i] = np.mean(errSlice)
+            tmpIntensities[i] = np.mean(intSlice, 0)
+            tmpErrors[i] = np.mean(errSlice, 0)
 
 
 

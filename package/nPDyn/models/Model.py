@@ -64,12 +64,15 @@ class Model:
         ----------
         dataset : nPDyn dataType class
             a specialized dataType class as defined in nPDyn.
+        params : dict
+            dictionary of parameter names with their associated
+            values. 
         eisfComponents : list
             list of model components that account for the
             elastic incoherent structure factor (eisf).
         qisfComponents : list
             list of model components that account for the
-            elastic incoherent structure factor (eisf).
+            quasi-elastic incoherent structure factor (qisf).
         bkgdComponents : list
             list of model components that account for the
             background (bkgd).
@@ -339,5 +342,3 @@ class Model:
                                            val[0](xVar, *val[1](model.params))))
 
         return np.array(res).sum(0)
-
-

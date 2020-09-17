@@ -9,10 +9,6 @@ from collections import namedtuple
 
 import numpy as np
 
-from nPDyn.dataTypes import *
-from nPDyn.dataTypes.models import *
-from nPDyn.plot.plotMD_MSD import plotMSDSeries
-
 
 try:
     from NAMDAnalyzer.Dataset import Dataset as MDDataset

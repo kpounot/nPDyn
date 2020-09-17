@@ -24,7 +24,7 @@ class TestDataProcess(unittest.TestCase):
         self.assertEqual(len(multipleQENS.datasetList), 1)
 
 
-    def test_bin_data_QENS(self):
+    def test_bin_data_QENS_energies(self):
 
         dataPath = testsPath + 'sample_data/'
 
@@ -32,11 +32,11 @@ class TestDataProcess(unittest.TestCase):
 
 
         data.binDataset(5, 0)
-        self.assertEqual(data.datasetList[0].data.intensities.shape[1], 204)
+        self.assertEqual(data.datasetList[0].data.intensities.shape[2], 204)
 
 
         
-    def test_bin_resData(self):
+    def test_bin_resData_energies(self):
 
         dataPath = testsPath + 'sample_data/'
 
@@ -46,11 +46,11 @@ class TestDataProcess(unittest.TestCase):
 
         data.binResData(5)
 
-        self.assertEqual(data.resData[0].data.intensities.shape[1], 204)
+        self.assertEqual(data.resData[0].data.intensities.shape[2], 204)
         
 
 
-    def test_binAll_data_QENSonly(self):
+    def test_binAll_data_QENSonly_energies(self):
 
         dataPath = testsPath + 'sample_data/'
 
@@ -61,13 +61,13 @@ class TestDataProcess(unittest.TestCase):
 
 
         data.binAll(5)
-        self.assertEqual(data.datasetList[0].data.intensities.shape[1], 204)
-        self.assertEqual(data.resData[0].data.intensities.shape[1], 204)
-        self.assertEqual(data.ECData.data.intensities.shape[1], 204)
-        self.assertEqual(data.D2OData.data.intensities.shape[1], 204)
+        self.assertEqual(data.datasetList[0].data.intensities.shape[2], 204)
+        self.assertEqual(data.resData[0].data.intensities.shape[2], 204)
+        self.assertEqual(data.ECData.data.intensities.shape[2], 204)
+        self.assertEqual(data.D2OData.data.intensities.shape[2], 204)
 
  
-    def test_binAll_data_mixQENSandFWS(self):
+    def test_binAll_data_mixQENSandFWS_energies(self):
 
         dataPath = testsPath + 'sample_data/'
 
