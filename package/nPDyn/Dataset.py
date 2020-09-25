@@ -131,14 +131,14 @@ class Dataset:
 
         # Processing files arguments
         if ECFile:
-            data = ECType.ECType(ECFile)
+            data = QENSType.QENSType(ECFile)
             data.importData(fileFormat=fileFormat)
 
             self.ECData = data
 
 
         if fECFile:
-            data = fECType.fECType(fECFile)
+            data = FWSType.FWSType(fECFile)
             data.importData(fileFormat=fileFormat)
 
             self.fECData = data
@@ -153,7 +153,7 @@ class Dataset:
 
         if resFiles:
             for f in resFiles:
-                data = resType.ResType(f)
+                data = QENSType.QENSType(f)
                 data.importData(fileFormat=fileFormat)
                 data.assignECData(self.ECData)
 
@@ -162,13 +162,12 @@ class Dataset:
 
 
         if D2OFile:
-            data = D2OType.D2OType(D2OFile)
+            data = QENSType.QENSType(D2OFile)
             data.importData(fileFormat=fileFormat)
             data.assignECData(self.ECData)
 
             if self.resData != []:
                 data.assignResData(self.resData[0])
-                data.normalize()
 
             self.D2OData = data
 
@@ -176,7 +175,7 @@ class Dataset:
 
 
         if fD2OFile:
-            data = fD2OType.fD2OType(fD2OFile)
+            data = FWSType.FWSType(fD2OFile)
             data.importData(fileFormat=fileFormat)
 
             if self.fECData is not None:
@@ -284,45 +283,37 @@ class Dataset:
 
 
         elif dataType == 'res':
-            data = resType.ResType(dataList)
+            data = QENSType.QENSType(dataList)
 
             data.importRawData(dataList, instrument, dataType, kwargs)
 
-            tmpData = data.data
-            tmpRaw  = data.rawData
-            for idx, val in enumerate(data.data):
-                tmp = resType.ResType(dataList[idx])
+            data.assignECData(self.ECData)
 
-                tmp.data = tmpData[idx]
-                tmp.rawData = tmpRaw[idx]
-
-                tmp.assignECData(self.ECData)
-
-                self.resData.append(tmp)
+            self.resData.append(data)
 
 
         elif dataType == 'ec':
-            data = ECType.ECType(dataList)
+            data = QENSType.QENSType(dataList)
 
             data.importRawData(dataList, instrument, dataType, kwargs)
-            data.data    = data.data[0]
-            data.rawData = data.rawData[0]
+            data.data    = data.data
+            data.rawData = data.rawData
 
             self.ECData = data
 
         elif dataType == 'fec':
-            data = fECType.fECType(dataList)
+            data = FWSType.FWSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
 
             self.fECData = data
 
 
         elif dataType == 'D2O':
-            data = D2OType.D2OType(dataList)
+            data = QENSType.QENSType(dataList)
 
             data.importRawData(dataList, instrument, dataType, kwargs)
-            data.rawData = data.rawData[0]
-            data.data    = data.data[0]
+            data.rawData = data.rawData
+            data.data    = data.data
 
             data.assignECData(self.ECData)
 
@@ -332,7 +323,7 @@ class Dataset:
             self.D2OData = data
 
         elif dataType == 'fD2O':
-            data = fD2OType.fD2OType(dataList)
+            data = FWSType.FWSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
 
             if self.fECData is not None:

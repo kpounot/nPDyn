@@ -97,11 +97,11 @@ class TestDataProcess(unittest.TestCase):
 
         data.resetAll()
 
-        self.assertEqual(data.resData[0].data.intensities.shape[1], 1024)
-        self.assertEqual(data.ECData.data.intensities.shape[1], 1024)
-        self.assertEqual(data.D2OData.data.intensities.shape[1], 1024)
+        self.assertEqual(data.resData[0].data.intensities.shape[2], 1024)
+        self.assertEqual(data.ECData.data.intensities.shape[2], 1024)
+        self.assertEqual(data.D2OData.data.intensities.shape[2], 1024)
 
-        self.assertTrue(data.datasetList[0].data.intensities[0].sum() < 0.3)
+        self.assertTrue(data.datasetList[0].data.intensities[0, 0].sum() < 0.3)
 
 
     def test_resetDataset(self):
@@ -114,7 +114,7 @@ class TestDataProcess(unittest.TestCase):
 
         data.resetAll()
 
-        self.assertEqual(data.datasetList[0].data.intensities.shape[1], 1024)
+        self.assertEqual(data.datasetList[0].data.intensities.shape[2], 1024)
 
 
     def test_normalize_QENS_fromQENSres(self):

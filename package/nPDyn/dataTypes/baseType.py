@@ -107,9 +107,6 @@ class BaseType:
             observable_name = np.copy(self.data.observable_name))
 
 
-        self.model = None
-
-
 
     def importRawData(self, dataList, instrument, dataType, kwargs):
         """ This method uses instrument-specific algorithm to process raw data.
