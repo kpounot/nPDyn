@@ -4,5 +4,6 @@ models
 .. toctree::
     :maxdepth: 1
 
-    Model
+    ConvolvedModel
     Presets
+    Convolutions

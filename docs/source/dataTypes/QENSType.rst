@@ -1,5 +1,5 @@
 QENSType
 ========
 
-.. automodule:: QENSType
+.. automodule:: qensType
    :members:

@@ -1,5 +1,5 @@
 Dataset
 =======
 
-.. automodule:: Dataset
+.. automodule:: dataset
    :members:

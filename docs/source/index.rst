@@ -79,7 +79,6 @@ Reference
    dataTypes/index
    models/index
    fileFormatParser
-   fit/index
    plot/index
    license
    help

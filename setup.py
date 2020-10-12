@@ -1,15 +1,13 @@
 import os, sys
 
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 from distutils.dist import Distribution
 from Cython.Build import cythonize
-
 
 
 filePath = os.path.abspath(__file__)
 dirPath = filePath[:filePath.find('setup.py')]
 
-   
 
 with open(dirPath + '/README.rst', 'r') as f:
     description = f.read()
@@ -39,13 +37,10 @@ packagesList = ['nPDyn',
                 'nPDyn.plot',
                 'nPDyn.lib']
 
-
-
 pyabsco_ext = Extension("nPDyn.lib.pyabsco", 
-                        [dirPath + "package/nPDyn/lib/src/absco.c", dirPath + "package/nPDyn/lib/pyabsco.pyx"],
-                        include_dirs=[dirPath + "package/nPDyn/lib/src"],
+                        [dirPath + "nPDyn/lib/src/absco.c", dirPath + "nPDyn/lib/pyabsco.pyx"],
+                        include_dirs=[dirPath + "nPDyn/lib/src"],
                         libraries=gsl_lib)
-
 
 setup(name='nPDyn',
       version='1.0',
@@ -54,19 +49,14 @@ setup(name='nPDyn',
       author_email='kpounot@hotmail.fr',
       url='github.com/kpounot/nPDyn',
       packages=packagesList,
-      package_dir={'nPDyn': dirPath + 'package/nPDyn'},
+      package_dir={'nPDyn': dirPath + 'nPDyn'},
       package_data={'nPDyn': [dirPath + 'nPDyn/fit/D2O_data/*.dat']},
       ext_modules = cythonize([pyabsco_ext]),
       install_requires=['CythonGSL',
                         'cython',
                         'scipy',
                         'numpy',
-                        'iminuit',
                         'matplotlib',
                         'ipython',
                         'PyQt5==5.14',
-                        'h5py',
-                        'flake8',
-                        'pytest',
-                        'pytest-cov',
-                        'codecov'])
+                        'h5py'])

@@ -1,5 +1,5 @@
 IN16B_QENS
 ==========
 
-.. automodule:: IN16B_QENS_scans_reduction
+.. automodule:: in16b_qens_scans_reduction
    :members:

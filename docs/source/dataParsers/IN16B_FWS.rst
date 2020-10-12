@@ -1,5 +1,5 @@
 IN16B_FWS
 =========
 
-.. automodule:: IN16B_FWS_scans_reduction
+.. automodule:: in16b_fws_scans_reduction
    :members:

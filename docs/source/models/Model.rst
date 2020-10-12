@@ -1,5 +1,0 @@
-Model
-=====
-
-.. automodule:: Model
-    :members:

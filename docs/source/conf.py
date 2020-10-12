@@ -12,14 +12,13 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../package'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataManipulation'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataParsers'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataTypes'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataTypes/models'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/fit'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/plot'))
+sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath('../../nPDyn'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/dataManipulation'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/dataParsers'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/dataTypes'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/models'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/plot'))
 
 
 # -- Project information -----------------------------------------------------
