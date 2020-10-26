@@ -7,13 +7,14 @@ https://cyrille.rossant.net/making-pyqt4-pyside-and-ipython-work-together/
 
 import sys
 
-from PySide2 import QtCore
-from PySide2.QtWidgets import QApplication
+from PyQt5 import QtCore
+from PyQt5.QtWidgets import QApplication
 
 
-def create_window(window_class):
+def makeWindow(window_class, *args):
     """Create a Qt window in Python, or interactively in IPython with Qt GUI
     event loop integration.
+
     """
     app_created = False
     app = QtCore.QCoreApplication.instance()
@@ -22,7 +23,7 @@ def create_window(window_class):
         app = QApplication(sys.argv)
         app_created = True
 
-    window = window_class()
+    window = window_class(*args)
     window.show()
 
     app.exec_()

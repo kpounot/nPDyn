@@ -20,7 +20,6 @@ from scipy.interpolate import interp1d
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
 
 
-
 class IN16B_FWS:
     """ This class can handle raw E/IFWS data from IN16B at
         the ILL in the hdf5 format.
@@ -72,7 +71,7 @@ class IN16B_FWS:
         self.data = namedtuple('data',
                                'intensities errors energies '
                                'temps times name qVals '
-                               'selQ qIdx observable '
+                               'qIdx observable '
                                'observable_name norm')
 
         # Process the scanList argument in case a single string is given
@@ -286,7 +285,6 @@ class IN16B_FWS:
                                   temps,
                                   times,
                                   self.name,
-                                  self.qList[0],
                                   self.qList[0],
                                   np.arange(self.qList[0].shape[0]),
                                   Y,

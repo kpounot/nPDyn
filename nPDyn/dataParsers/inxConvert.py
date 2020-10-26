@@ -40,7 +40,7 @@ def convert(datafile, FWS=None):
     dataTuple = namedtuple('dataTuple',
                            'intensities errors energies '
                            'temps times name qVals '
-                           'selQ qIdx observable '
+                           'qIdx observable '
                            'observable_name norm')
 
 
@@ -60,7 +60,7 @@ def convert(datafile, FWS=None):
     X           = []  # can be energies or temperatures
     errors      = []
     temps       = None
-    times       = np.array([[0.0]])
+    times       = np.array([0.0])
     obs         = None
     obs_name    = ""
     energies    = None
@@ -68,25 +68,18 @@ def convert(datafile, FWS=None):
     for i, value in enumerate(indexList):
         if i < len(indexList) - 1:  # While we're not at the last angle entries
             qVals.append(data[value + 2][0])
-
             X.append([val[0] for j, val in enumerate(data)
                       if indexList[i] + 3 < j < indexList[i + 1]])
-
             intensities.append([val[1] for j, val in enumerate(data)
                                 if indexList[i] + 3 < j < indexList[i + 1]])
-
             errors.append([val[2] for j, val in enumerate(data)
                            if indexList[i] + 3 < j < indexList[i + 1]])
-
         else:  # Used for the last entries
             qVals.append(data[value + 2][0])
-
             X.append([val[0] for j, val in enumerate(data)
                       if j > indexList[i] + 3])
-
             intensities.append([val[1] for j, val in enumerate(data)
                                 if j > indexList[i] + 3])
-
             errors.append([val[2] for j, val in enumerate(data)
                            if j > indexList[i] + 3])
 
@@ -98,23 +91,22 @@ def convert(datafile, FWS=None):
 
     if X[X < 0].size != 0:  # X probably refers to energies (QENS)
         energies = X
-        obs = np.array([[0]])
+        obs = np.array([0])
         obs_name = ""
-        temps = np.array([[0.0]])
+        temps = np.array([0.0])
     else:  # X probably refers to temperatures
-        energies = np.array([[0.0]])
-        temps = X[np.newaxis, :]
+        energies = np.array([0.0])
+        temps = X
         obs = temps
         obs_name = 'temperature'
 
     # Creating the named tuple (no temp with .inx)
-    dataSet = dataTuple(intensities,
-                        errors,
+    dataSet = dataTuple(intensities.T,
+                        errors.T,
                         energies,
                         temps,
                         times,
                         obs_name,
-                        qVals,
                         qVals,
                         np.arange(qVals.size),
                         obs,

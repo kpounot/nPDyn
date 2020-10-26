@@ -1,5 +1,0 @@
-resPlot
-=======
-
-.. automodule:: resPlot
-   :members:

@@ -73,7 +73,7 @@ class IN16B_QENS:
         self.data = namedtuple('data',
                                'intensities errors energies '
                                'temps times name qVals '
-                               'selQ qIdx observable '
+                               'qIdx observable '
                                'observable_name norm')
 
 
@@ -314,7 +314,6 @@ class IN16B_QENS:
                                   temps,
                                   times,
                                   self.name,
-                                  self.qList[0],
                                   self.qList[0],
                                   np.arange(self.qList[0].shape[0]),
                                   Y,

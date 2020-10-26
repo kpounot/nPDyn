@@ -1,5 +1,0 @@
-FWSPlot
-=======
-
-.. automodule:: FWSPlot
-   :members:

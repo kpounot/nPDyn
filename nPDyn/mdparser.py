@@ -9,7 +9,6 @@ from collections import namedtuple
 
 import numpy as np
 
-
 try:
     from NAMDAnalyzer.Dataset import Dataset as MDDataset
     from NAMDAnalyzer.dataAnalysis.IncoherentScat \

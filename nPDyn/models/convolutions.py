@@ -14,7 +14,7 @@ def getGlobals(params):
 
     pGlob = []
     for key in params.keys():
-        if not re.match('\w+_\d+', key):
+        if not re.match('(\w*_*)\w+_\d+', key):
             pGlob.append(key)
 
     return pGlob
@@ -26,7 +26,7 @@ def conv_lorentzian_lorentzian(left, right, params, **kwargs):
 
         a_1 \mathcal{L}_{\sigma_1, center_1}
         \otimes a_2 \mathcal{L}_{sigma_2, center_2} =
-            a_1 a_2 \mathcal{L}_{\sigma_1 + \sigma_2, center_1 + center_2}
+            a_1 a_2 . \mathcal{L}_{\sigma_1 + \sigma_2, center_1 + center_2}
 
     """
     lp = left.make_funcargs(params, kwargs)
@@ -41,7 +41,10 @@ def conv_lorentzian_lorentzian(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         lsigma = (lp['sigma'] * qVal**2 if 'sigma' in lglob 
                   else lp['sigma_%i' % qId])
@@ -76,7 +79,10 @@ def conv_gaussian_lorentzian(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         sigma = (lp['sigma'] * qVal**2 if 'sigma' in lglob 
                  else lp['sigma_%i' % qId])
@@ -111,7 +117,10 @@ def conv_gaussian_jumpdiff(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         sigma = (lp['sigma'] * qVal**2 if 'sigma' in lglob 
                  else lp['sigma_%i' % qId])
@@ -145,7 +154,10 @@ def conv_gaussian_rotations(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         lsigma = (lp['sigma'] * qVal**2 if 'sigma' in lglob 
                  else lp['sigma_%i' % qId])
@@ -169,7 +181,7 @@ def conv_gaussian_gaussian(left, right, params, **kwargs):
     .. math::
 
         a_1 G_{\sigma_1, center_1} \otimes a_2 G_{\sigma_2, center_2} =
-            a_1 * a_2 G_{\sigma_1 + \sigma2, center_1 + center_2}
+            a_1 a_2 . G_{\sigma_1 + \sigma2, center_1 + center_2}
 
     """
     lp = left.make_funcargs(params, kwargs)
@@ -184,14 +196,20 @@ def conv_gaussian_gaussian(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         lsigma = (lp['sigma'] * qVal**2 if 'sigma' in lglob 
                   else lp['sigma_%i' % qId])
         rsigma = (rp['sigma'] * qVal**2 if 'sigma' in rglob 
                   else lp['sigma_%i' % qId])
-        
-        out.append(lorentzian(x, amplitude, center, lsigma + rsigma))
+
+        convGauss = amplitude / np.sqrt(2 * np.pi * (lsigma**2 + rsigma**2))
+        convGauss *= np.exp(-(x - center)**2 / (2 * lsigma**2 + rsigma**2))
+
+        out.append(convGauss)
 
     return np.array(out)
 
@@ -200,16 +218,19 @@ def conv_lorentzian_pvoigt(left, right, params, **kwargs):
 
     .. math::
 
-        a_L \\mathcal{L}_{\\sigma_L, center_L} \\otimes
-        a_V p\\mathcal{V}_{\\sigma, center, fraction} =
-            a_L a_V \\left[ (1 - fraction)
+        \\begin{aligned}
+        & a_L \\mathcal{L}_{\\sigma_L, center_L} \\otimes
+        a_V . p\\mathcal{V}_{\\sigma, center, fraction} =
+            
+        &\quad a_L a_V \\left[ (1 - fraction)
                 \\mathcal{V}_{\\sigma_g, \\sigma, center + center_L}
                 + fraction
                     \\mathcal{L}_{\\sigma + \\sigma_L, center + center_L}
             \\right]
+        \end{aligned}
 
     where :math:`p\\mathcal{V}` is the pseudo-Voigt, :math:`\\mathcal{V}` is
-    a Voigt profile, :math:`\\sigma_g = \\frac{\\sigma}{\\sqrt(2 log(2)} and
+    a Voigt profile, :math:`\\sigma_g = \\frac{\\sigma}{\\sqrt{(2 log(2))}}` and
     :math:`\\mathcal{L}` is a Lorentzian.
 
     """
@@ -231,7 +252,10 @@ def conv_lorentzian_pvoigt(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         rsigma = rp['sigma_%i' % qId]
         sigma_v = rsigma / np.sqrt(2 * np.log(2))
@@ -250,16 +274,19 @@ def conv_gaussian_pvoigt(left, right, params, **kwargs):
 
     .. math::
 
-        a_L G_{\\sigma_G, center_G} \\otimes
-        a_V p\\mathcal{V}_{\\sigma, center, fraction} =
-            a_G a_V \\left[fraction
-                \\mathcal{V}_{\\sigma_G, \\sigma, center + center_G}
-                + (1 - fraction)
-                    G_{\\sigma_g + \\sigma_G, center + center_G}
-            \\right]
+        \\begin{aligned}
+        & a_L G_{\\sigma_G, center_G} \\otimes
+        a_V . \\mathcal{pV}_{\\sigma, center, fraction} = 
 
-    where :math:`p\\mathcal{V}` is the pseudo-Voigt, :math:`\\mathcal{V}` is
-    a Voigt profile, and :math:`\\sigma_g = \\frac{\\sigma}{\\sqrt(2 log(2)}.
+        & \quad a_G a_V \\left[fraction
+                \\mathcal{V}_{\\sigma_G, \\sigma, center + center_G} 
+            + (1 - fraction) G_{\\sigma_g + \\sigma_G, center + center_G}
+            \\right]
+        \\end{aligned}
+
+    where :math:`\\mathcal{pV}` is the pseudo-Voigt, :math:`\\mathcal{V}` is
+    a Voigt profile, and 
+    :math:`\\sigma_g = \\frac{\\sigma}{\\sqrt{(2 log(2))}}`.
 
     """
     # set left to gaussian component if not so
@@ -280,16 +307,22 @@ def conv_gaussian_pvoigt(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         rsigma = rp['sigma_%i' % qId]
         frac = rp['fraction_%i' % qId]
         lsigma = (lp['sigma'] * qVal**2 if 'sigma' in lglob 
                   else lp['sigma_%i' % qId])
-        sigma_g = rsigma / np.sqrt(2 * np.log(2)) + lsigma
+        sigma_g = rsigma / np.sqrt(2 * np.log(2)) 
+        
+        convGauss = amplitude / np.sqrt(2 * np.pi * (sigma_g**2 + lsigma**2))
+        convGauss *= np.exp(-(x - center)**2 / (2 * sigma_g**2 + lsigma**2))
 
         out.append(
-            frac * gaussian(x, amplitude, center, sigma_g) 
+            frac * convGauss 
             + (1 - frac) * voigt(x, amplitude, center, lsigma, rsigma))
 
     return np.array(out)
@@ -316,7 +349,10 @@ def conv_jumpdiff_pvoigt(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         frac = rp['fraction_%i' % qId]
         lsigma = (
@@ -353,7 +389,10 @@ def conv_rotations_pvoigt(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] + rp['center_%i' % qId]
         frac = rp['fraction_%i' % qId]
         lsigma = (lp['sigma'] if 'sigma' in lglob else lp['sigma_%i' % qId])
@@ -396,7 +435,10 @@ def conv_delta(left, right, params, **kwargs):
     rglob = getGlobals(rp)
 
     for qId, qVal in enumerate(q):
-        amplitude = lp['amplitude_%i' % qId] * rp['amplitude_%i' % qId]
+        amplitude = (lp['amplitude'] if 'amplitude' in lglob 
+                     else lp['amplitude_%i' % qId])
+        amplitude *= (rp['amplitude'] if 'amplitude' in rglob 
+                     else rp['amplitude_%i' % qId])
         center = lp['center_%i' % qId] 
 
         tmp_kws = {'amplitude_%i' % qId: amplitude, 
@@ -405,3 +447,17 @@ def conv_delta(left, right, params, **kwargs):
         out.append(right.eval(x=x, q=q, **tmp_kws)[qId])
 
     return np.array(out)
+
+def conv_linear(left, right, params, **kwargs):
+    """Convolution with a linear model.
+
+    Simply returns the linear model itself as it is assumed to
+    serve as a background term by default.
+
+    """
+    if left.func.__name__ != 'linear':
+        tmp = right
+        right = left
+        left = tmp
+
+    return left.eval(params=params, **kwargs)

@@ -9,7 +9,7 @@ import numpy as np
 
 from scipy.interpolate import interp1d
 
-from nPDyn.dataTypes.baseType import BaseType
+from nPDyn.dataTypes.baseType import BaseType, ensure_attr
 from nPDyn.fileFormatParser import guessFileFormat, readFile
 
 try:
@@ -30,13 +30,13 @@ class TempRampType(BaseType):
     """
 
     def __init__(self, fileName, data=None, rawData=None,
-                 resData=None, D2OData=None, ECData=None):
-        super().__init__(fileName, data, rawData, resData, D2OData, ECData)
+                 resData=None, D2OData=None, ECData=None,
+                 model=None):
+        super().__init__(fileName, data, rawData, resData, 
+                         D2OData, ECData, model)
 
 
         self._normFList = None
-
-
 
     def importData(self, fileFormat=None):
         """ Extract data from file and store them in *data*
@@ -66,7 +66,6 @@ class TempRampType(BaseType):
             energies    = np.copy(self.data.energies),
             observable  = np.copy(self.data.observable),
             observable_name = np.copy(self.data.observable_name))
-
 
     def importRawData(self, dataList, instrument, dataType, kwargs):
         """ This method uses instrument-specific algorithm to process raw data.
@@ -98,7 +97,6 @@ class TempRampType(BaseType):
             observable  = np.copy(self.data.observable),
             observable_name = np.copy(self.data.observable_name))
 
-
     def normalize_usingLowTemp(self, nbrBins):
         """ Normalizes data using low temperature signal.
             An average is performed over the given
@@ -118,7 +116,6 @@ class TempRampType(BaseType):
         self._normFList = normFList
 
 
-
     def getNormF(self):
         """ Returns normalization factors from average at
             low temperature for each q-values.
@@ -128,16 +125,13 @@ class TempRampType(BaseType):
 
         return self._normFList
 
-
-
-
+    @ensure_attr('ECData')
     def substractEC(self, scaleFactor=0.95):
         """ This method can be used to subtract empty cell data.
             Empty cell signal is rescaled using the given
             *subFactor* prior to substraction.
 
         """
-
         # Determine empty cell data type, and extract signal
         if isinstance(self.ECData, ECType):
             # Compute the fitted Empty Cell function
@@ -187,11 +181,7 @@ class TempRampType(BaseType):
         self.data = self.data._replace(intensities=S)
         self.data = self.data._replace(errors=errors)
 
-
-
-
-
-
+    @ensure_attr('ECData')
     def absorptionCorrection(self, canType='tube', canScaling=0.9,
                              neutron_wavelength=6.27, absco_kwargs=None):
         """Computes absorption Paalman-Pings coefficients 
@@ -218,7 +208,6 @@ class TempRampType(BaseType):
         .. [#] http://apps.jcns.fz-juelich.de/doku/sc/absco
 
         """
-
         # Defining some defaults arguments
         kwargs = {'mu_i_S': 0.660,
                   'mu_f_S': 0.660,
@@ -294,11 +283,3 @@ class TempRampType(BaseType):
         np.place(S, S < 0, 0)
         self.data = self.data._replace(intensities=S)
         self.data = self.data._replace(errors=errors)
-
-
-class DataTypeDecorator(TempRampType):
-
-    def __init__(self, dataType):
-        super().__init__(dataType.fileName, dataType.data,
-                         dataType.rawData, dataType.resData,
-                         dataType.D2OData, dataType.ECData)

@@ -8,7 +8,9 @@ from collections import OrderedDict
 
 import numpy as np
 
-from lmfit import Model
+from scipy.signal import fftconvolve
+
+from lmfit import Model, CompositeModel
 
 from nPDyn.models.convolutions import (
     conv_lorentzian_lorentzian,
@@ -20,7 +22,8 @@ from nPDyn.models.convolutions import (
     conv_gaussian_rotations,
     conv_jumpdiff_pvoigt,
     conv_rotations_pvoigt,
-    conv_delta)
+    conv_delta,
+    conv_linear)
 
 
 class ConvolvedModel(Model):
@@ -62,6 +65,11 @@ class ConvolvedModel(Model):
         convolution function by the combination of the parameters and keywords
         provided for left and right.
 
+        The :meth:`eval_components` returns the convoluted components from
+        `left` by default. This behavior can be changed by using 
+        `returnComponents="right"` in the keyword arguments passed to
+        the method.
+
         Examples
         --------
         First create two models to be convolved (here two Lorentzians):
@@ -77,9 +85,7 @@ class ConvolvedModel(Model):
         ...     amplitude = lp['amplitude'] * rp['amplitude']
         ...     sigma = lp['sigma'] + rp['sigma']
         ...     center = lp['center'] + rp['center']
-        ...
         ...     out = sigma / (np.pi * ((lp['x'] - center)**2 + sigma**2))
-        ...
         ...     return out
 
         Eventually perform the convolution:
@@ -89,17 +95,16 @@ class ConvolvedModel(Model):
         Assign the convolution function `myConv` to the pair of 'lorentzian'
         using:
 
-        >>> convModel.convMap = {
-        ...     'lorentzian': {'lorentzian': myConv}} 
+        >>> convModel.convMap = {'lorentzian': {'lorentzian': myConv}} 
 
         """
         if not isinstance(left, Model):
             raise ValueError(self._bad_arg.format(arg=left))
         if not isinstance(right, Model):
             raise ValueError(self._bad_arg.format(arg=right))
-        if not np.isin(on_undefined_conv, ['numeric', 'raise', 'skip']):
+        if not np.isin(on_undefined_conv, ['numeric', 'raise']):
             raise ValueError("Parameter 'on_undefined_conv' should be either "
-                "of 'numeric', 'raise' or 'skip'.")
+                "of 'numeric' or 'raise'.")
 
         self.left = left
         self.right = right
@@ -133,21 +138,26 @@ class ConvolvedModel(Model):
             'lorentzian': {'lorentzian': conv_lorentzian_lorentzian,
                            'gaussian': conv_gaussian_lorentzian,
                            'pvoigt': conv_lorentzian_pvoigt,
-                           'delta': conv_delta},
+                           'delta': conv_delta,
+                           'linear': conv_linear},
             'gaussian': {'lorentzian': conv_gaussian_lorentzian,
                          'gaussian': conv_gaussian_gaussian,
                          'delta': conv_delta,
+                         'linear': conv_linear,
                          'pvoigt': conv_gaussian_pvoigt},
             'pvoigt': {'lorentzian': conv_lorentzian_pvoigt,
                        'gaussian': conv_gaussian_pvoigt,
                        'jump_diff': conv_jumpdiff_pvoigt,
-                        'delta': conv_delta,
+                       'linear': conv_linear,
+                       'delta': conv_delta,
                        'rotations': conv_rotations_pvoigt},
             'jump_diff': {'gaussian': conv_gaussian_jumpdiff,
                           'delta': conv_delta,
+                          'linear': conv_linear,
                           'pvoigt': conv_jumpdiff_pvoigt},
             'rotations': {'gaussian': conv_gaussian_rotations,
                           'delta': conv_delta,
+                          'linear': conv_linear,
                           'pvoigt': conv_rotations_pvoigt},
             'delta': {'gaussian': conv_delta,
                       'lorentzian': conv_delta,
@@ -155,14 +165,19 @@ class ConvolvedModel(Model):
                       'pvoigt': conv_delta,
                       'jump_diff': conv_delta,
                       'rotations': conv_delta,
-                      'two_diff_state': conv_delta}}
+                      'linear': conv_linear,
+                      'two_diff_state': conv_delta},
+            'linear': {'gaussian': conv_linear,
+                       'lorentzian': conv_linear,
+                       'voigt': conv_linear,
+                       'pvoigt': conv_linear,
+                       'jump_diff': conv_linear,
+                       'rotations': conv_linear,
+                       'two_diff_state': conv_linear}}
+
         # override default convolutions with provided ones
         if convMap is not None:
-            for key, val in convMap.items():
-                if key in self.convMap.keys():
-                    self.convMap[key].update(val)
-                else:
-                    self.convMap[key] = val
+            self.convMap.update(convMap)
 
     def _parse_params(self):
         self._func_haskeywords = (self.left._func_haskeywords or
@@ -189,9 +204,14 @@ class ConvolvedModel(Model):
 
     def eval_components(self, **kwargs):
         """Return OrderedDict of name, results for each component."""
-        out = OrderedDict(self.left.eval_components(**kwargs))
-        out.update(self.right.eval_components(**kwargs))
-        return out
+        returnComponents = "left"
+        if "returnComponents" in kwargs.keys():
+            returnComponents = kwargs["returnComponents"]
+
+        return self._convolve(self.left,
+                              self.right,
+                              returnComponents=returnComponents,
+                              **kwargs)
 
     @property
     def param_names(self):
@@ -244,8 +264,9 @@ class ConvolvedModel(Model):
         out.update(self.left._make_all_args(params=params, **kwargs))
         return out
 
-    def _convolve(self, left, right, params=None, **kwargs):
-        r"""Perform a convolution between `left` and `right`.
+    def _convolve(self, left, right, params=None, 
+                  returnComponents=None, **kwargs):
+        """Perform a convolution between `left` and `right`.
 
         If the convolutions between function in `left` and the
         function in `right` is defined in `convolutions` attribute,
@@ -283,6 +304,11 @@ class ConvolvedModel(Model):
                                  - (a_3 \otimes b_1 * a_3 \otimes b_2)
 
         """
+        if returnComponents == "right":
+            tmp = left
+            left = right
+            right = tmp
+
         lcomponents = left.components
         rcomponents = right.components
 
@@ -290,6 +316,7 @@ class ConvolvedModel(Model):
         rops = right._operators()
 
         models = []
+        compPrefix = []
         for lidx, lcomp in enumerate(lcomponents):
             tmpRes = []
             for ridx, rcomp in enumerate(rcomponents):
@@ -303,8 +330,8 @@ class ConvolvedModel(Model):
                         tmpRes.append(convFunc(lcomp, rcomp, params, **kwargs))
                     else:
                         if lcomp._on_undefined_conv == 'numeric':
-                            convFunc = lambda left, right: np.convolve(
-                                left, right, mode='same')
+                            convFunc = lambda l, r: fftconvolve(
+                                l, r, mode='same', axes=-1)
                             tmpRes.append(
                                 CompositeModel(lcomp, rcomp, convFunc).eval(
                                     params, **kwargs))
@@ -314,12 +341,21 @@ class ConvolvedModel(Model):
                                 'not defined.' % (lcomp.func.__name__, funcName))
 
             # apply operators from the right
-            for idx, rop in enumerate(rops):
-                tmpRes[0] = rop(tmpRes[idx], tmpRes[idx + 1])
+            if len(tmpRes) > 1:
+                for idx, rop in enumerate(rops):
+                    tmpRes[0] = rop(tmpRes[idx], tmpRes[idx + 1])
             models.append(tmpRes[0])
+            compPrefix.append(lcomp.prefix)
 
-        # finally apply operators from the left
-        for idx, lop in enumerate(lops):
-            models[0] = lop(models[idx], models[idx + 1])
+        if returnComponents is None:
+            # finally apply operators from the left
+            if len(models) > 1:
+                for idx, lop in enumerate(lops):
+                    models[0] = lop(models[idx], models[idx + 1])
+            return models[0]
+        else:
+            out = OrderedDict()
+            for val in zip(compPrefix, models):
+                out[val[0]] = val[1]
+            return out
 
-        return models[0]

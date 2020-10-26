@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.abspath('../../nPDyn/dataTypes'))
 sys.path.insert(0, os.path.abspath('../../nPDyn/models'))
 sys.path.insert(0, os.path.abspath('../../nPDyn/plot'))
 
+import nPDyn
 
 # -- Project information -----------------------------------------------------
 
@@ -28,8 +29,7 @@ copyright = '2019, Kevin Pounot'
 author = 'Kevin Pounot'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0'
-
+version = release = nPDyn.__version__
 
 # -- General configuration ---------------------------------------------------
  

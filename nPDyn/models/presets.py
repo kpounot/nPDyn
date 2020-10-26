@@ -23,6 +23,8 @@ from scipy.special import wofz, spherical_jn
 
 from lmfit import Model, CompositeModel
 
+from nPDyn.models.d2O_calibration.interpD2O import getD2Odata
+
 
 # -------------------------------------------------------
 # Function builder for lmfit
@@ -158,7 +160,7 @@ def build_2D_model(
         code, globals(), funcName, argdefs=func_code.co_consts[-1])
 
     # instanciate the `lmfit.Model`
-    model = Model(func, independent_vars=['x', 'q'], prefix=prefix)
+    model = Model(func, independent_vars=[var, 'q'], prefix=prefix)
 
     # set the parameter hints
     for p in paramNames:
@@ -168,17 +170,71 @@ def build_2D_model(
         else:
             for qId, qVal in enumerate(q):
                 key = p + '_%i' % qId
+                # add suffix to parameter in expr if expr is not None
+                qExpr = None
+                if params[key][4] is not None:
+                    if p in params[key][4]:
+                        qExpr = params[key][4].replace(p, "%s_%i" % (p, qId))
                 model.set_param_hint(
                     key, min=params[key][1], max=params[key][2],
-                    vary=params[key][3], expr=params[key][4])
+                    vary=params[key][3], expr=qExpr)
 
     return model
-
 
 # -------------------------------------------------------
 # Defines the functions for the models
 # -------------------------------------------------------
-def gaussian(q, qwise=False, **kwargs):
+def linear(q, **kwargs):
+    """Linear model that can be used for background.
+
+    The model reads: :math:`a*x + b`
+
+    Notes
+    -----
+    Two parameters:
+        - a
+        - b
+    
+    """
+    # set default values (will be overridden by any in 'kwargs')
+    defaults = {
+        'defVals': {
+            'a': 0,
+            'b': 0.1},
+        'bounds': {
+            'a': (-np.inf, np.inf),
+            'b': (0., np.inf)}}
+
+    defaults.update(kwargs)
+
+    model = build_2D_model(
+        q,
+        'linear',
+        'np.zeros_like(x) + {a} * x + {b}',
+        **defaults)
+
+    return model
+
+def hline(q, **kwargs):
+    """A horizontal line.
+
+    """
+    # set default values (will be overridden by any in 'kwargs')
+    defaults = {
+        'defVals': {'b': 0.1},
+        'bounds': {'b': (0., np.inf)}}
+
+    defaults.update(kwargs)
+
+    model = build_2D_model(
+        q,
+        'linear',
+        'np.zeros_like(x) + {b}',
+        **defaults)
+
+    return model
+
+def gaussian(q, qwise=True, **kwargs):
     """Normalized Gaussian lineshape.
 
     .. math::
@@ -219,10 +275,7 @@ def gaussian(q, qwise=False, **kwargs):
             'center': (-np.inf, np.inf),
             'sigma': (0.0, np.inf)}}
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     if qwise:
         model = build_2D_model(
@@ -230,7 +283,7 @@ def gaussian(q, qwise=False, **kwargs):
             'gaussian',
             '{amplitude} / np.sqrt(np.pi * 2 * {sigma}**2) '
             '* np.exp(-(x - {center})**2 / (2 * {sigma}**2))',
-            **kwargs)
+            **defaults)
     else:
         model = build_2D_model(
             q,
@@ -238,7 +291,7 @@ def gaussian(q, qwise=False, **kwargs):
             '{amplitude} / np.sqrt(np.pi * 2 * ({sigma} * {q}**2)**2) '
             '* np.exp(-(x - {center})**2 / (2 * ({sigma} * {q}**2)**2))',
             paramGlobals=['sigma'],
-            **kwargs)
+            **defaults)
 
     return model
 
@@ -283,10 +336,7 @@ def lorentzian(q, qwise=False, **kwargs):
             'center': (-np.inf, np.inf),
             'sigma': (0.0, np.inf)}}
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     if qwise:
         model = build_2D_model(
@@ -294,15 +344,15 @@ def lorentzian(q, qwise=False, **kwargs):
             'lorentzian',
             '{amplitude} / np.pi '
             '* {sigma} / ((x - {center})**2 + {sigma}**2)',
-            **kwargs)
+            **defaults)
     else:
         model = build_2D_model(
             q,
             'lorentzian',
             '{amplitude} / np.pi '
             '* {sigma} * {q}**2 / ((x - {center})**2 + ({sigma} * {q}**2)**2)',
-            paramGlobals=['sigma'],
-            **kwargs)
+            paramGlobals=['sigma', 'amplitude'],
+            **defaults)
 
     return model
 
@@ -348,10 +398,7 @@ def jump_diff(q, qwise=False, **kwargs):
             'sigma': (0.0, np.inf),
             'tau': (0.0, np.inf)}}
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     if qwise:
         model = build_2D_model(
@@ -359,7 +406,7 @@ def jump_diff(q, qwise=False, **kwargs):
             'jump_diff',
             '{amplitude} / np.pi '
             '* {sigma} / ((x - {center})**2 + {sigma}**2)',
-            **kwargs)
+            **defaults)
     else:
         model = build_2D_model(
             q,
@@ -368,12 +415,12 @@ def jump_diff(q, qwise=False, **kwargs):
             '({sigma} * {q}**2 / (1 + {sigma}*{q}**2*{tau})) / ' 
             '((x - {center})**2 + ({sigma} * {q}**2 / '
             '(1 + {sigma} * {q}**2 * {tau}))**2)',
-            paramGlobals=['sigma', 'tau'],
-            **kwargs)
+            paramGlobals=['amplitude', 'sigma', 'tau'],
+            **defaults)
 
     return model
 
-def delta(q, qwise=False, **kwargs):
+def delta(q, **kwargs):
     """Normalized Dirac delta.
 
     where the shape of the output array depends on the shape of the 
@@ -402,16 +449,53 @@ def delta(q, qwise=False, **kwargs):
             'amplitude': (0., np.inf),
             'center': (-np.inf, np.inf)}}
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     model = build_2D_model(
         q,
         'delta',
         'getDelta(x, {amplitude}, {center})',
-        **kwargs)
+        **defaults)
+
+    return model
+
+def calibratedD2O(q, volFraction, temp, qwise=False, **kwargs):
+    """Lineshape for D2O where the Lorentzian width was obtained
+    from a measurement on IN6 at the ILL.
+
+    Parameters
+    ----------
+    q : np.array or list
+        Array of momentum transfer q values
+    volFraction : float in [0, 1]
+        Volume fraction of the D2O in the sample.
+    temp : float
+        Sample temperature used for the experiment.
+    kwargs : dict, optional
+        Additional keywords to pass to :func:`build_2D_model`.
+
+    Notes
+    -----
+    The parameter root names are:
+        - amplitude
+
+    """
+    # set default values (will be overridden by any in 'kwargs')
+    defaults = {
+        'defVals': {
+            'amplitude': 1},
+        'bounds': {
+            'amplitude': (0., np.inf)}}
+
+    defaults.update(kwargs)
+
+    model = build_2D_model(
+        q,
+        'calibrationD2O',
+        '{amplitude} * getD2Odata(%s)(%f, {q}) '
+        '/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))' 
+        % (volFraction, temp, volFraction, temp),
+        **defaults)
 
     return model
 
@@ -467,15 +551,12 @@ def rotations(q, qwise=False, **kwargs):
 
     # parse the keywords arguments provided by the user
     if not qwise:
-        paramGlobals = ['sigma']
+        paramGlobals = ['sigma', 'amplitude']
         if 'paramGlobals' in kwargs.keys():
             paramGlobals = list(set(paramGlobals + kwargs.pop('paramGlobals')))
         kwargs['paramGlobals'] = paramGlobals
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     model = build_2D_model(
         q,
@@ -485,7 +566,7 @@ def rotations(q, qwise=False, **kwargs):
         '{amplitude} * np.sum([spherical_jn(l, {q}*{bondDist})**2 * (2 * l + 1) * '
                  'l * (l + 1) * {sigma} / (np.pi * ((x - {center})**2 + '
                  '(l * (l + 1) * {sigma})**2) for l in range(1, 5)], axis=0)',
-        **kwargs)
+        **defaults)
 
     return model
 
@@ -524,17 +605,14 @@ def voigt(q, **kwargs):
             'sigma': (0.0, np.inf),
             'gamma': (0.0, np.inf)}}
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     model = build_2D_model(
         q,
         'voigt',
         '{amplitude} * wofz((x - {center}) + 1j * {gamma}).real / '
         '({sigma} * np.sqrt(2)) / ({sigma} * np.sqrt(2 * np.pi))',
-        **kwargs)
+        **defaults)
 
     return model
 
@@ -573,10 +651,7 @@ def pseudo_voigt(q, **kwargs):
             'sigma': (0.0, np.inf),
             'fraction': (0.0, 1.0)}}
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     model = build_2D_model(
         q,
@@ -586,7 +661,7 @@ def pseudo_voigt(q, **kwargs):
         'np.sqrt(2 * np.pi * ({sigma} / np.sqrt(2 * np.log(2)))**2) +'
         '(1 - {fraction}) * {sigma} / (np.pi * ((x - {center})**2 +'
         '{sigma}**2)))',
-        **kwargs)
+        **defaults)
 
     return model
 
@@ -627,17 +702,14 @@ def kww(q, **kwargs):
             'tau': (0.0, np.inf),
             'beta': (0.0, np.inf)}}
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     model = build_2D_model(
         q,
         'kww',
-        '{amplitude} * fftshift(fft(np.exp(-t / {tau})**{beta})))',
+        '{amplitude} * fftshift(fft(np.exp(-t / {tau})**{beta})).real',
         var='t',
-        **kwargs)
+        **defaults)
 
     return model
 
@@ -687,14 +759,11 @@ def two_diff_state(q, qwise=False, **kwargs):
             'tau1': (0., np.inf),
             'tau2': (0., np.inf)}}
 
-    for key, val in defaults.items():
-        if key in kwargs.keys():
-            defaults[key].update(kwargs[key])
-        kwargs[key] = defaults[key]
+    defaults.update(kwargs)
 
     # parse the keywords arguments provided by the user
     if not qwise:
-        paramGlobals = ['gamma1', 'gamma2', 'tau1', 'tau2']
+        paramGlobals = ['amplitude', 'gamma1', 'gamma2', 'tau1', 'tau2']
         if 'paramGlobals' in kwargs.keys():
             paramGlobals = list(set(paramGlobals + kwargs.pop('paramGlobals')))
         kwargs['paramGlobals'] = paramGlobals
@@ -723,7 +792,7 @@ def two_diff_state(q, qwise=False, **kwargs):
         "(np.pi * (x - {center})**2 + " + lambda_1 + "**2) +"
         "(1 - " + alpha + ")" + " * " + lambda_2 + " /"
         "(np.pi * (x - {center})**2 + " + lambda_2 + "**2))",
-        **kwargs)
+        **defaults)
 
     return model
 

@@ -15,7 +15,6 @@ def readFile(fileFormat, dataFile, FWS=False):
         fileFormat can be 'mantid' or 'inx' (others to come later)
 
     """
-
     data = fileImporters[fileFormat](dataFile, FWS)
 
     return data
@@ -28,8 +27,6 @@ def guessFileFormat(dataFile, FWS=False):
         In case it cannot be guessed, the default try is hdf5 format.
 
     """
-
-
     if re.search('.inx', dataFile):
         return readFile('inx', dataFile, FWS)
 
