@@ -4,14 +4,14 @@ from setuptools import setup, Extension
 from distutils.dist import Distribution
 from Cython.Build import cythonize
 
-import versioneer
-
 
 filePath = os.path.abspath(__file__)
 dirPath = filePath[:filePath.find('setup.py')]
 
+
 with open(dirPath + '/README.rst', 'r') as f:
     description = f.read()
+
 
 gsl_lib = ['gsl', 'gslcblas']
 
@@ -34,7 +34,6 @@ packagesList = ['nPDyn',
                 'nPDyn.dataParsers',
                 'nPDyn.dataTypes',
                 'nPDyn.models',
-                'nPDyn.models.d2O_calibration',
                 'nPDyn.plot',
                 'nPDyn.lib']
 
@@ -44,20 +43,21 @@ pyabsco_ext = Extension("nPDyn.lib.pyabsco",
                         libraries=gsl_lib)
 
 setup(name='nPDyn',
-      version=versioneer.get_version(),
-      cmdclass=versioneer.get_cmdclass(),
+      version='1.0',
       description=description,
       author='Kevin Pounot',
       author_email='kpounot@hotmail.fr',
       url='github.com/kpounot/nPDyn',
       packages=packagesList,
       package_dir={'nPDyn': dirPath + 'nPDyn'},
-      package_data={'nPDyn': [dirPath + 'nPDyn/models/d2O_calibration/*.dat']},
+      package_data={'nPDyn': [dirPath + 'nPDyn/fit/D2O_data/*.dat']},
       ext_modules = cythonize([pyabsco_ext]),
       install_requires=['CythonGSL',
                         'cython',
                         'scipy',
                         'numpy',
                         'matplotlib',
-                        'PyQt5',
+                        'ipython',
+                        'PyQt5==5.14',
+                        'astunparse',
                         'h5py'])
