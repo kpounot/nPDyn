@@ -19,7 +19,7 @@ def subplotsFormat(caller, sharex=False, sharey=False,
     """
     # Getting number of necessary subplots
     if params and not FWS:
-        listSize = len(caller.dataset[0].params[0]['values'].keys())
+        listSize = len(caller.dataset[0].params[0].keys())
     elif FWS and not params:
         listSize = caller.dataset[0].data.intensities.shape[2]
     else:
@@ -84,7 +84,7 @@ def subplotsFormatWithColorBar(caller, sharex=False, sharey=False,
 
     # Getting number of necessary subplots
     if params:
-        listSize = len(caller.dataset[0].params[0]['values'].keys())
+        listSize = len(caller.dataset[0].params[0].keys())
     else:
         listSize = len(caller.dataset)
 

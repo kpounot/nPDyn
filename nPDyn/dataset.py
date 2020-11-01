@@ -413,34 +413,6 @@ class Dataset:
         for i in fileIdxList:
             self.datasetList[i].normalize_usingLowTemp(nbrBins)
 
-    def normalize_all(self):
-        """Normalize all data loaded in the `Dataset` instance.
-
-        Notes
-        -----
-        The function will try to use a fitted model for the resolution
-        function first if available. If not, the experimental
-        measurement of the resolution function is used. If no data
-        for the resolution function are availble, then, the data are
-        normalized with themselves using a fitted model.
-
-        """
-        for data in self.datasetList:
-            if data.resData is not None:
-                data.normalize_usingResFunc()
-            else:
-                data.normalize_usingSelf()
-
-        for data in (self.ECData, self.fECData, self.D2OData, self.fD2OData):
-            if data is not None:
-                if data.resData is not None:
-                    data.normalize_usingResFunc()
-                else:
-                    data.normalize_usingSelf()
-                    
-        for data in self.resData:
-            data.normalize_usingSelf()
-
     def absorptionCorrection(self, *fileIdxList, canType='tube',
                              canScaling=0.95, neutron_wavelength=6.27,
                              absco_kwargs={}, D2O=True, res=True):

@@ -12,7 +12,7 @@ from scipy.signal import fftconvolve
 
 from lmfit import Model, CompositeModel
 
-from nPDyn.models.convolutions import (
+from nPDyn.models.lmfit_convolutions import (
     conv_lorentzian_lorentzian,
     conv_lorentzian_pvoigt,
     conv_gaussian_pvoigt,

@@ -15,13 +15,12 @@ import numpy as np
 
 from scipy.interpolate import interp1d
 
-from lmfit import Model
-
 from nPDyn.dataManipulation.binData import binData
 from nPDyn.fileFormatParser import guessFileFormat, readFile
 from nPDyn.dataParsers import *
-from nPDyn.models.convolutions import getGlobals
-from nPDyn.models.convolvedModel import ConvolvedModel
+
+from nPDyn.models import Model, Component
+from nPDyn.models.presets import linear
 
 try:
     from nPDyn.lib.pyabsco import py_absco_slab, py_absco_tube
@@ -307,7 +306,7 @@ class BaseType:
 
         """
         if useModel:  # Use a fitted model
-            ECFunc = self.ECData.fit_best()
+            ECFunc = self.ECData.fit_best(x=self.data.energies)
         else:
             ECFunc = self.ECData.data.intensities
 
@@ -449,7 +448,7 @@ class BaseType:
         """Return the normalization factors from `resData`."""
         if len(self.resData._fit) > 0:
             res = self.resData.fit_best()
-            x = self.resData._fit[0].userkws['x']
+            x = self.resData.model.fitkws['x']
         else:
             x = self.resData.data.energies
             res = self.resData.data.intensities
@@ -487,9 +486,9 @@ class BaseType:
         value at index `obsIdx`.
 
         """
-        params = self._fit[obsIdx].params
+        params = self._fit[obsIdx].optParams
         for key, par in params.items():
-            par.set(vary=False)
+            params.set(key, fixed=True)
 
         return params
 
@@ -499,7 +498,7 @@ class BaseType:
 
         Parameters
         ----------
-        model : `lmfit.Model`, `lmfit.CompositeModel`, :class:`ConvolvedModel`
+        model : :class:`Model` instance 
             The model to be used for fitting.
             If None, will look for a model instance in 'model' attribute of
             the class instance.
@@ -525,9 +524,9 @@ class BaseType:
             and generate a new model by calling:
             ``model = self.model + D2OModel``
         kwargs : dict, optional
-            Additional keyword arguments to pass to `lmfit.Model.fit` method.
+            Additional keyword arguments to pass to `Model.fit` method.
             It can override any parameters obtained from the dataset, which are
-            passed to the fit function ('data', 'weights', 'x',...).
+            passed to the fit function ('data', 'errors', 'x',...).
 
         """
         print("Fitting dataset: %s" % self.fileName)
@@ -556,33 +555,34 @@ class BaseType:
 
             fit_kwargs = {
                 'data': data,
-                'weights': errors,
+                'errors': errors,
                 'x': x,
                 'q': q,
-                'params': self.model.make_params()}
+                'params': self.model.params._paramsToList()}
 
             if kwargs is not None:
                 fit_kwargs.update(kwargs)
 
-            # get initial guess if any available
-            try:
-                fit_kwargs['params'].update(model.guess(**fit_kwargs))
-            except NotImplementedError:
-                if idx == 0:
-                    print("No guess method available with this model, "
-                          "using provided default and keyword values.\n")
-
             if convolveRes:
-                fit_kwargs['params'].update(self.resData.getFixedParams(idx))
-                model = ConvolvedModel(model, self.resData.model)
+                resModel = self.resData.model.copy()
+                if self.data.norm and not self.resData.data.norm:
+                    resModel /= Component(
+                        "norm", linear, a=0., b=self._getNormRes()[0])
+                fit_kwargs['convolve'] = resModel
 
             if addEC:
-                fit_kwargs['params'].update(self.ECData.getFixedParams(idx))
-                model = model + self.ECData.model
+                ecModel = self.ECData.model.copy()
+                if self.data.norm and not self.ECData.data.norm:
+                    ecModel /= Component(
+                        "norm", linear, a=0., b=self._getNormRes()[0])
+                model = model + ecModel
 
             if addD2O:
-                fit_kwargs['params'].update(self.D2OData.getFixedParams(idx))
-                model = model + self.D2OData.model
+                D2OModel = self.D2OData.model.copy()
+                if self.data.norm and not self.D2OData.data.norm:
+                    D2OModel /= Component(
+                        "norm", linear, a=0., b=self._getNormRes()[0])
+                model = model + D2OModel
 
             print("\tFit of observable %i of %i (%s=%s)\r" %
                   (idx + 1, 
@@ -590,75 +590,18 @@ class BaseType:
                    self.data.observable_name,
                    self.data.observable[idx]))
 
-            self._fit.append(model.fit(**fit_kwargs))
+            model.fit(**fit_kwargs)
+
+            self.model = model
+            self._fit.append(model.optParams)
 
         print("Done.\n")
 
     @property
     @ensure_fit
     def params(self):
-        """Return the best values and errors from the fit result.
-        
-        The 'params' attribute from *lmfit* is formatted as 
-        two dictionaries that are obtained by 
-        ``p = self.params[idx]['values']`` and 
-        ``p = self.params[idx]['errors']``.
-        The 'idx' correspond to the index of the `observable` array, and
-        the keys `'values'` and `'errors'` contain a dictionary of 
-        parameter values and parameters errors, respectively.
-
-        Returns
-        -------
-        A list of dictionaries of parameters, the first containing the fitted 
-        values and the second the corresponding standard errors. Each entry 
-        of the list correspond to a value of the 'observable'
-        (use for example 'data.datasetList[0].data.observable').
-        
-        """
-        out = []
-        for idx, fitRes in enumerate(self._fit):
-            q = fitRes.userkws['q']
-            best_values = {key: val.value for key, val 
-                           in fitRes.params.items()}
-            stderr = {key: val.stderr for key, val in fitRes.params.items()}
-
-            pGlob = getGlobals(best_values)
-
-            # obtain the parameter root names
-            param_root_names = []
-            for p in best_values.keys():
-                if p in pGlob:
-                    param_root_names.append(p)
-                else:
-                    if p[:p.rfind('_')] not in param_root_names:
-                        param_root_names.append(p[:p.rfind('_')])
-
-            # construct the dictionary
-            val = {}
-            err = {}
-            for p in param_root_names:
-                if p in pGlob:
-                    val[p] = np.zeros_like(q) + best_values[p]
-                    if np.any(stderr[p] == None):
-                        err[p] = np.zeros_like(q)
-                    else:
-                        err[p] = np.zeros_like(q) + stderr[p]
-                else:
-                    tmp = []
-                    tmpErr = []
-                    for qId, qVal in enumerate(q):
-                        tmp.append(best_values[p + '_%i' % qId])
-                        if np.any(stderr[p + '_%i' % qId] == None):
-                            tmpErr.append(np.zeros_like(q))
-                        else:
-                            tmpErr.append(stderr[p + '_%i' % qId])
-                    val[p] = np.array(tmp)
-                    err[p] = np.array(tmpErr)
-                    np.place(err[p], err[p] == None, 0.0)
-
-            out.append({'values': val, 'errors': val})
-
-        return out
+        """Return the best values and errors from the fit result."""
+        return self._fit
 
     @ensure_fit
     def fit_best(self, **kwargs):
@@ -671,10 +614,15 @@ class BaseType:
             `ModelResult.eval`.
 
         """
-        if 'x' not in kwargs.keys():
-            kwargs['x'] = self.data.energies
+        kws = self.model.fitkws
+        kws.update(**kwargs)
 
-        return np.array([fit.eval(**kwargs) for fit in self._fit])
+        out = []
+        for fit in self._fit:
+            kws['params'] = self.model.optParams
+            out.append(self.model.eval(**kws))
+
+        return np.array(out)
 
     @ensure_fit
     def fit_components(self, **kwargs):
@@ -687,35 +635,38 @@ class BaseType:
             `ModelResult.eval_components`.
 
         """
-        if 'x' not in kwargs.keys():
-            kwargs['x'] = self.data.energies
+        kws = self.model.fitkws
+        kws.update(**kwargs)
 
-        return np.array([fit.eval_components(**kwargs) for fit in self._fit])
+        out = []
+        for fit in self._fit:
+            kws['params'] = self.model.optParams
+            out.append(self.model.evalComponents(**kws))
 
-    @ensure_fit
-    def fit_report(self):
-        """Return the fit report."""
-        return [fit.fit_report() for fit in self._fit]
+        return np.array(out)
 
-    @ensure_fit
-    def fit_bic(self):
-        """Return the bayesian information criterion from the fit."""
-        return np.array([fit.bic for fit in self._fit])
-    
-    @ensure_fit
-    def fit_aic(self):
-        """Return the akaike information criterion from the fit."""
-        return np.array([fit.aic for fit in self._fit])
+    def _cleanData(self, data, errors, x, processType='omit'):
+        """Remove inf and null values from the input arrays.
+        
+        Parameters
+        ----------
+        processType : {'omit', 'replace'}
+            Type of processing to be performed.
+                - 'omit': discard the bad entries from the input arrays.
+                - 'replace': replace the bad entries by inf.
+        
+        """
+        if processType == 'omit':
+            mask = ~(data <= 0.) & ~(data == np.inf)
+            mask1d = mask[0]
+            for idx, val in enumerate(mask):
+                mask1d = mask1d & val
+            data = data[:, mask1d] 
+            errors = errors[:, mask1d]
+            x = x[mask1d]
 
-    def _cleanData(self, data, errors, x):
-        """Remove inf and null values from the input arrays."""
-        mask = ~(data <= 0.) & ~(data == np.inf)
+        if processType == 'replace':
+            np.place(errors, data <= 0., np.inf)
+            np.place(errors, data == np.inf, np.inf)
 
-        mask1d = mask[0]
-        for idx, val in enumerate(mask):
-            mask1d = mask1d & val
-
-        data = data[:, mask1d] 
-        errors = errors[:, mask1d]
-
-        return data, errors, x[mask1d]
+        return data, errors, x

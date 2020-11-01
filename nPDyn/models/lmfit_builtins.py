@@ -19,11 +19,12 @@ import numpy as np
 from lmfit import Model, CompositeModel
 from lmfit.models import update_param_vals, COMMON_GUESS_DOC
 
-from nPDyn.models.presets import (linear, delta, gaussian, lorentzian,
-                                  jump_diff, rotations, voigt, pseudo_voigt,
-                                  kww, two_diff_state, hline, build_2D_model)
+from nPDyn.models.lmfit_presets import (
+    linear, delta, gaussian, lorentzian,
+    jump_diff, rotations, voigt, pseudo_voigt,
+    kww, two_diff_state, hline, build_2D_model)
 
-from nPDyn.models.convolutions import getGlobals
+from nPDyn.models.lmfit_convolutions import getGlobals
 
 # -------------------------------------------------------
 # Helper functions for the models

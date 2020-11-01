@@ -168,16 +168,16 @@ class QENSPlot(QWidget):
 
             if not self.noFit:                
                 if self.fitBox.isChecked():
-                    bic = self.dataset[idx].fit_bic()
                     # Plot the model
                     subplot.plot(
                         energies,
-                        self.dataset[idx].fit_best()[obsIdx][qIdx],
-                        label='model\nBIC = %.2f' % bic[obsIdx],
+                        self.dataset[idx].fit_best(x=energies)[obsIdx][qIdx],
+                        label=self.dataset[idx].model.name,
                         zorder=3)
 
                 if self.compBox.isChecked():
-                    components = self.dataset[idx].fit_components()[obsIdx]
+                    components = self.dataset[idx].fit_components(
+                        x=energies)[obsIdx]
                     # Plot the model components
                     for key, val in components.items():
                         subplot.plot(
@@ -255,6 +255,7 @@ class QENSPlot(QWidget):
                     qWiseData,
                     self.dataset[idx].data.qVals[i],
                     zdir='y',
+                    zorder=len(ax) - idx,
                     c=cmap(normColors(self.dataset[idx].data.qVals[i])))
 
             subplot.set_xlabel('$\hslash \omega \ [\mu eV]$')
@@ -282,16 +283,26 @@ class QENSPlot(QWidget):
             params = dataset.params[obsIdx]
             qList = dataset.data.qVals
 
-            for idx, key in enumerate(params['values'].keys()):
-                errors = params['errors'][key]
+            for idx, key in enumerate(params.keys()):
+                values = params[key].value
+                errors = params[key].error
+                values = np.array(values).flatten()
+                errors = np.array(errors).flatten()
+
                 if not self.errBox.isChecked():
                     errors = np.zeros_like(errors)
 
-                ax[idx].errorbar(qList, 
-                                 params['values'][key], 
-                                 errors,
-                                 marker='o', 
-                                 label=dataset.fileName)
+                if values.size == 1:
+                    values = np.zeros_like(qList) + values
+                    errors = np.zeros_like(qList) + errors
+
+                ax[idx].plot(qList, 
+                             values, 
+                             marker='o', 
+                             label=dataset.fileName)
+
+                ax[idx].fill_between(
+                    qList, values - errors, values + errors, alpha=0.4)
                 ax[idx].set_ylabel(key)
                 ax[idx].set_xlabel('$q \ [\AA^{-1}]$')
 

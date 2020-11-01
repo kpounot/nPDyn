@@ -3,11 +3,26 @@ that can be used to fit the data.
 
 """
 
-import numpy as np
 from copy import deepcopy
 from inspect import signature
 import ast
 import astunparse
+import operator
+
+from collections import OrderedDict
+
+import numpy as np
+
+from scipy.optimize import curve_fit, minimize, basinhopping
+from scipy.sparse.linalg import LinearOperator
+from scipy.signal import fftconvolve
+
+from nPDyn.models.presets import (
+    conv_lorentzian_lorentzian,
+    conv_lorentzian_gaussian,
+    conv_gaussian_gaussian,
+    conv_delta,
+    conv_linear)
 
 
 class findParamNames(ast.NodeTransformer):
@@ -42,15 +57,17 @@ class findParamNames(ast.NodeTransformer):
 
 
 class Model:
+    _opMap = {
+        "+": operator.add,
+        "-": operator.sub,
+        "/": operator.truediv,
+        "*": operator.mul}
+
     def __init__(self, 
-                 params=None,
-                 eisfComponents=None,
-                 qisfComponents=None,
-                 bkgdComponents=None,
-                 xLabel='$\hbar \omega ~ [\mu eV]$',
-                 yLabel='$S(q, \omega)$',
-                 fitMethod=None,
-                 convolutions=None): 
+                 params,
+                 name="Model",
+                 convolutions=None,
+                 on_undef_conv='raise'): 
         """Model class to be used within nPDyn.
 
         The model is structured in components that can be added 
@@ -65,89 +82,179 @@ class Model:
         provide the possibility to separatly extract the elastic
         and quasi-elastic parts for analysis and plotting.
 
-
         Parameters
         ----------
         params : :class:`Parameters` instance
             Parameters to be used with the model
-        eisfComponents : dict
-            List of model components that account for the
-            elastic incoherent structure factor (eisf).
-        qisfComponents : dict
-            List of model components that account for the
-            elastic incoherent structure factor (eisf).
-        bkgdComponents : dict
-            List of model components that account for the
-            background (bkgd).
-        xLabel : str
-            Label for the primary variable to be used.
-        yLabel : str
-            Label for the y-axis (what the model values represent).
+        name : str, optional
+            A name for the model.
         convolutions : dict of dict
             Dictionary that defines the mapping '(function1, function2)'
             to 'convolutionFunction(function1, function2)'. Analytic
             convolutions or user defined operators can be defined
             this way.
+        on_undef_conv : {'raise', 'numeric'}
+            Defines the behavior of the class on missing convolution function
+            in the 'convolutions' attribute. The option 'raise' leads to a
+            `KeyError` and the option 'numeric' to a numerical convolution.
 
         """
+        self.name = name
         self.params = deepcopy(params) if params is not None else {}
-        self.eisfComponents = (eisfComponents if eisfComponents 
-                               is not None else {})
-        self.qisfComponents = (qisfComponents if qisfComponents
-                               is not None else {})
-        self.bkgdComponents = (bkgdComponents if bkgdComponents
-                               is not None else {})
-        self.xLabel = xLabel
-        self.yLabel = yLabel
+        self._components = OrderedDict()
+        self._operators = []
 
-    def addComponent(self, compType, name, func, **funcArgs):
+        self.convolutions = {
+            'lorentzian': {'lorentzian': conv_lorentzian_lorentzian,
+                           'gaussian': conv_lorentzian_gaussian,
+                           'delta': conv_delta,
+                           'linear': conv_linear},
+            'gaussian': {'lorentzian': conv_lorentzian_gaussian,
+                         'gaussian': conv_gaussian_gaussian,
+                         'delta': conv_delta,
+                         'linear': conv_linear},
+            'delta': {'lorentzian': conv_delta,
+                      'gaussian': conv_delta,
+                      'delta': conv_delta,
+                      'linear': conv_linear},
+            'linear': {'lorentzian': conv_linear,
+                       'gaussian': conv_linear,
+                       'delta': conv_linear,
+                       'linear': conv_linear}}
+
+        if convolutions is not None:
+            for key, val in convolutions.items():
+                self.convolutions[key].update(val)
+
+        self._optParams = None
+        self._fitkws = {}
+        self._on_undef_conv = on_undef_conv
+
+    @property
+    def components(self):
+        """Return the model components."""
+        return self._components
+
+    def addComponent(self, comp, operator="+"):
         """Add a component to the model.
 
-        This function builds a :class:`Component` instance
-        automatically, such that the user does not have to
-        build it himself.
-        
         Parameters
         ----------
-        compType : {'eisf', 'qisf', 'bkgd'}
-            Type of component to be added. Either elastic
-            incoherent structure factor ('eisf'), quasi-elastic
-            incoherent structure factor ('qisf') or background ('bkgd').
-        name : str
-            Name of the component.
-        func : callable
-            Callable function for the component.
-        funcArgs : dict
-            Dictionary of values, expressions for function arguments
-            as described in :class:`Component`.
+        comp : :class:`Component`
+            An instance of `Component` to be added to the model.
+        operator : {"+", "-", "*", "/"}, optional
+            Operator to be used to combine the new component with the others.
+            If this is the first component, the operator is ignored.
+            (default "+")
         
         """
-        component = Component(func, **funcArgs)
-        if compType == 'eisf':
-            self._eisfComponents[name] = component
-        if compType == 'qisf':
-            self._qisfComponents[name] = component
-        if compType == 'bkgd':
-            self._bkgdComponents[name] = component
+        if len(self._components.keys()) > 0:
+            self._operators.append(self._opMap[operator])
+        self._components[comp.name] = comp
+
+    @property
+    def on_undef_conv(self):
+        """Return the class behavior on undefined convolution."""
+        return self._on_undef_conv
+
+    @on_undef_conv.setter
+    def on_undef_conv(self, val):
+        """Setter for 'on_undef_conv'"""
+        if val not in ['numeric', 'raise']:
+            raise ValueError("The attribute 'on_undef_conv' can only be "
+                "'numeric' or 'raise'.")
+        else:
+            self._on_undef_conv = val
 
     # --------------------------------------------------
     # fitting
     # --------------------------------------------------
-    def fit(self, x, params=None, data=None, errors=None,
-            fit_method='curve_fit', fit_kws=None, **kwargs):
-        pass
+    @property
+    def optParams(self):
+        """Return the result of the fit."""
+        if self._optParams is not None:
+            return self._optParams
+        else:
+            raise ValueError(
+                "No optimal parameters found for this model "
+                "(Model named '{name}' at {address}).\n"
+                "Please use 'fit' method to optimize the parameters".format(
+                    name=self.name, address=hex(id(self))))
+
+    @property
+    def fitkws(self):
+        """Return the keywords used for the fit."""
+        return self._fitkws
+
+    def fit(self, x, data=None, errors=None, fit_method='curve_fit', 
+            fit_kws=None, params=None, **kwargs):
+        # process 'x' array and match the shape of data
+        params, bounds = self.params._paramsToList()
+
+        if fit_kws is None:
+            fit_kws = {}
+
+        if fit_method == 'curve_fit':
+            func = (lambda x, *p: self.eval(x, p, **kwargs).flatten())
+            bounds = ([val[0] for val in bounds], [val[1] for val in bounds])
+            fit = curve_fit(
+                func,
+                x,
+                data.flatten(),
+                params,
+                errors.flatten(),
+                bounds=bounds,
+                **fit_kws)
+
+            self._optParams = self.params._listToParams(
+                fit[0], np.sqrt(np.diag(fit[1])))
+        
+        if fit_method == 'basinhopping':
+            func = (lambda p: np.sum(
+                (self.eval(x, p, **kwargs) - data)**2 / errors**2))
+            if 'minimizer_kwargs' in fit_kws.keys():
+                fit_kws['minimizer_kwargs'].update(bounds=bounds)
+            else:
+                fit_kws['minimizer_kwargs'] = {'bounds': bounds}
+            fit = basinhopping(
+                func,
+                params,
+                **fit_kws)
+
+            errors = fit.lowest_optimization_result.hess_inv
+            if isinstance(errors, LinearOperator):
+                errors = errors.todense()
+            self._optParams = self.params._listToParams(
+                fit.x, np.sqrt(np.diag(errors)))
+
+        if fit_method == 'minimize':
+            func = (lambda p: np.sum(
+                (self.eval(x, p, **kwargs) - data)**2 / errors**2))
+            fit = minimize(
+                func,
+                params,
+                bounds=bounds,
+                **fit_kws)
+
+            errors = fit.hess_inv.todense()
+            self._optParams = self.params._listToParams(
+                fit.x, np.sqrt(np.diag(errors)))
+
+        self._fitkws['x'] = x
+        self._fitkws['params'] = params
+        self._fitkws.update(**kwargs)
 
     # --------------------------------------------------
     # accessors
     # --------------------------------------------------
-    def getModel(self, x, params=None, convolve=None, **kwargs):
+    def eval(self, x, params=None, convolve=None, **kwargs):
         """Perform the assembly of the components and call
          the provided functions with their parameters to 
          compute the model.
 
         Parameters
         ----------
-        xVar : np.ndarray
+        x : np.ndarray
             Values for the x-axis variable
         params : list, np.array, optional
             Parameters to be passed to the components.
@@ -156,112 +263,102 @@ class Model:
             Another model to be convolved with this one.
         kwargs:
             Additional keyword arguments to be passed to the components.
+            Can override params too.
 
         Returns
         -------
-        The computed model in an array, the dimensions of which depend
-        on `xVar` and `params` attributes and the function called.
+        If `returnComponents` is False:
+            The computed model in an array, the dimensions of which depend
+            on `x` and `params` attributes and the function called.
+        else:
+            A dictionary with key being the component names and the values
+            are the evaluated components.
 
         """
-        res = []
-    
-        # if no parameters override, use the ones from the class instance
-        if params is None:
-            params = self.params
-        else:  # Override self.params values with the ones from params
-            if isinstance(params, dict):
-                params = {**self.params, **params}
-            else:  # assumes a list or numpy array
-                params = self._listToParams(params)
+        names, res = self._getComponents(x, params, convolve, **kwargs)
+        for idx, val in enumerate(res[1:]):
+            res[0] = self._operators[idx](res[0], val)
 
-        components = {**self.eisfComponents, 
-                      **self.qisfComponents}
+        return res[0]
 
-        res = []
-        for key, comp in components.items():
-            if convolve is None:
-                res.append(comp.eval(x, params, **kwargs))
-            else:
-                res.append(self._convolve(x, params, comp, convolve, **kwargs))
-
-        # the background components are not convoluted by default
-        for key, comp in self.bkgdComponents.items():
-            res.append(comp.eval(x, params, **kwargs))
-
-        return np.array(res).sum(0)
-
-    def getComponents(self, x, params=None, convolve=None, 
-                      compType='eisf', **kwargs):
-        """Performs the computation of the components 
+    def evalComponents(self, x, params=None, convolve=None, **kwargs):
+        """Alias for `eval` with 'returnComponents' set to True.
+        
+        Perform the computation of the components 
         with the given x-axis values, parameters and convolutions.
 
-
-        Parameters
-        ----------
-        xVar : np.ndarray
-            values for the x-axis variable
-        params : list, np.array, optional
-            parameters to be passed to the components.
-        convolve : :class:`Model`
-            another model to be convolved with this one.
-        compType : {'eisf', 'qisf', 'bkgd', 'all'}
-            component type to return, either 'eisf', 'qisf',
-            'bkgd' or 'all'
-
-
         Returns
         -------
-        Two lists, the first containing the components names and
-        the second containing the computed lineshapes.
+        A dictionary with key being the component names and the values
+        are the evaluated components.
 
         """
+        names, comps = self._getComponents(x, params, convolve, **kwargs)
+        return {name: comps[idx] for idx, name in enumerate(names)}
+
+    def copy(self):
+        """Return a copy of the model."""
+        m = Model(self.params, self.name, 
+                  self.convolutions, self._on_undef_conv)
+        for key, val in self._components.items():
+            m._components[key] = deepcopy(val)
+        m._operators = deepcopy(self._operators)
+        m._optParams = deepcopy(self._optParams)
+        m._fitkws = deepcopy(self._fitkws)
+
+        return m
+
+    def _getComponents(self, x, params, convolve, **kwargs):
+        """Return the evaluated components."""
         names = []
-        res = []
+        comps = []
     
         # if no parameters override, use the ones from the class instance
         if params is None:
-            params = self.params
-        else:  # Override self.params values with the ones from params
+            params = deepcopy(self.params)
+        else:
             if isinstance(params, dict):
-                params = {**self.params, **params}
+                params.update(**params)
             else:  # assumes a list or numpy array
-                params = self._listToParams(params)
-
-        if compType == 'eisf':
-            comps = self.eisfComponents
-        if compType == 'qisf':
-            comps = self.qisfComponents
-        if compType == 'bkgd':
-            comps = self.bkgdComponents
-        if compType == 'all':
-            comps = {**self.eisfComponents,
-                     **self.qisfComponents,
-                     **self.bkgdComponents}
+                params = self.params._listToParams(params)
 
         # gets the output arrays for each component and sum
-        for key, comp in comps.items():
-            names.append(key)
-            if convolve is None:
-                res.append(comp.eval(x, params, **kwargs))
-            else:
-                res.append(self._convolve(x, params, comp, convolve, **kwargs))
+        for key, comp in self.components.items():
+            names.append(comp.name)
+            if isinstance(comp, Component):
+                if convolve is None:
+                    comps.append(comp.eval(x, params, **kwargs))
+                else:
+                    comps.append(self._convolve(
+                        x, params, comp, convolve, **kwargs))
+            if isinstance(comp, Model):
+                try:
+                    compParams = comp.optParams
+                except ValueError:
+                    print("No fitted parameters found for the sub-model: "
+                          "{name} at {address}.\n"
+                          "Using initial parameters instead.".format(
+                              name=comp.name, address=hex(id(comp))))
+                    compParams = comp.params
+                comps.append(comp.eval(x, compParams, convolve, **kwargs))
 
-        return names, np.array(res)
+        return names, comps
 
-    def _convolve(self, x, params, comp, model, **kwargs):
+    def _convolve(self, x, params, comp, convolve, **kwargs):
         """This method allows to identify the type of function
         given in the two components of the convolution.
 
-        If these function are refered to in the third
-        parameter of the component given with the *comp*
-        attribute, an analytical convolution will be performed
-        using the corresponding convolution function.
+        If these function are refered to in the `convolutions`
+        attribute of the class, an analytical convolution will 
+        be performed using the corresponding convolution function.
         Otherwise, a numerical convolution is performed.
 
         Parameters
         ----------
-        xVar : np.ndarray
+        x : np.ndarray
             array for values corresponding to the x-axis
+        params : list, np.array, optional
+            parameters to be passed to the components.
         comp : tuple(function, parameters, [convolutions]) 
             component of the current :class:`Model` instance
             to be convolved with the components of the other
@@ -269,33 +366,96 @@ class Model:
         model : :class:`Model`
             another :class:`Model` instance that is used for 
             convolution.
+        kwargs:
+            Additional keyword arguments to be passed to the components.
 
         """
+        convDict = self.convolutions[comp.func.__name__]
         res = []
-
-        convComps = {**model.eisfComponents, **model.qisfComponents}
-
-        for key, val in convComps.items():
-            if len(comp) == 2:  # no convolution defined, go numerical
-                res.append(np.convolve(comp[0](xVar, *comp[1](params)),
-                                       val[0](xVar, *val[1](model.params))))
+        for key, val in convolve.components.items():
+            # if no convolution defined, go numerical
+            if not val.func.__name__ in convDict.keys(): 
+                if self._on_undef_conv == 'numeric':
+                    res.append(fftconvolve(
+                        comp.eval(x, params, **kwargs),
+                        val.eval(x, params, **kwargs),
+                        mode='same',
+                        axes=-1))
+                else:
+                    raise KeyError("The convolution function between "
+                        "{func1} and {func2} is not defined in the "
+                        "'convolutions' attribute.".format(
+                            func1=comp.func.__name__, 
+                            func2=val.func.__name__))
             else:
+                convFunc = convDict[val.func.__name__]
                 try:
-                    convFunc = comp[2][val[0].__name__]
-                    res.append(convFunc(xVar, comp, val, params, model.params))
-                except KeyError:
-                    res.append(np.convolve(comp[0](xVar, *comp[1](params)),
-                                           val[0](xVar, *val[1](model.params))))
+                    convParams = convolve.optParams
+                except ValueError:
+                    print("No fitted parameters found for the convolved "
+                          "model: {name} at {address}.\n"
+                          "Using initial parameters instead.".format(
+                              name=convolve.name, address=hex(id(comp))))
+                    convParams = convolve.params
+                res.append(convFunc(
+                    x, comp, val, params, convParams, **kwargs))
 
-        return np.array(res).sum(0)
+        # apply the operators from 'model'
+        for idx, val in enumerate(res[1:]):
+            res[0] = convolve._operators[idx](res[0], val)
+
+        return res[0]
+
+    def __add__(self, other):
+        """Addition operator between Model and Component."""
+        if not isinstance(other, (Model, Component)):
+            raise TypeError("The Model class currently supports addition "
+                            "with a 'Component' or 'Model' instance only.")
+        m = self.copy()
+        m.addComponent(other, "+")
+
+        return m
+
+    def __sub__(self, other):
+        """Subtraction operator between Model and Component."""
+        if not isinstance(other, (Model, Component)):
+            raise TypeError("The Model class currently supports subtraction "
+                            "with a 'Component' or 'Model' instance only.")
+        m = self.copy()
+        m.addComponent(other, "-")
+
+        return m
+
+    def __truediv__(self, other):
+        """Division operator between Model and Component."""
+        if not isinstance(other, (Model, Component)):
+            raise TypeError("The Model class currently supports division "
+                            "with a 'Component' or 'Model' instance only.")
+        m = self.copy()
+        m.addComponent(other, "/")
+
+        return m
+
+    def __sub__(self, other):
+        """Subtraction operator between Model and Component."""
+        if not isinstance(other, (Model, Component)):
+            raise TypeError("The Model class currently supports "
+                            "mulitplication with a 'Component' or 'Model' "
+                            "instance only.")
+        m = self.copy()
+        m.addComponent(other, "*")
+
+        return m
 
 
 class Component:
-    def __init__(self, func, **funcArgs):
+    def __init__(self, name, func, **funcArgs):
         """Component class to be used with the :class:`Model` class.
 
         Parameters
         ----------
+        name : str
+            Name for the component.
         func : callable
             The function to be used for this component.
         funcArgs : dict of str, int, float or arrays
@@ -315,16 +475,18 @@ class Component:
         Lorentzian, the width of which depends on a defined vector *q*,
         can be created using:
 
-        >>> def lorentzian(x, amplitude, sigma):
-        ...     return amplitude / np.pi * sigma / (x**2 + sigma**2)
+        >>> def lorentzian(x, scale, width):
+        ...     return scale / np.pi * width / (x**2 + width**2)
         >>> myComp = Component(
-        ...     lorentzian, amplitude='amplitude', sigma='sigma * q**2')
+        ...     lorentzian, scale='scale', width='width * q**2')
 
         If the Lorentzian width is constant, use:
 
-        >>> myComp = Component(lorentzian, amplitude='amplitude', sigma=5)
+        >>> myComp = Component(lorentzian, scale='scale', width=5)
 
         """
+        self.name = name
+
         if not hasattr(func, "__call__"):
             raise AttributeError("Parameter 'func' should be a callable.")
         self.func = func
@@ -345,15 +507,21 @@ class Component:
             Can override params.
         
         """
+        args = self.processFuncArgs(params, **kwargs)
+        return self.func(x, **args)
+
+    def processFuncArgs(self, params, **kwargs):
+        """Return the evaluated argument for the function using given
+        parameters and keyword arguments.
+
+        """
         params = deepcopy(params)
 
         for key, val in kwargs.items():
             if isinstance(val, (int, float, list, np.ndarray)):
-                params.update(key, value=val)
-            elif isinstance(val, (tuple)):
-                params.update(key, *val)
-            else:  # assume a dictionary of attributes
-                params.update(key, **val)
+                params.set(key, value=val)
+            else:
+                params.update(**{key: val})
 
         args = {}
         for key, arg in self.funcArgs.items():
@@ -366,7 +534,7 @@ class Component:
             else:
                 args[key] = arg
 
-        return self.func(x, **args)
+        return args
 
     def _guessArgs(self):
         """Guess arguments from function signature."""

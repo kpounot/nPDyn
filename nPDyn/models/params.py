@@ -2,10 +2,11 @@
 
 """
 
-import numpy as np
+from copy import deepcopy
 
 from collections import OrderedDict, namedtuple
 
+import numpy as np
 
 def pTuple(value=1, bounds=(-np.inf, np.inf), fixed=False, error=0.):
     """Helper function to create a namedtuple with default values."""
@@ -88,8 +89,8 @@ class Parameters(OrderedDict):
 
         self._applyBounds()
 
-    def update(self, name, **kwargs):
-        """Redefine update method for use with namedtuple.
+    def set(self, name, **kwargs):
+        """Set a parameter entry with given attributes in 'kwargs'.
         
         Parameters
         ----------
@@ -99,7 +100,8 @@ class Parameters(OrderedDict):
             Parameters to be updates with the associated attributes.
             The call should be of the form:
 
-            >>> params.update('amplitude', value=1.2, fixed=True)
+            >>> params.set('amplitude', value=1.2, fixed=True)
+            >>> params.set('width', value=2.3, bounds=(0., np.inf))
 
         """
         # parse kwargs to keep only attributes from pTuple
@@ -114,6 +116,20 @@ class Parameters(OrderedDict):
             self[name] = pTuple(**kwargs)
 
         self._applyBounds()
+
+    def update(self, **kwargs):
+        """Update the parameters."""
+        for key, val in kwargs.items():
+            if isinstance(val, type(pTuple)):
+                self[key] = val
+                self._applyBounds()
+            elif isinstance(val, (list, tuple)):
+                self[key] = pTuple(*val)
+                self._applyBounds()
+            elif isinstance(val, dict):
+                self.set(key, **val)
+            else:
+                self.set(key, **{'value': val})
 
     def _applyBounds(self):
         """Apply bounds on parameter values."""
@@ -147,10 +163,10 @@ class Parameters(OrderedDict):
         for key, val in self.items():
             if not val.fixed:
                 if isinstance(val.value, (list, np.ndarray)):
-                    params.append(val.value)
+                    params.append(np.array(val.value).flatten())
                     size = val.value.size
                 else:  # assumes a integer or float
-                    params.append([val.value])
+                    params.append(np.array([val.value]))
                     size = 1
                     
                 if val.bounds is not None:
@@ -158,33 +174,40 @@ class Parameters(OrderedDict):
                 else:
                     [bounds.append(val.bounds) for i in range(size)]
 
-        params = np.concatenate(params).flatten()
+        params = np.concatenate(params)
 
         return params, bounds
 
-    def _listToParams(self, pList):
+    def _listToParams(self, pList, errList=None):
         """ Use the given list to convert a list of parameters to
         a dictionary similar to the current one.
 
         """
-        params = {**self}
+        params = deepcopy(self)
         pList = list(pList)
+        if errList is not None:
+            errList = list(errList)
+        else:
+            errList = list(np.zeros_like(pList))
+
         for key, val in params.items():
-            if key not in self.fixedParams:
+            if not val.fixed:
                 if isinstance(val.value, np.ndarray):
                     valShape = val.value.shape
                     valSize = val.value.size
                     newVal = [pList.pop(0) for idx in range(valSize)]
+                    newErr = [errList.pop(0) for idx in range(valSize)]
                     newVal = np.array(newVal).reshape(valShape)
-                    params[key] = newVal
+                    params.set(key, value=newVal, error=newErr)
 
                 elif isinstance(val.value, list):
                     valSize = len(val)
                     newVal = [pList.pop(0) for idx in range(valSize)]
-                    params[key] = newVal
+                    newErr = [errList.pop(0) for idx in range(valSize)]
+                    params.set(key, value=newVal, error=newErr)
 
                 else:  # assumes integer or float
-                    params[key] = pList.pop(0)
+                    params.set(key, value=pList.pop(0), error=errList.pop(0))
 
         return params
 
