@@ -16,13 +16,12 @@ def binData(data, binS, axis):
             axis to be used for binning
 
     """
-
     binS = int(binS)
 
     # Get the axis to be binned
     if axis == 'energies':
         tmpX = data.energies
-    elif axis == 'observable':
+    else:
         tmpX = data.observable
 
     # Computes the loop number needed for binning
@@ -65,8 +64,6 @@ def binData(data, binS, axis):
             tmpIntensities[i] = np.mean(intSlice, 0)
             tmpErrors[i] = np.mean(errSlice, 0)
 
-
-
     # Remove unecessary data after binning
     if axis == 'energies':
         data = data._replace(energies   = tmpX[:loopSize],
@@ -76,6 +73,5 @@ def binData(data, binS, axis):
         data = data._replace(observable  = tmpX[:loopSize],
                              intensities = tmpIntensities[:loopSize],
                              errors      = tmpErrors[:loopSize])
-
 
     return data

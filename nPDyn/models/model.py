@@ -26,18 +26,18 @@ from nPDyn.models.presets import (
 
 
 class findParamNames(ast.NodeTransformer):
+    """Helper class to parse strings to evaluation for function
+    arguments in :class:`Component`.
+
+    Parameters
+    ----------
+    params : :class:`Parameters`
+        An instance of Parameters from which the parameter
+        names are to be found and substituted by the corresponding
+        values.
+
+    """
     def __init__(self, params):
-        """Helper class to parse strings to evaluation for function
-        arguments in :class:`Component`.
-
-        Parameters
-        ----------
-        params : :class:`Parameters`
-            An instance of Parameters from which the parameter
-            names are to be found and substituted by the corresponding
-            values.
-
-        """
         super().__init__()
         self.params = params
 
@@ -57,6 +57,37 @@ class findParamNames(ast.NodeTransformer):
 
 
 class Model:
+    """Model class to be used within nPDyn.
+
+    The model is structured in components that can be added 
+    together, each component consisting of a name, a callable
+    function and a dictionary of parameters. The parameters
+    of two different components can have the same name such
+    that they can be shared by several components just like
+    for the switching diffusive state model.
+
+    Also, the components are separated in two classes, namely
+    *eisfComponents* and *qisfComponents*, in order to
+    provide the possibility to separatly extract the elastic
+    and quasi-elastic parts for analysis and plotting.
+
+    Parameters
+    ----------
+    params : :class:`Parameters` instance
+        Parameters to be used with the model
+    name : str, optional
+        A name for the model.
+    convolutions : dict of dict
+        Dictionary that defines the mapping '(function1, function2)'
+        to 'convolutionFunction(function1, function2)'. Analytic
+        convolutions or user defined operators can be defined
+        this way.
+    on_undef_conv : {'raise', 'numeric'}
+        Defines the behavior of the class on missing convolution function
+        in the 'convolutions' attribute. The option 'raise' leads to a
+        `KeyError` and the option 'numeric' to a numerical convolution.
+
+    """
     _opMap = {
         "+": operator.add,
         "-": operator.sub,
@@ -68,37 +99,6 @@ class Model:
                  name="Model",
                  convolutions=None,
                  on_undef_conv='raise'): 
-        """Model class to be used within nPDyn.
-
-        The model is structured in components that can be added 
-        together, each component consisting of a name, a callable
-        function and a dictionary of parameters. The parameters
-        of two different components can have the same name such
-        that they can be shared by several components just like
-        for the switching diffusive state model.
-
-        Also, the components are separated in two classes, namely
-        *eisfComponents* and *qisfComponents*, in order to
-        provide the possibility to separatly extract the elastic
-        and quasi-elastic parts for analysis and plotting.
-
-        Parameters
-        ----------
-        params : :class:`Parameters` instance
-            Parameters to be used with the model
-        name : str, optional
-            A name for the model.
-        convolutions : dict of dict
-            Dictionary that defines the mapping '(function1, function2)'
-            to 'convolutionFunction(function1, function2)'. Analytic
-            convolutions or user defined operators can be defined
-            this way.
-        on_undef_conv : {'raise', 'numeric'}
-            Defines the behavior of the class on missing convolution function
-            in the 'convolutions' attribute. The option 'raise' leads to a
-            `KeyError` and the option 'numeric' to a numerical convolution.
-
-        """
         self.name = name
         self.params = deepcopy(params) if params is not None else {}
         self._components = OrderedDict()
@@ -128,6 +128,7 @@ class Model:
 
         self._optParams = None
         self._fitkws = {}
+
         self._on_undef_conv = on_undef_conv
 
     @property
@@ -299,7 +300,8 @@ class Model:
     def copy(self):
         """Return a copy of the model."""
         m = Model(self.params, self.name, 
-                  self.convolutions, self._on_undef_conv)
+                  self.convolutions,
+                  self._on_undef_conv)
         for key, val in self._components.items():
             m._components[key] = deepcopy(val)
         m._operators = deepcopy(self._operators)
@@ -312,7 +314,7 @@ class Model:
         """Return the evaluated components."""
         names = []
         comps = []
-    
+
         # if no parameters override, use the ones from the class instance
         if params is None:
             params = deepcopy(self.params)
@@ -326,21 +328,27 @@ class Model:
         for key, comp in self.components.items():
             names.append(comp.name)
             if isinstance(comp, Component):
-                if convolve is None:
+                if convolve is None or comp.skip_convolve:
                     comps.append(comp.eval(x, params, **kwargs))
                 else:
                     comps.append(self._convolve(
                         x, params, comp, convolve, **kwargs))
             if isinstance(comp, Model):
+                model_kws = {}
                 try:
                     compParams = comp.optParams
+                    model_kws = comp.fitkws
+                    if 'x' in model_kws:
+                        model_kws.pop('x')
+                    if 'params' in model_kws:
+                        model_kws.pop('params')
                 except ValueError:
                     print("No fitted parameters found for the sub-model: "
                           "{name} at {address}.\n"
                           "Using initial parameters instead.".format(
                               name=comp.name, address=hex(id(comp))))
                     compParams = comp.params
-                comps.append(comp.eval(x, compParams, convolve, **kwargs))
+                comps.append(comp.eval(x, compParams, convolve, **model_kws))
 
         return names, comps
 
@@ -370,11 +378,38 @@ class Model:
             Additional keyword arguments to be passed to the components.
 
         """
-        convDict = self.convolutions[comp.func.__name__]
         res = []
-        for key, val in convolve.components.items():
-            # if no convolution defined, go numerical
-            if not val.func.__name__ in convDict.keys(): 
+        if comp.func.__name__ in self.convolutions.keys():
+            convDict = self.convolutions[comp.func.__name__]
+            for key, val in convolve.components.items():
+                # if no convolution defined, go numerical or raise KeyError
+                if not val.func.__name__ in convDict.keys(): 
+                    if self._on_undef_conv == 'numeric':
+                        res.append(fftconvolve(
+                            comp.eval(x, params, **kwargs),
+                            val.eval(x, params, **kwargs),
+                            mode='same',
+                            axes=-1))
+                    else:
+                        raise KeyError("The convolution function between "
+                            "{func1} and {func2} is not defined in the "
+                            "'convolutions' attribute.".format(
+                                func1=comp.func.__name__, 
+                                func2=val.func.__name__))
+                else:
+                    convFunc = convDict[val.func.__name__]
+                    try:
+                        convParams = convolve.optParams
+                    except ValueError:
+                        print("No fitted parameters found for the convolved "
+                              "model: {name} at {address}.\n"
+                              "Using initial parameters instead.".format(
+                                  name=convolve.name, address=hex(id(comp))))
+                        convParams = convolve.params
+                    res.append(convFunc(
+                        x, comp, val, params, convParams, **kwargs))
+        else:
+            for key, val in convolve.components.items():
                 if self._on_undef_conv == 'numeric':
                     res.append(fftconvolve(
                         comp.eval(x, params, **kwargs),
@@ -387,18 +422,6 @@ class Model:
                         "'convolutions' attribute.".format(
                             func1=comp.func.__name__, 
                             func2=val.func.__name__))
-            else:
-                convFunc = convDict[val.func.__name__]
-                try:
-                    convParams = convolve.optParams
-                except ValueError:
-                    print("No fitted parameters found for the convolved "
-                          "model: {name} at {address}.\n"
-                          "Using initial parameters instead.".format(
-                              name=convolve.name, address=hex(id(comp))))
-                    convParams = convolve.params
-                res.append(convFunc(
-                    x, comp, val, params, convParams, **kwargs))
 
         # apply the operators from 'model'
         for idx, val in enumerate(res[1:]):
@@ -436,8 +459,8 @@ class Model:
 
         return m
 
-    def __sub__(self, other):
-        """Subtraction operator between Model and Component."""
+    def __mul__(self, other):
+        """Multplication operator between Model and Component."""
         if not isinstance(other, (Model, Component)):
             raise TypeError("The Model class currently supports "
                             "mulitplication with a 'Component' or 'Model' "
@@ -449,47 +472,51 @@ class Model:
 
 
 class Component:
-    def __init__(self, name, func, **funcArgs):
-        """Component class to be used with the :class:`Model` class.
+    """Component class to be used with the :class:`Model` class.
 
-        Parameters
-        ----------
-        name : str
-            Name for the component.
-        func : callable
-            The function to be used for this component.
-        funcArgs : dict of str, int, float or arrays
-            Values to be passed to the function arguments.
-            This is a dicitonary of argument names mapped to values.
-            The values can be of different types:
-                - **int, float or array** - the values are directly passed to
-                the function.
-                - **str** - the values are evaluated first. If any word in
-                the string is present in the `Model.params` dictionary keys,
-                the corresponding parameter value is substituted.
+    Parameters
+    ----------
+    name : str
+        Name for the component.
+    func : callable
+        The function to be used for this component.
+    skip_convolve : bool
+        If True, no convolution is performed for this model.
+        It can be useful for background or normalization terms.
+    funcArgs : dict of str, int, float or arrays
+        Values to be passed to the function arguments.
+        This is a dicitonary of argument names mapped to values.
+        The values can be of different types:
+            - **int, float or array**, the values are directly passed to
+              the function.
+            - **str**, the values are evaluated first. If any word in
+              the string is present in the `Model.params` dictionary keys,
+              the corresponding parameter value is substituted.
 
-        Examples
-        --------
-        For a `Model` class that has the following key in its `params`
-        attribute: ('amplitude', 'sigma'), the component for a 
-        Lorentzian, the width of which depends on a defined vector *q*,
-        can be created using:
+    Examples
+    --------
+    For a `Model` class that has the following key in its `params`
+    attribute: ('amplitude', 'sigma'), the component for a 
+    Lorentzian, the width of which depends on a defined vector *q*,
+    can be created using:
 
-        >>> def lorentzian(x, scale, width):
-        ...     return scale / np.pi * width / (x**2 + width**2)
-        >>> myComp = Component(
-        ...     lorentzian, scale='scale', width='width * q**2')
+    >>> def lorentzian(x, scale, width):
+    ...     return scale / np.pi * width / (x**2 + width**2)
+    >>> myComp = Component(
+    ...     'lor', lorentzian, scale='scale', width='width * q**2')
 
-        If the Lorentzian width is constant, use:
+    If the Lorentzian width is constant, use:
 
-        >>> myComp = Component(lorentzian, scale='scale', width=5)
+    >>> myComp = Component('lor', lorentzian, scale='scale', width=5)
 
-        """
+    """
+    def __init__(self, name, func, skip_convolve=False, **funcArgs):
         self.name = name
 
         if not hasattr(func, "__call__"):
             raise AttributeError("Parameter 'func' should be a callable.")
         self.func = func
+        self.skip_convolve = skip_convolve
 
         self.funcArgs = {}
         self._guessArgs()

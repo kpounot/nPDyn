@@ -1,8 +1,5 @@
-"""This module provides several preset models that can
-be used to fit your data.
-
-All convolutions are already defined with the models
-that start with 'res'.
+"""This module provides several preset functions that can
+be used to create model components and fit your data.
 
 """
 
@@ -91,15 +88,15 @@ def delta(x, scale=1, center=0):
     """
     center = (x - center)**2
     center = np.argwhere(center == center.min())
-    x *= 0
-    x[center] = scale
-    return x
+    out = x * 0
+    out[center] = scale / (x[1] - x[0])
+    return out
 
 def linear(x, a=0., b=1.):
     """A linear model of the form :math:`a x + b`"""
     return a * x + b
 
-def calibratedD2O(x, volFraction, temp, amplitude=1.):
+def calibratedD2O(x, q, volFraction, temp, amplitude=1.):
     """Lineshape for D2O where the Lorentzian width was obtained
     from a measurement on IN6 at the ILL.
 
@@ -115,6 +112,10 @@ def calibratedD2O(x, volFraction, temp, amplitude=1.):
         Amplitude of the D2O signal. The parameter to be fitted.
 
     """
+    out = (amplitude * getD2Odata(volFraction)(temp, q) 
+           / (np.pi * (x**2 + getD2Odata(volFraction)(temp, q)**2))) 
+
+    return out
 
 # -------------------------------------------------------
 # Define some analytic convolutions

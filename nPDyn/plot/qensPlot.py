@@ -7,7 +7,6 @@ import numpy as np
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QCheckBox,
                              QPushButton, QVBoxLayout, 
                              QHBoxLayout, QFrame, QSlider)
-from PyQt5.QtGui import QDoubleValidator, QIntValidator
 from PyQt5 import QtCore
 
 from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -31,13 +30,13 @@ class QENSPlot(QWidget):
         canvas to draw the plots, a lineedit widget to allow the
         user to select the q-value to be used to show the data
         and several buttons corresponding to the different type of plots.
-            - Plot              - plot the normalized experimental data for
-                                  the selected q-value
-            - 3D Plot           - plot the whole normalized dataSet
-            - Analysis          - plot the different model parameters as a
-                                  function of q-value
-            - Resolution        - plot the fitted model on top of the
-                                  experimental data
+            - Plot      - plot the experimental data for
+                          the selected observable and q-value.
+            - Compare   - plot the datasets on top of each other for 
+                          direct comparison.
+            - 3D Plot   - plot the whole datasets in 3D (energies E, q, S(q, E)).
+            - Analysis  - plot the different model parameters as a
+                          function of q-value.
 
         """
         super().__init__()
@@ -177,12 +176,12 @@ class QENSPlot(QWidget):
 
                 if self.compBox.isChecked():
                     components = self.dataset[idx].fit_components(
-                        x=energies)[obsIdx]
+                        x=energies)
                     # Plot the model components
                     for key, val in components.items():
                         subplot.plot(
                             energies,
-                            val[qIdx],
+                            val[obsIdx, qIdx],
                             label=key,
                             ls='--',
                             zorder=2)
@@ -292,13 +291,15 @@ class QENSPlot(QWidget):
                 if not self.errBox.isChecked():
                     errors = np.zeros_like(errors)
 
+                marker = 'o'
                 if values.size == 1:
                     values = np.zeros_like(qList) + values
                     errors = np.zeros_like(qList) + errors
+                    marker=None
 
                 ax[idx].plot(qList, 
                              values, 
-                             marker='o', 
+                             marker=marker, 
                              label=dataset.fileName)
 
                 ax[idx].fill_between(
@@ -306,8 +307,7 @@ class QENSPlot(QWidget):
                 ax[idx].set_ylabel(key)
                 ax[idx].set_xlabel('$q \ [\AA^{-1}]$')
 
-        self.figure.legend(framealpha=0.5, fontsize=10,
-                           bbox_to_anchor=(0.3, 2.5))
+        ax[-1].legend(framealpha=0.5)
 
         self.canvas.draw()
 

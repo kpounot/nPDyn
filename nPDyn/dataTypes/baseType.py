@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 
 from nPDyn.dataManipulation.binData import binData
 from nPDyn.fileFormatParser import guessFileFormat, readFile
-from nPDyn.dataParsers import *
+from nPDyn.dataParsers import (IN16B_FWS, IN16B_QENS)
 
 from nPDyn.models import Model, Component
 from nPDyn.models.presets import linear
@@ -102,8 +102,8 @@ class BaseType:
         self.D2OData  = D2OData 
         self.ECData   = ECData
 
-        self._QENS_redAlgo = {'IN16B': in16b_qens_scans_reduction.IN16B_QENS}
-        self._FWS_redAlgo  = {'IN16B': in16b_fws_scans_reduction.IN16B_FWS}
+        self._QENS_redAlgo = {'IN16B': IN16B_QENS}
+        self._FWS_redAlgo  = {'IN16B': IN16B_FWS}
 
         self.model = model
         self._fit = []
@@ -179,7 +179,6 @@ class BaseType:
         """
         self.data = self.data._replace(
             qVals       = np.copy(self._rawData.qVals),
-            selQ        = np.copy(self._rawData.selQ),
             times       = np.copy(self._rawData.times),
             intensities = np.copy(self._rawData.intensities),
             errors      = np.copy(self._rawData.errors),
@@ -269,6 +268,21 @@ class BaseType:
                 errors=errors / norm,
                 norm=True)
 
+    def normalize_usingLowTemp(self, nbrBins):
+        """ Normalizes data using low temperature signal.
+            An average is performed over the given
+            number of bins for each q value and data
+            are divided by the result.
+
+        """
+        normFList = np.mean(
+            self.data.intensities[:nbrBins, :, :], axis=0)[np.newaxis, :, :]
+
+        self.data = self.data._replace(
+            intensities=self.data.intensities / normFList,
+            errors=self.data.errors / normFList,
+            norm=True)
+
     def normalize_usingSelf(self):
         """Normalized data using the integral of the model or experimental."""
         if not self.data.norm:
@@ -305,10 +319,16 @@ class BaseType:
             points to perform the subtraction if True.
 
         """
-        if useModel:  # Use a fitted model
+        if useModel and self.ECData.model is not None:  # Use a fitted model
             ECFunc = self.ECData.fit_best(x=self.data.energies)
         else:
-            ECFunc = self.ECData.data.intensities
+            ECData = self.ECData.data.intensities
+            if ECData.shape == self.data.intensities.shape:
+                ECFunc = self.ECData.data.intensities
+            else:
+                ids = np.argmin([(self.ECData.data.energies - val)**2
+                       for val in self.data.energies], axis=1)
+                ECFunc = ECData[:, :, ids]
 
         normEC = np.zeros_like(self.data.intensities) + ECFunc
 
@@ -325,7 +345,8 @@ class BaseType:
 
     @ensure_attr('ECData')
     def absorptionCorrection(self, canType='tube', canScaling=0.9,
-                             neutron_wavelength=6.27, absco_kwargs=None):
+                             neutron_wavelength=6.27, absco_kwargs=None,
+                             useModel=True):
         """Computes absorption Paalman-Pings coefficients 
         
         Can be used for sample in a flat or tubular can and apply corrections 
@@ -375,31 +396,26 @@ class BaseType:
 
         sampleSignal = self.data.intensities
 
-        if useModel:  # Use a fitted model
-            ECFunc = self.ECData.fit_best()
+        if useModel and self.ECData.model is not None:  # Use a fitted model
+            ECFunc = self.ECData.fit_best(x=self.data.energies)
         else:
-            ECFunc = self.ECData.data.intensities
+            ECData = self.ECData.data.intensities
+            if ECData.shape == self.data.intensities:
+                ECFunc = self.ECData.data.intensities
+            else:
+                ids = np.argmin([(self.ECData.data.energies - val)**2
+                       for val in self.data.energies], axis=1)
+                ECFunc = ECData[:, :, ids]
 
         normEC = np.zeros_like(self.data.intensities) + ECFunc
 
         # If data are normalized, uses the same normalization
         # factor for empty cell data
-        if self.data.norm:
-            # assume a q-wise fit of normalized resolution function
-            normFList = []
-            norm = self.resData.params
-            if len(norm) == normEC.shape[0]:
-                for idx, val in enumerate(intensities):
-                    normFList.append(norm[idx]['values'][normFactorName])
-            elif len(norm) == 1:
-                normFList.append(norm[0]['values'][normFactorName])
-            else:
-                raise ValueError("The shape of 'resData' parameters does not "
-                                 "match current dataset.")
-            normFList = np.array(normFList)
-            normEC /= normFList
+        if self.data.norm and not self.ECData.data.norm:
+            norm = self._getNormRes()
+            normEC /= norm
 
-        for qIdx, angle in enumerate(self.data.selQ):
+        for qIdx, angle in enumerate(self.data.qVals):
             angle = np.arcsin(neutron_wavelength * angle / (4 * np.pi))
             if canType == 'slab':
                 A_S_SC, A_C_SC, A_C_C = py_absco_slab(angle, **kwargs)
@@ -407,14 +423,16 @@ class BaseType:
                 A_S_SC, A_C_SC, A_C_C = py_absco_tube(angle, **kwargs)
 
             # Applies correction
-            sampleSignal[qIdx] = ((1 / A_S_SC) * sampleSignal[:, qIdx]
-                                  - A_C_SC / (A_S_SC * A_C_C)
-                                  * canScaling * ECFunc[:, qIdx])
+            sampleSignal[:, qIdx] = ((1 / A_S_SC) * sampleSignal[:, qIdx]
+                                    - A_C_SC / (A_S_SC * A_C_C)
+                                    * canScaling * normEC[:, qIdx])
 
         self.data = self.data._replace(intensities=sampleSignal)
 
     def discardDetectors(self, *qIdx):
         """Remove detectors (q-values)."""
+        print(self.data.qIdx)
+        print(qIdx)
         ids = np.array([idx for idx, val in enumerate(self.data.qIdx) 
                         if val not in qIdx])
 
@@ -492,7 +510,7 @@ class BaseType:
 
         return params
 
-    def fit(self, model=None, cleanData=True, convolveRes=False,
+    def fit(self, model=None, cleanData='replace', convolveRes=False,
             addEC=False, addD2O=False, **kwargs):
         """Fit the dataset using the `model` attribute.
 
@@ -504,9 +522,12 @@ class BaseType:
             the class instance.
             If not None, will override the model attribute of the class
             instance.
-        cleanData : bool, optional
-            If True, the null or inf values in data and weights are 
-            removed from the input arrays prior to fitting.
+        cleanData : {'replace', 'omit'} or anything else for no, optional
+            If set to 'replace' the locations of null or inf values in data 
+            are set to *np.inf* in weights prior to fitting.
+            If set to 'omit' the locations of null or inf values in data 
+            are removed from data, weights and x prior to fitting.
+            Else, nothing is done.
         convolveRes : bool, optional
             If True, will use the attribute `resData`, fix the parameters,
             and convolve it with the data using: 
@@ -544,58 +565,66 @@ class BaseType:
         # reset the state of '_fit'
         self._fit = []
 
-        for idx, data in enumerate(self.data.intensities):
-            q = self.data.qVals
-            data = np.copy(data)
-            errors = np.copy(self.data.errors[idx])
-            x = np.copy(self.data.energies)
+        q = self.data.qVals
+        if not 'data' in kwargs.keys():
+            data = np.copy(self.data.intensities)
+        else:
+            data = kwargs['data']
+        if not 'errors' in kwargs.keys():
+            errors = np.copy(self.data.errors)
+        else:
+            errors = kwargs['errors']
+        x = np.copy(self.data.energies)
 
-            if cleanData:
-                data, errors, x = self._cleanData(data, errors, x)
+        if cleanData in ['replace', 'omit']:
+            data, errors, x = self._cleanData(data, errors, x, cleanData)
 
-            fit_kwargs = {
-                'data': data,
-                'errors': errors,
-                'x': x,
-                'q': q,
-                'params': self.model.params._paramsToList()}
+        fit_kwargs = {
+            'x': x,
+            'q': q,
+            'params': self.model.params._paramsToList()}
 
-            if kwargs is not None:
-                fit_kwargs.update(kwargs)
+        if kwargs is not None:
+            fit_kwargs.update(kwargs)
 
-            if convolveRes:
-                resModel = self.resData.model.copy()
-                if self.data.norm and not self.resData.data.norm:
-                    resModel /= Component(
-                        "norm", linear, a=0., b=self._getNormRes()[0])
-                fit_kwargs['convolve'] = resModel
+        if convolveRes:
+            resModel = self.resData.model.copy()
+            if self.data.norm and not self.resData.data.norm:
+                resModel /= Component(
+                    "norm", linear, a=0., b=self._getNormRes()[0])
+            fit_kwargs['convolve'] = resModel
 
-            if addEC:
-                ecModel = self.ECData.model.copy()
-                if self.data.norm and not self.ECData.data.norm:
-                    ecModel /= Component(
-                        "norm", linear, a=0., b=self._getNormRes()[0])
-                model = model + ecModel
+        if addEC:
+            ecModel = self.ECData.model.copy()
+            if self.data.norm and not self.ECData.data.norm:
+                ecModel /= Component(
+                    "norm", linear, a=0., b=self._getNormRes()[0])
+            model = model + ecModel
 
-            if addD2O:
-                D2OModel = self.D2OData.model.copy()
-                if self.data.norm and not self.D2OData.data.norm:
-                    D2OModel /= Component(
-                        "norm", linear, a=0., b=self._getNormRes()[0])
-                model = model + D2OModel
+        if addD2O:
+            D2OModel = self.D2OData.model.copy()
+            if self.data.norm and not self.D2OData.data.norm:
+                D2OModel /= Component(
+                    "norm", linear, a=0., b=self._getNormRes()[0])
+            model = model + D2OModel
 
-            print("\tFit of observable %i of %i (%s=%s)\r" %
+        for idx, obs in enumerate(self.data.observable):
+            # get the right observable index for data and errors
+            fit_kwargs['data'] = data[idx]
+            fit_kwargs['errors'] = errors[idx]
+            print("\tFit of observable %i of %i (%s=%s)" %
                   (idx + 1, 
                    self.data.intensities.shape[0],
                    self.data.observable_name,
-                   self.data.observable[idx]))
-
+                   self.data.observable[idx]), end='\r')
+                  
             model.fit(**fit_kwargs)
 
-            self.model = model
             self._fit.append(model.optParams)
 
-        print("Done.\n")
+        self.model = model
+
+        print("\nDone.\n")
 
     @property
     @ensure_fit
@@ -618,8 +647,8 @@ class BaseType:
         kws.update(**kwargs)
 
         out = []
-        for fit in self._fit:
-            kws['params'] = self.model.optParams
+        for idx, fit in enumerate(self._fit):
+            kws['params'] = self.params[idx]
             out.append(self.model.eval(**kws))
 
         return np.array(out)
@@ -638,14 +667,18 @@ class BaseType:
         kws = self.model.fitkws
         kws.update(**kwargs)
 
-        out = []
-        for fit in self._fit:
-            kws['params'] = self.model.optParams
-            out.append(self.model.evalComponents(**kws))
+        comps = {key: [] for key in self.model.components.keys()}
+        for idx, fit in enumerate(self._fit):
+            kws['params'] = self.params[idx]
+            for key, val in self.model.evalComponents(**kws).items():
+                comps[key].append(val)
 
-        return np.array(out)
+        for key, val in comps.items():
+            comps[key] = np.array(val)
 
-    def _cleanData(self, data, errors, x, processType='omit'):
+        return comps
+
+    def _cleanData(self, data, errors, x, processType='replace'):
         """Remove inf and null values from the input arrays.
         
         Parameters
@@ -658,12 +691,12 @@ class BaseType:
         """
         if processType == 'omit':
             mask = ~(data <= 0.) & ~(data == np.inf)
-            mask1d = mask[0]
             for idx, val in enumerate(mask):
-                mask1d = mask1d & val
-            data = data[:, mask1d] 
-            errors = errors[:, mask1d]
-            x = x[mask1d]
+                mask[0] = mask[0] & val
+
+            data = data[:, :, mask[0, 0]] 
+            errors = errors[:, :, mask[0, 0]]
+            x = x[mask[0, 0]]
 
         if processType == 'replace':
             np.place(errors, data <= 0., np.inf)

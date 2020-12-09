@@ -67,7 +67,6 @@ class IN16B_FWS:
                  observable='time',
                  offset=None):
 
-
         self.data = namedtuple('data',
                                'intensities errors energies '
                                'temps times name qVals '
@@ -248,36 +247,25 @@ class IN16B_FWS:
 
         return data, angles
 
-
-
-
     def _convertDataset(self):
         """ Converts the data lists of the class into
             namedtuple(s) that can be directly used by nPDyn.
 
         """
-
         energies, times, data, errors, temps = self._processEnergyOffsets()
-
-        np.place(errors, errors == 0.0, np.inf)
-        np.place(errors, errors == np.nan, np.inf)
-        np.place(data, data == np.nan, 0)
-        np.place(data, data / errors < 0.5, 0)
-        np.place(errors, data / errors < 0.5, np.inf)
 
         if self.sumScans:
             data   = data.sum(0)[np.newaxis, :, :]
             errors = errors.sum(0)[np.newaxis, :, :]
-            temps  = np.array([[val.mean() for val in temps]])
-            times  = np.array([[val.mean() for val in times]])
+            temps  = np.array([val.mean() for val in temps])
+            times  = np.array([val.mean() for val in times])
 
         if self.observable == 'time':
-            Y = times
+            Y = times.squeeze()
         elif self.observable == 'temperature':
-            Y = temps
+            Y = temps.squeeze()
         elif self.observable == '$q_z$':
             Y = np.arange(0, 1.5, 0.1)
-
 
         self.outTuple = self.data(data,
                                   errors,
@@ -290,8 +278,6 @@ class IN16B_FWS:
                                   Y,
                                   self.observable,
                                   False)
-
-
 
     def _normalizeToMonitor(self, data, monitor):
         """ The method finds the peak positions in data array.
@@ -482,7 +468,7 @@ class IN16B_FWS:
             errors = np.array(errors).transpose(1, 2, 0)
 
         return (energies,
-                np.array(deltaTime),
+                np.array(deltaTime).mean(0),
                 data,
                 errors,
-                np.array(temps))
+                np.array(temps).mean(0))

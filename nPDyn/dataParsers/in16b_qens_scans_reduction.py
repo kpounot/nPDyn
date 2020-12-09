@@ -1,7 +1,4 @@
-"""
-
-Classes
-^^^^^^^
+"""This module is used for importation of raw data from IN16B instrument.
 
 """
 
@@ -20,45 +17,43 @@ from scipy.optimize import curve_fit, basinhopping
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
 
 
-
 class IN16B_QENS:
-    """ This class can handle raw QENS data from IN16B
-        at the ILL in the hdf5 format.
+    """This class can handle raw QENS data from IN16B
+    at the ILL in the hdf5 format.
 
-        :arg scanList:    a string or a list of files to be read and
-                          parsed to extract the data.
-                          It can be a path to a folder as well.
-        :arg sumScans:    whether the scans should be summed or not.
-        :arg unmirroring: whether the data should be unmirrored or not.
-        :arg vanadiumRef: if :arg unmirroring: is True, then the peaks
-                          positions are identified
-                          using the data provided with this argument.
-                          If it is None, then the peaks positions are
-                          identified using the data in scanList.
-        :arg detGroup:    detector grouping, i.e. the channels that
-                          are summed over along the position-sensitive
-                          detector tubes. It can be an integer, then the
-                          same number is used for all detectors, where
-                          the integer defines a region (middle of the
-                          detector +/- detGroup). It can be a list of
-                          integers, then each integers of the list
-                          should corresponds to a detector. Or it can
-                          be a string, defining a path to an xml file
-                          as used in Mantid.
-                          If set to `no`, no detector gouping is performed
-                          and the data represents the signal for each
-                          pixel on the detectors. In this case, the 
-                          observable become the momentum transfer q in
-                          the vertical direction.
-        :arg normalize:   whether the data should be normalized to the
-                          monitor
-        :arg strip:       an integer defining the number of points that
-                          are ignored at each extremity of the spectrum.
-        :arg observable:  the observable that might be changing over scans.
-                          It can be `time` or `temperature`
+    :arg scanList:    a string or a list of files to be read and
+                      parsed to extract the data.
+                      It can be a path to a folder as well.
+    :arg sumScans:    whether the scans should be summed or not.
+    :arg unmirroring: whether the data should be unmirrored or not.
+    :arg vanadiumRef: if :arg unmirroring: is True, then the peaks
+                      positions are identified
+                      using the data provided with this argument.
+                      If it is None, then the peaks positions are
+                      identified using the data in scanList.
+    :arg detGroup:    detector grouping, i.e. the channels that
+                      are summed over along the position-sensitive
+                      detector tubes. It can be an integer, then the
+                      same number is used for all detectors, where
+                      the integer defines a region (middle of the
+                      detector +/- detGroup). It can be a list of
+                      integers, then each integers of the list
+                      should corresponds to a detector. Or it can
+                      be a string, defining a path to an xml file
+                      as used in Mantid.
+                      If set to `no`, no detector gouping is performed
+                      and the data represents the signal for each
+                      pixel on the detectors. In this case, the 
+                      observable become the momentum transfer q in
+                      the vertical direction.
+    :arg normalize:   whether the data should be normalized to the
+                      monitor
+    :arg strip:       an integer defining the number of points that
+                      are ignored at each extremity of the spectrum.
+    :arg observable:  the observable that might be changing over scans.
+                      It can be `time` or `temperature`
 
     """
-
     def __init__(self, scanList,
                  sumScans=True,
                  unmirroring=True,
@@ -69,13 +64,11 @@ class IN16B_QENS:
                  strip=10,
                  observable='time'):
 
-
         self.data = namedtuple('data',
                                'intensities errors energies '
                                'temps times name qVals '
                                'qIdx observable '
                                'observable_name norm')
-
 
         # Process the scanList argument in case a single string is given
         self.scanList = scanList
@@ -87,7 +80,6 @@ class IN16B_QENS:
                 self.scanList = [scanList + val for val in fList]
             else:
                 self.scanList = [scanList]
-
 
         self.sumScans = sumScans
 
@@ -103,17 +95,11 @@ class IN16B_QENS:
             else:
                 scanList = [scanList]
 
-
-        self.peakFindingMask   = peakFindingMask
-
+        self.peakFindingMask = peakFindingMask
         self.detGroup = detGroup
-
         self.normalize = normalize
-
         self.observable = observable
-
         self.strip = strip
-
         self.dataList   = []
         self.errList    = []
         self.energyList = []
@@ -122,22 +108,17 @@ class IN16B_QENS:
 
         self.outTuple = None
 
-
-
-
     def process(self):
-        """ Extract data from the provided files and
-            reduce them using the given parameters.
+        """Extract data from the provided files and
+        reduce them using the given parameters.
 
         """
-
         self.dataList       = []
         self.energyList     = []
         self.qList          = []
         self.tempList       = []
         self.startTimeList  = []
         self.monitor        = []
-
 
         for dataFile in self.scanList:
             dataset = h5py.File(dataFile, mode='r')
@@ -172,16 +153,12 @@ class IN16B_QENS:
                 'entry0/instrument/PSD/PSD angle %s' % int(val + 1)][()]
                 for val in range(nbrDet)])
 
-
             data, angles = self._getSingleD(dataset, data, angles)
-
 
             angles = 4 * np.pi * np.sin(
                 np.pi * np.array(angles).squeeze() / 360) / wavelength
 
-
             temp = dataset['entry0/sample/temperature'][()]
-
             time = parse(dataset['entry0/start_time'][0])
 
             self.dataList.append(np.copy(data))
@@ -192,7 +169,6 @@ class IN16B_QENS:
 
             dataset.close()
 
-
         if self.sumScans:
             self.monitor  = [np.sum(np.array(self.monitor), 0)]
             self.dataList = [np.sum(np.array(self.dataList), 0)]
@@ -201,8 +177,7 @@ class IN16B_QENS:
             if self.unmirroring:
                 if self.vanadiumRef is not None:
                     vana = IN16B_QENS(self.vanadiumRef,
-                                      detGroup=None,
-                                      peakFindingMask=self.peakFindingMask)
+                                      detGroup=None)
                     vana.process()
                     self.leftPeak  = vana.leftPeak
                     self.rightPeak = vana.rightPeak
@@ -234,19 +209,15 @@ class IN16B_QENS:
             self.dataList[idx] = data
             self.errList.append(errData)
 
-
         self._convertDataset()
 
-
-
     def _getSingleD(self, dataset, data, angles):
-        """ Determines the number of single detector used and add the data
-            and angles to the existing data and angles arrays.
+        """Determines the number of single detector used and add the data
+        and angles to the existing data and angles arrays.
 
-            :returns: data and angles arrays with the single detector data.
+        :returns: data and angles arrays with the single detector data.
 
         """
-
         dataSD   = []
         anglesSD = []
 
@@ -272,32 +243,31 @@ class IN16B_QENS:
 
         return data, angles
 
-
-
     def _convertDataset(self):
-        """ Converts the data lists of the class into namedtuple(s)
-            that can be directly used by nPDyn.
+        """Converts the data lists of the class into namedtuple(s)
+        that can be directly used by nPDyn.
 
         """
-
-        data     = np.array(self.dataList)[:, :, self.strip:-self.strip]
-        errors   = np.array(self.errList)[:, :, self.strip:-self.strip]
-        energies = self.energyList[0][self.strip:-self.strip]
+        if self.strip > 0:
+            data = np.array(self.dataList)[:, :, self.strip:-self.strip]
+            errors = np.array(self.errList)[:, :, self.strip:-self.strip]
+            energies = self.energyList[0][self.strip:-self.strip]
+        else:
+            data = np.array(self.dataList)
+            errors = np.array(self.errList)
+            energies = self.energyList[0]
 
         # converts the times to hours
         times = np.array(self.startTimeList)
 
         if self.sumScans:
-            temps = np.array([[np.mean(self.tempList)]])
-            times = np.array([times[0].ctime()])
+            temps = np.array([np.mean(self.tempList)])
+            times = np.array([0.0])
         else:
             times = times - times[0]
             for idx, t in enumerate(times):
                 times[idx] = t.total_seconds() / 3600
-
-            times = times[np.newaxis, :]
-
-            temps = np.array(self.tempList)
+            temps = np.array(self.tempList).squeeze()
 
         if self.observable == 'time':
             Y = times
@@ -320,14 +290,11 @@ class IN16B_QENS:
                                   self.observable,
                                   False)
 
-
-
     def _findPeaks(self, data):
-        """ Find the peaks in each subset of mirrored data
-            using the selected method.
+        """Find the peaks in each subset of mirrored data
+        using the selected method.
 
         """
-
         # if detGroup is not, sum over all vertical positions to find 
         # peaks more effectively
         if data.ndim == 3:
@@ -354,12 +321,10 @@ class IN16B_QENS:
         savGol_leftPeak = np.mean(np.argmax(filters[:, :, :midChannel], 2), 0)
         savGol_rightPeak = np.mean(np.argmax(filters[:, :, midChannel:], 2), 0)
 
-
         # Finds the peaks by using a Gaussian function to fit the data
         Gaussian = lambda x, normF, gauW, shift, bkgd: (
             normF * np.exp(-((x - shift)**2) / (2 * gauW**2))
             / (gauW * np.sqrt(2 * np.pi)) + bkgd)
-
 
         try:
             leftPeaks  = []
@@ -386,10 +351,8 @@ class IN16B_QENS:
                                        midChannel / 2, 0])
                 rightPeaks.append(params[0][2])
 
-
             gauss_leftPeak  = np.array(leftPeaks)
             gauss_rightPeak = np.array(rightPeaks)
-
 
             self.leftPeak  = (0.85 * gauss_leftPeak
                               + 0.15 * savGol_leftPeak).astype(int)
@@ -400,21 +363,15 @@ class IN16B_QENS:
             self.leftPeak = savGol_leftPeak.astype(int)
             self.rightPeak = savGol_rightPeak.astype(int)
 
-
-
-
-
-
     def _unmirrorData(self, data):
-        """ If unmirroring is required, unmirror data using the
-            peaks found. Basically, the two mirror dataset are aligned
-            on their respective peaks and summed.
+        """If unmirroring is required, unmirror data using the
+        peaks found. Basically, the two mirror dataset are aligned
+        on their respective peaks and summed.
 
-            It should be called after the summation on vertical positions
-            of the PSD was performed.
+        It should be called after the summation on vertical positions
+        of the PSD was performed.
 
         """
-
         nbrChannels = data.shape[1]
         midChannel  = int(nbrChannels / 2)
 
@@ -431,35 +388,31 @@ class IN16B_QENS:
 
         return data
 
-
-
     def _detGrouping(self, data):
-        """ The method performs a sum along detector tubes using the provided
-            range to be kept.
+        """The method performs a sum along detector tubes using the provided
+        range to be kept.
 
-            It makes use of the :arg detGroup: argument.
+        It makes use of the :arg detGroup: argument.
 
-            If the argument is a scalar, it sums over all
-            values that are in the range
-            [center of the tube - detGroup : center of the tube + detGroup].
+        If the argument is a scalar, it sums over all
+        values that are in the range
+        [center of the tube - detGroup : center of the tube + detGroup].
 
-            If the argument is a list of integers, then each element of the
-            list is assumed to correspond to a range for each corresponding
-            detector in ascending order.
+        If the argument is a list of integers, then each element of the
+        list is assumed to correspond to a range for each corresponding
+        detector in ascending order.
 
-            If the argument is a mantid-related xml file (a python string),
-            the xml_detector_grouping module is then used to parse the xml
-            file and the provided values are used to define the range.
+        If the argument is a mantid-related xml file (a python string),
+        the xml_detector_grouping module is then used to parse the xml
+        file and the provided values are used to define the range.
 
-            :arg data:  PSD data for the file being processed
+        :arg data:  PSD data for the file being processed
 
         """
-
         if isinstance(self.detGroup, int):
             midPos = int(data.shape[1] / 2)
             data = data[:, midPos - self.detGroup:midPos + self.detGroup, :]
             out  = np.sum(data, 1)
-
 
         elif isinstance(self.detGroup, (list, tuple, np.ndarray)):
             midPos = int(data.shape[1] / 2)
@@ -470,7 +423,6 @@ class IN16B_QENS:
                     midPos - self.detGroup[detId]:midPos
                     + self.detGroup[detId]]
                 out[detId] = np.sum(detData, 0)
-
 
         elif isinstance(self.detGroup, str):
             numTubes = data.shape[0]

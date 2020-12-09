@@ -50,7 +50,7 @@ class FWSType(BaseType):
         else:
             data = guessFileFormat(self.fileName, True)
 
-        self._data    = data
+        self.data = data
         self._rawData = self.data._replace(
             qVals       = np.copy(self.data.qVals),
             times       = np.copy(self.data.times),
@@ -68,19 +68,5 @@ class FWSType(BaseType):
         if axis == 'energies':
             return
         else:
-            self._data = binData(self.data, binSize, axis)
+            self.data = binData(self.data, binSize, axis)
 
-    def normalize_usingLowTemp(self, nbrBins):
-        """ Normalizes data using low temperature signal.
-            An average is performed over the given
-            number of bins for each q value and data
-            are divided by the result.
-
-        """
-        normFList = np.mean(
-            self._data.intensities[:nbrBins, :, :], axis=0)[np.newaxis, :, :]
-
-        self._data = self._data._replace(
-            intensities = self._data.intensities / normFList,
-            errors      = self._data.errors / normFList,
-            norm        = True)

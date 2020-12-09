@@ -12,62 +12,62 @@ from collections import namedtuple
 
 from nPDyn.dataTypes import (fwsType, qensType)
 
-from nPDyn.plot import makeWindow, QENSPlot 
+from nPDyn.plot import makeWindow, QENSPlot, FWSPlot
 
 
 class Dataset:
+    """Master class of nPDyn. 
+    
+    It contains a list of data files, which can be
+    sample, resolution, D2O data or anything else as long as the format
+    can be recognized.
+
+    For call with ipython, the :class:`Dataset` class can be initialized 
+    directly from command line using the following:
+
+    .. code-block:: bash
+
+        $ ipython -i Dataset.py -- [dataset related optional arguments]
+
+    It goes like this, when a file is imported, data are loaded into
+    a data type class, depending on the given data type. This class will 
+    inherit from :class:`baseType`, and might have specific methods or can
+    redefine methods if needed by the data type.
+
+    All QENS and FWS data are listed in the `dataList` attribute.
+    The other data type are assigned to the other attributes as described
+    below in the parameters.
+
+    The modelling rely on the *lmfit* library. Some built-in models
+    are available to the user in the :module:`models.builtins` module.
+    Also, simple lineshapes as well as a 2D model builder for *lmfit*
+    are available in the :module:`models.presets` module.
+
+    Finally, various plotting methods are available, each corresponding
+    to a given data type.
+
+    Parameters
+    ----------
+    QENSFiles : list(str), optional
+        list of Quasi-Elastic Neutron Scattering data
+        files to be loaded
+    FWSFiles : list(str), optional
+        list of Fixed Window Scans data files to be loaded
+    ECFile : str, optional        
+        Empty cell data to be loaded in `ECData` attribute.
+    ECFile : str, optional        
+        Empty cell data to be loaded
+    resFiles : str, optional      
+        list of resolution function related data to be loaded
+    D2OFile : str, optional      
+        D2O data to be loaded
+
+    """
     def __init__(self, QENSFiles=None, FWSFiles=None, 
                  ECFile=None, fECFile=None, resFiles=None,
                  D2OFile=None, fD2OFile=None):
-        """Master class of nPDyn. 
-        
-        It contains a list of data files, which can be
-        sample, resolution, D2O data or anything else as long as the format
-        can be recognized.
-
-        For call with ipython, the :class:`Dataset` class can be initialized 
-        directly from command line using the following:
-
-        .. code-block:: bash
-
-            $ ipython -i Dataset.py -- [dataset related optional arguments]
-
-        It goes like this, when a file is imported, data are loaded into
-        a data type class, depending on the given data type. This class will 
-        inherit from :class:`baseType`, and might have specific methods or can
-        redefine methods if needed by the data type.
-
-        All QENS and FWS data are listed in the `datasetList` attribute.
-        The other data type are assigned to the other attributes as described
-        below in the parameters.
-
-        The modelling rely on the *lmfit* library. Some built-in models
-        are available to the user in the :module:`models.builtins` module.
-        Also, simple lineshapes as well as a 2D model builder for *lmfit*
-        are available in the :module:`models.presets` module.
-
-        Finally, various plotting methods are available, each corresponding
-        to a given data type.
-
-        Parameters
-        ----------
-        QENSFiles : list(str), optional
-            list of Quasi-Elastic Neutron Scattering data
-            files to be loaded
-        FWSFiles : list(str), optional
-            list of Fixed Window Scans data files to be loaded
-        ECFile : str, optional        
-            Empty cell data to be loaded in `ECData` attribute.
-        ECFile : str, optional        
-            Empty cell data to be loaded
-        resFiles : str, optional      
-            list of resolution function related data to be loaded
-        D2OFile : str, optional      
-            D2O data to be loaded
-
-        """
         # Declaring attributes related to samples dataset
-        self.datasetList = []
+        self.dataList = []
 
         # Declaring resolution function(s) related variables
         self.resData = []
@@ -117,7 +117,7 @@ class Dataset:
         Notes
         -----
         The files are imported without binning and stored
-        in *datasetList* attribute.
+        in *dataList* attribute.
 
         """
         # Processing files arguments
@@ -127,7 +127,7 @@ class Dataset:
             self.ECData = data
 
         if fECFile:
-            data = fwsype.FWSType(fECFile)
+            data = fwsType.FWSType(fECFile)
             data.importData(fileFormat=fileFormat)
             self.fECData = data
 
@@ -169,7 +169,7 @@ class Dataset:
                 data.importData(fileFormat=fileFormat)
                 data.D2OData = self.D2OData
                 data.ECData = self.ECData
-                self.datasetList.append(data)
+                self.dataList.append(data)
 
         if FWSFiles:
             for f in FWSFiles:
@@ -186,7 +186,7 @@ class Dataset:
                 else:
                     data.D2OData = self.D2OData
 
-                self.datasetList.append(data)
+                self.dataList.append(data)
 
         self.resFuncAssign()
 
@@ -208,7 +208,7 @@ class Dataset:
             data.importRawData(dataList, instrument, dataType, kwargs)
             data.D2OData = self.D2OData
             data.ECData = self.ECData
-            self.datasetList.append(data)
+            self.dataList.append(data)
 
         elif dataType == 'FWS':
             data = fwsType.FWSType(dataList)
@@ -224,7 +224,7 @@ class Dataset:
             else:
                 data.D2OData = self.D2OData
 
-            self.datasetList.append(data)
+            self.dataList.append(data)
 
         elif dataType == 'res':
             data = qensType.QENSType(dataList)
@@ -290,28 +290,28 @@ class Dataset:
         lenResData = len(self.resData)
 
         if lenResData == 1:
-            for data in self.datasetList:
+            for data in self.dataList:
                 data.resData = self.resData[0]
 
-        if lenResData == len(self.datasetList):
-            for idx, data in enumerate(self.datasetList):
+        if lenResData == len(self.dataList):
+            for idx, data in enumerate(self.dataList):
                 data.resData = self.resData[idx]
     
 # -------------------------------------------------
 # Importation, reset and deletion methods
 # -------------------------------------------------
     def removeDataset(self, fileIdx):
-        """Remove a dataset from 'datasetList' attribute.
+        """Remove a dataset from 'dataList' attribute.
         
         This method takes either a single integer as argument,
         which corresponds to the index of the file to be removed
-        from self.dataFiles, self.datasetList and self.rawDataList.
+        from self.dataFiles, self.dataList and self.rawDataList.
 
         """
-        self.datasetList.pop(fileIdx)
+        self.dataList.pop(fileIdx)
 
-    def resetDataset(self, *fileIdxList):
-        """Reset a dataset from 'datasetList' attribute.
+    def resetData(self, *fileIdxList):
+        """Reset data from 'dataList' attribute.
 
         This method takes either a single integer or a list of
         integer as argument. They correspond to the indices of the
@@ -320,17 +320,17 @@ class Dataset:
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
         for idx in fileIdxList:
-            self.datasetList[idx].resetData()
+            self.dataList[idx].resetData()
 
     def resetAll(self):
         """Reset all datasets, as well as resolution, D2O and empty
         cell data to their initial state.
 
         """
-        for dataset in self.datasetList:
+        for dataset in self.dataList:
             dataset.resetData()
 
         for resData in self.resData:
@@ -352,22 +352,22 @@ class Dataset:
 # Data manipulation methods
 # -------------------------------------------------
     def scaleData(self, scale, *fileIdxList):
-        """Scale the selected data in `self.datasetList`.
+        """Scale the selected data in `self.dataList`.
 
         Parameters
         ----------
         scale : float or array of floats
             scale factor(s) to apply on the intensities and errors.
         fileIdxList : int, optional
-            list of indices of dataset in self.datasetList to be normalized
+            list of indices of dataset in self.dataList to be normalized
 
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
         for i in fileIdxList:
-            self.datasetList[i].scaleData(scale)
+            self.dataList[i].scaleData(scale)
 
     def normalize_usingResFunc(self, *fileIdxList):
         """This method uses the fitted model for resolution function
@@ -379,15 +379,35 @@ class Dataset:
         Parameters
         ----------
         fileIdxList : int, optional
-            list of indices of dataset in self.datasetList to be normalized
+            list of indices of dataset in self.dataList to be normalized
 
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
         for i in fileIdxList:
-            self.datasetList[i].normalize_usingResFunc()
+            self.dataList[i].normalize_usingResFunc()
+
+    def normalize_usingSelf(self, *fileIdxList):
+        """This method uses the fitted model for resolution function
+        to normalize the data.
+
+        Each dataset is normalized using the `resData` attribute associated
+        to it.
+
+        Parameters
+        ----------
+        fileIdxList : int, optional
+            list of indices of dataset in self.dataList to be normalized
+
+        """
+        # If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.dataList))
+
+        for i in fileIdxList:
+            self.dataList[i].normalize_usingSelf()
 
     def normalize_usingLowTemp(self, *fileIdxList, nbrBins=8):
         """Normalize data using low temperature measurements. 
@@ -400,7 +420,7 @@ class Dataset:
         Parameters
         ----------
         fileIdxList : int, optional
-            List of indices of dataset in self.datasetList to be normalized.
+            List of indices of dataset in self.dataList to be normalized.
         nbrBins : int
             Number of low temperature bins used to compute the 
             normalization factor. (optional, default 8)
@@ -408,10 +428,10 @@ class Dataset:
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
         for i in fileIdxList:
-            self.datasetList[i].normalize_usingLowTemp(nbrBins)
+            self.dataList[i].normalize_usingLowTemp(nbrBins)
 
     def absorptionCorrection(self, *fileIdxList, canType='tube',
                              canScaling=0.95, neutron_wavelength=6.27,
@@ -428,11 +448,11 @@ class Dataset:
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
         # Apply corrections for samples data
         for i in fileIdxList:
-            self.datasetList[i].absorptionCorrection(canType, canScaling,
+            self.dataList[i].absorptionCorrection(canType, canScaling,
                                                      neutron_wavelength,
                                                      absco_kwargs)
 
@@ -445,7 +465,6 @@ class Dataset:
                     resData.absorptionCorrection(canType, canScaling,
                                                  neutron_wavelength,
                                                  absco_kwargs)
-                    resData.fit()
             except AttributeError:
                 print("No resolution data were loaded, corrections on "
                       "these cannot be applied\n")
@@ -457,7 +476,6 @@ class Dataset:
                     self.D2OData.absorptionCorrection(canType, canScaling,
                                                       neutron_wavelength,
                                                       absco_kwargs)
-                    self.D2OData.fit()
                 except AttributeError as e:
                     print("No D2O data were loaded, corrections on these "
                           "cannot be applied\n")
@@ -483,22 +501,24 @@ class Dataset:
             :arg subFactor:   pre-multiplying factor for empty cell
                               data prior to substraction
             :arg fileIdxList: can be "all", then every dataSet in
-                              self.datasetList is normalized
+                              self.dataList is normalized
                               can also be a single integer or a list
                               of integer (optional, default "all")
             :arg subD2O:      if True, tries to substract empty cell
                               signal from D2O data too
             :arg subRes:      if True, substract empty cell signal from
                               resolutions data too
+            :arg useModel:    if True, will use the fitted model of empty cell
+                              for subtraction.
 
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
         # Apply corrections for samples data
         for i in fileIdxList:
-            self.datasetList[i].subtractEC(subFactor, useModel)
+            self.dataList[i].subtractEC(subFactor, useModel)
 
         if subRes:
             for idx, resData in enumerate(self.resData):
@@ -507,20 +527,18 @@ class Dataset:
 
         if subD2O:
             try:
-                self.datasetList[i].D2OData.subtractEC(subFactor, useModel)
-                self.datasetList[i].D2OData.fit()
+                self.dataList[i].D2OData.subtractEC(subFactor, useModel)
             except AttributeError:
                 pass
 
             try:
-                self.datasetList[i].fD2OData.subtractEC(subFactor, useModel)
-                self.datasetList[i].fD2OData.fit()
+                self.dataList[i].fD2OData.subtractEC(subFactor, useModel)
             except AttributeError:
                 pass
 
     def discardDetectors(self, *qIdx):
         """Remove data corresponding to given detectors/q-values indices."""
-        for data in self.datasetList:
+        for data in self.dataList:
             data.discardDetectors(*qIdx)
 
         for data in self.resData:
@@ -541,7 +559,7 @@ class Dataset:
             Maximum q-value to keep.
 
         """
-        for data in self.datasetList:
+        for data in self.dataList:
             data.setQRange(minQ, maxQ)
 
         for data in self.resData:
@@ -553,17 +571,17 @@ class Dataset:
 
     def fitData(self, *fileIdxList, **kwargs):
         """Helper function to quickly call fit method in all class instances
-        present in self.datasetList for the given indices in fileIdxList.
+        present in self.dataList for the given indices in fileIdxList.
         Check first for the presence of a fit method and print a warning
         message if none is found.
 
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
         for idx in fileIdxList:
-            self.datasetList[idx].fit(**kwargs)
+            self.dataList[idx].fit(**kwargs)
 
     def fitRes(self, *fileIdxList, **kwargs):
         """Helper function to quickly call fit method in all class instances
@@ -584,7 +602,7 @@ class Dataset:
 # -------------------------------------------------
     def binDataset(self, binS, *fileIdxList, axis='energies'):
         """ The method find the index corresponding to the file, perform
-            the binning process, then replace the value in self.datasetList
+            the binning process, then replace the value in self.dataList
             by the binned one.
 
             :arg binS:        bin size
@@ -595,11 +613,11 @@ class Dataset:
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
         # Calling binData for each dataSet in fileIdxList
         for idx in fileIdxList:
-            self.datasetList[idx].binData(binS, axis=axis)
+            self.dataList[idx].binData(binS, axis=axis)
 
     def binResData(self, binS, *fileIdxList, axis='energies'):
         """ Same as binDataset but for resolution function data.
@@ -619,7 +637,7 @@ class Dataset:
             self.resData[idx].binData(binS, axis=axis)
 
     def binAll(self, binS, axis='energies'):
-        """Bin all dataSet in datasetList as well as resolution,
+        """Bin all datasets in dataList as well as resolution,
         empty cell and D2O data if present.
 
         """
@@ -671,62 +689,36 @@ class Dataset:
         the user to show different types of plots.
 
         The resolution function and other parameters are automatically
-        obtained from the current dataSet class instance.
+        obtained from the current dataset class instance.
 
         Parameters
         ----------
         fileIdxList : int, optional
-            List of indices of dataset in self.datasetList to be normalized.
+            List of indices of dataset in self.dataList to be normalized.
 
         """
         # If not file indices were given, assumes that all should be use
         if not fileIdxList:
-            fileIdxList = range(len(self.datasetList))
+            fileIdxList = range(len(self.dataList))
 
-        datasetList = [self.datasetList[i] for i in fileIdxList]
+        dataList = [self.dataList[i] for i in fileIdxList]
 
-        plotW = makeWindow(QENSPlot, datasetList)
+        plotW = makeWindow(QENSPlot, dataList)
 
-    def plotFWS(self, fileIdx=0):
+    def plotFWS(self, *fileIdxList):
         """This methods plot the sample data in a PyQt5 widget
         allowing the user to show different types of plots.
 
         The resolution function and other parameters are automatically
-        obtained from the current dataSet class instance.
+        obtained from the current dataset class instance.
 
-        :arg fileIdx: index of dataset to plot in self.datasetList
+        :arg fileIdx: index of dataset to plot in self.dataList
 
         """
-        plotW = FWSPlot.FWSPlot(self.datasetList[fileIdx])
+        # If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.dataList))
 
+        dataList = [self.dataList[i] for i in fileIdxList]
 
-if __name__ == '__main__':
-    # Defining options for nPDyn call
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-q", "--QENS", nargs='*',
-                        help="List of files corresponding to \
-                              Quasi-Elastic Neutron Scattering (QENS) data")
-    parser.add_argument("-f", "--FWS", nargs='*',
-                        help="List of files corresponding to \
-                              Fixed-Window Scan (FWS) data")
-    parser.add_argument("-res", "--resolution", nargs='*',
-                        help="Specify the file(s) to be used for \
-                              resolution function fitting.")
-    parser.add_argument("-ec", "--empty-cell", nargs='?',
-                        help="Specify the file containing \
-                              QENS empty cell data")
-    parser.add_argument("-fec", "--fixed-empty-cell", nargs='?',
-                        help="Specify the file containing \
-                              FWS empty cell data")
-    parser.add_argument("-d", "--D2O", nargs='?',
-                        help="Specify the file containing QENS D2O data")
-    parser.add_argument("-fd", "--fixed-D2O", nargs='?',
-                        help="Specify the file containing FWS D2O data")
-
-    args = parser.parse_args()
-
-    data = Dataset(args.QENS, args.FWS,
-                   args.empty_cell,
-                   args.fixed_empty_cell,
-                   args.resolution, args.D2O,
-                   args.fixed_D2O)
+        plotW = makeWindow(FWSPlot, dataList)

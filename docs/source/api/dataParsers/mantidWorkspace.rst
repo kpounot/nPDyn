@@ -1,0 +1,5 @@
+mantidWorkspace
+===============
+
+.. automodule:: mantidWorkspace
+   :members:

@@ -1,7 +1,8 @@
 scipy 
 numpy
 matplotlib
-PyQt5
+PyQt5==5.14
 h5py
 sphinx_rtd_theme
-iminuit
+sphinxcontrib-napoleon
+lmfit

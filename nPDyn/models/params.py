@@ -8,6 +8,7 @@ from collections import OrderedDict, namedtuple
 
 import numpy as np
 
+
 def pTuple(value=1, bounds=(-np.inf, np.inf), fixed=False, error=0.):
     """Helper function to create a namedtuple with default values."""
     t = namedtuple('param', 'value bounds fixed error')
@@ -59,21 +60,21 @@ def _checkTupleEntries(value=1, bounds=(-np.inf, np.inf),
             raise ValueError("The parameter error should be integer or float.")
 
 class Parameters(OrderedDict):
+    """A parameter class that handles names, values and bounds.
+
+    Parameters
+    ----------
+    params : dict of dict
+        A dictionary of parameter names, each being associated with a 
+        namedtuple containing the 'value', the 'bounds', the
+        'fixed', and the 'error' attributes.
+    kwargs : keywords
+        Additional keywords argument to set parameter names, values
+        (and possibly bounds and fixed attributes).
+        Can override params too.
+
+    """
     def __init__(self, params=None, **kwargs):
-        """A parameter class that handles names, values and bounds.
-
-        Parameters
-        ----------
-        params : dict of dict
-            A dictionary of parameter names, each being associated with a 
-            namedtuple containing the 'value', the 'bounds', the
-            'fixed', and the 'error' attributes.
-        kwargs : keywords
-            Additional keywords argument to set parameter names, values
-            (and possibly bounds and fixed attributes).
-            Can override params too.
-
-        """
         if params is None:
             params = {}
         super().__init__(params)
@@ -215,7 +216,7 @@ class Parameters(OrderedDict):
         """Fancy representation for the class."""
         out = ""
         for key, val in self.items():
-            out += key + ':\n'
+            out += '\n' + 50 * '-' + '\n' + key + ':\n'
             for pKey, pVal in val._asdict().items():
                 if isinstance(pVal, np.ndarray):
                     pVal = np.copy(pVal).flatten()
