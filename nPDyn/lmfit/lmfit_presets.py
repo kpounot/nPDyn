@@ -1,8 +1,8 @@
 """This module provides several function builders that can
 be used to fit your data.
 
-These functions generate a `Model` class instance from 
-the **lmfit** package [#]_. 
+These functions generate a `Model` class instance from
+the **lmfit** package [#]_.
 
 
 References
@@ -24,12 +24,12 @@ from scipy.special import wofz, spherical_jn
 try:
     from lmfit import Model, CompositeModel
 except ImportError:
-    print("The lmfit package cannot be found, please intall it to use "
+    print("The lmfit package cannot be found, please install it to use "
           "the interface with nPDyn.")
-    class Model: 
+    class Model:
         def __init__(self, tmp, **kwargs):
             pass
-    class CompositeModel: 
+    class CompositeModel:
         def __init__(self, tmp, **kwargs):
             pass
 
@@ -40,17 +40,17 @@ from nPDyn.models.d2O_calibration.interpD2O import getD2Odata
 # Function builder for lmfit
 # -------------------------------------------------------
 def build_2D_model(
-        q, 
-        funcName, 
+        q,
+        funcName,
         funcBody,
-        defVals=None, 
+        defVals=None,
         bounds=None,
         vary=None,
         expr=None,
         paramGlobals=None,
         prefix='',
-        var='x'): 
-    """Builds a 2D `lmfit.Model`.  
+        var='x'):
+    """Builds a 2D `lmfit.Model`.
 
     Parameters
     ----------
@@ -60,7 +60,7 @@ def build_2D_model(
         name of the function to be built.
     funcBody : str
         formatted string for the function to be used (in 1D).
-        For a gaussian the string 
+        For a gaussian the string
         `"{a} * np.exp(-(x - {cen})**2 / {width}*{q}**2)"`
         will lead to a model with parameters of root names
         'a', 'cen' and 'width'. If these parameters are not in
@@ -68,7 +68,7 @@ def build_2D_model(
         'a_1', 'a_2', 'a_3', ..., 'a_n', where n is the length
         of the array `q`.
     defVals : dict, optional
-        dictionary of default values for the parameters of the 
+        dictionary of default values for the parameters of the
         form {'a': 1., 'cen': 0.05, 'width': 2}.
         If None, set to 1.0 for all parameters.
     bounds : dict, optional
@@ -76,11 +76,11 @@ def build_2D_model(
         {'a': (0., np.inf}, 'cen': (-10, 10)}.
         If None, set to (-np.inf, np.inf) for all parameters.
     vary : dict, optional
-        dictionary of parameter hint 'vary' for the parameters of 
+        dictionary of parameter hint 'vary' for the parameters of
         the form {'a': False, 'cen': True}.
         If None, set to True for all parameters.
     expr : dict, optional
-        dictionary of parameter hint 'expr' for the parameters of 
+        dictionary of parameter hint 'expr' for the parameters of
         the form {'a': 'width / sqrt(2)'}.
         If None, set to None for all parameters.
     paramGlobals : list, optional
@@ -104,10 +104,10 @@ def build_2D_model(
     q = q.reshape((q.size, 1))
 
     # parse the parameter names to check for "q"
-    paramNames = [pName for _, pName, _, _ 
+    paramNames = [pName for _, pName, _, _
                   in Formatter().parse(funcBody) if pName]
     paramNames = list(set(paramNames))
-    param_q = True if 'q' in paramNames else False  
+    param_q = True if 'q' in paramNames else False
     paramNames = [p for p in paramNames if p != 'q']
 
     # check default values, bounds and expression
@@ -128,7 +128,7 @@ def build_2D_model(
 
     if paramGlobals is None:
         paramGlobals = []
-    
+
     # set the parameter dictionary for `lmfit.Model` function
     params = {}
     for pId, pName in enumerate(paramNames):
@@ -166,12 +166,12 @@ def build_2D_model(
 
     # compile the function
     func_code = compile(funcTxt, "<string>", "exec")
-    code = [entry for entry in func_code.co_consts 
+    code = [entry for entry in func_code.co_consts
             if isinstance(entry, CodeType)][0]
     func = FunctionType(
         code, globals(), funcName, argdefs=func_code.co_consts[-1])
 
-    # instanciate the `lmfit.Model`
+    # instantiate the `lmfit.Model`
     model = Model(func, independent_vars=[var, 'q'], prefix=prefix)
 
     # set the parameter hints
@@ -193,6 +193,7 @@ def build_2D_model(
 
     return model
 
+
 # -------------------------------------------------------
 # Defines the functions for the models
 # -------------------------------------------------------
@@ -206,7 +207,7 @@ def linear(q, **kwargs):
     Two parameters:
         - a
         - b
-    
+
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
@@ -227,6 +228,7 @@ def linear(q, **kwargs):
 
     return model
 
+
 def hline(q, **kwargs):
     """A horizontal line.
 
@@ -246,17 +248,18 @@ def hline(q, **kwargs):
 
     return model
 
+
 def gaussian(q, qwise=True, **kwargs):
     """Normalized Gaussian lineshape.
 
     .. math::
 
-        \\rm G(x, q; a, c, \sigma) = 
-            \\frac{a}{\sqrt(\pi \sigma} e^{-(x - c)^2 / \sigma}
+        \\rm G(x, q; a, c, \\sigma) =
+            \\frac{a}{\\sqrt(\\pi \\sigma} e^{-(x - c)^2 / \\sigma}
 
-    where the shape of the output array depends on the shape of the 
-    independent variable `q` and :math:`\sigma` can have an
-    explicit dependence on q as :math:`\sigma q**2`.
+    where the shape of the output array depends on the shape of the
+    independent variable `q` and :math:`\\sigma` can have an
+    explicit dependence on q as :math:`\\sigma q**2`.
 
     Parameters
     ----------
@@ -307,17 +310,18 @@ def gaussian(q, qwise=True, **kwargs):
 
     return model
 
+
 def lorentzian(q, qwise=False, **kwargs):
     """Normalized Lorentzian lineshape.
 
     .. math::
 
-        \\rm \mathcal{L}(x, q; a, c, \sigma) = 
-            \\frac{a}{\pi} \\frac{\sigma}{(x - c)^2 + \sigma^2}
+        \\rm \\mathcal{L}(x, q; a, c, \\sigma) =
+            \\frac{a}{\\pi} \\frac{\\sigma}{(x - c)^2 + \\sigma^2}
 
-    where the shape of the output array depends on the shape of the 
-    independent variable `q` and :math:`\sigma` can have an
-    explicit dependence on q as :math:`\sigma q**2`.
+    where the shape of the output array depends on the shape of the
+    independent variable `q` and :math:`\\sigma` can have an
+    explicit dependence on q as :math:`\\sigma q**2`.
 
     Parameters
     ----------
@@ -368,10 +372,11 @@ def lorentzian(q, qwise=False, **kwargs):
 
     return model
 
+
 def jump_diff(q, qwise=False, **kwargs):
     """Normalized Lorentzian with jump-diffusion model.
 
-    The shape of the output array depends on the shape of the 
+    The shape of the output array depends on the shape of the
     independent variable `q`.
 
     Parameters
@@ -424,7 +429,7 @@ def jump_diff(q, qwise=False, **kwargs):
             q,
             'jump_diff',
             '{amplitude} / np.pi * '
-            '({sigma} * {q}**2 / (1 + {sigma}*{q}**2*{tau})) / ' 
+            '({sigma} * {q}**2 / (1 + {sigma}*{q}**2*{tau})) / '
             '((x - {center})**2 + ({sigma} * {q}**2 / '
             '(1 + {sigma} * {q}**2 * {tau}))**2)',
             paramGlobals=['amplitude', 'sigma', 'tau'],
@@ -432,10 +437,11 @@ def jump_diff(q, qwise=False, **kwargs):
 
     return model
 
+
 def delta(q, **kwargs):
     """Normalized Dirac delta.
 
-    where the shape of the output array depends on the shape of the 
+    where the shape of the output array depends on the shape of the
     independent variable `q`.
 
     Parameters
@@ -471,7 +477,8 @@ def delta(q, **kwargs):
 
     return model
 
-def calibratedD2O(q, volFraction, temp, qwise=False, **kwargs):
+
+def calibratedD2O(q, volFraction, temp, **kwargs):
     """Lineshape for D2O where the Lorentzian width was obtained
     from a measurement on IN6 at the ILL.
 
@@ -505,22 +512,23 @@ def calibratedD2O(q, volFraction, temp, qwise=False, **kwargs):
         q,
         'calibrationD2O',
         '{amplitude} * getD2Odata(%s)(%f, {q}) '
-        '/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))' 
+        '/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))'
         % (volFraction, temp, volFraction, temp),
         **defaults)
 
     return model
+
 
 def rotations(q, qwise=False, **kwargs):
     """Normalized Lorentzian accounting for rotational motions in liquids.
 
     .. math::
 
-        S_r(q, \omega) = A_r J_0^2(qd) \delta(\omega) +
-            \sum_{l=1} (2l + 1) J_l^2(qd) \\frac{1}{\pi}
-            \\frac{l(l+1) \sigma}{(\omega - center)^2 + (l(l+1) \sigma)^2}
+        S_r(q, \\omega) = A_r J_0^2(qd) \\delta(\\omega) +
+            \\sum_{l=1} (2l + 1) J_l^2(qd) \\frac{1}{\\pi}
+            \\frac{l(l+1) \\sigma}{(\\omega - center)^2 + (l(l+1) \\sigma)^2}
 
-    The shape of the output array depends on the shape of the 
+    The shape of the output array depends on the shape of the
     independent variable `q`.
 
     Parameters
@@ -565,7 +573,8 @@ def rotations(q, qwise=False, **kwargs):
     if not qwise:
         paramGlobals = ['sigma', 'amplitude', 'bondDist']
         if 'paramGlobals' in kwargs.keys():
-            paramGlobals = list(set(paramGlobals + kwargs.pop('paramGlobals')))
+            paramGlobals = list(set(
+                paramGlobals + kwargs.pop('paramGlobals')))
         kwargs['paramGlobals'] = paramGlobals
 
     defaults.update(kwargs)
@@ -573,19 +582,22 @@ def rotations(q, qwise=False, **kwargs):
     model = build_2D_model(
         q,
         'rotations',
-        'spherical_jn(0, {q}*{bondDist})**2 * getDelta(x, {amplitude}, {center})' 
+        'spherical_jn(0, {q}*{bondDist})**2 * '
+        'getDelta(x, {amplitude}, {center})'
         ' + '
-        '{amplitude} * np.sum([spherical_jn(l, {q}*{bondDist})**2 * (2 * l + 1) * '
+        '{amplitude} * np.sum([spherical_jn(l, {q}*{bondDist})**2 '
+        '* (2 * l + 1) * '
         'l * (l + 1) * {sigma} / (np.pi * ((x - {center})**2 + '
         '(l * (l + 1) * {sigma})**2)) for l in range(1, 5)], axis=0)',
         **defaults)
 
     return model
 
+
 def voigt(q, **kwargs):
     """Voigt profile.
 
-    The shape of the output array depends on the shape of the 
+    The shape of the output array depends on the shape of the
     independent variable `q`.
 
     Parameters
@@ -628,10 +640,11 @@ def voigt(q, **kwargs):
 
     return model
 
+
 def pseudo_voigt(q, **kwargs):
     """Pseudo-Voigt profile.
 
-    The shape of the output array depends on the shape of the 
+    The shape of the output array depends on the shape of the
     independent variable `q`.
 
     Parameters
@@ -677,10 +690,11 @@ def pseudo_voigt(q, **kwargs):
 
     return model
 
+
 def kww(q, **kwargs):
     """Fourier transform of the Kohlrausch-William-Watts (KWW) function.
 
-    The shape of the output array depends on the shape of the 
+    The shape of the output array depends on the shape of the
     independent variable `q`.
 
     Parameters
@@ -699,7 +713,7 @@ def kww(q, **kwargs):
 
     References
     ----------
-    For more information, see: 
+    For more information, see:
     https://en.wikipedia.org/wiki/Stretched_exponential_function
 
     """
@@ -725,10 +739,11 @@ def kww(q, **kwargs):
 
     return model
 
+
 def two_diff_state(q, qwise=False, **kwargs):
     """Two state switching diffusion model.
 
-    The shape of the output array depends on the shape of the 
+    The shape of the output array depends on the shape of the
     independent variable `q`.
 
     Parameters
@@ -784,10 +799,10 @@ def two_diff_state(q, qwise=False, **kwargs):
     Lambda = ("({gamma1} - {gamma2} + (1 / {tau1}) - (1 / {tau2}))**2"
               "+ 4 / ({tau1} * {tau2})")
 
-    lambda_1 = "{gamma1} + (1 / {tau1}) + {gamma2} + (1 / {tau2}) / 2" 
+    lambda_1 = "{gamma1} + (1 / {tau1}) + {gamma2} + (1 / {tau2}) / 2"
     lambda_1 = lambda_1 + " + " + Lambda + " / 2"
 
-    lambda_2 = "{gamma1} + (1 / {tau1}) + {gamma2} + (1 / {tau2}) / 2" 
+    lambda_2 = "{gamma1} + (1 / {tau1}) + {gamma2} + (1 / {tau2}) / 2"
     lambda_2 = lambda_1 + " - " + Lambda + " / 2"
 
     alpha = ("1 / (" + lambda_2 + " - " + lambda_1 + ") * ("
@@ -807,6 +822,7 @@ def two_diff_state(q, qwise=False, **kwargs):
         **defaults)
 
     return model
+
 
 # -------------------------------------------------------
 # Helper functions for the models

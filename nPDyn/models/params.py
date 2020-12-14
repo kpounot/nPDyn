@@ -13,9 +13,10 @@ def pTuple(value=1, bounds=(-np.inf, np.inf), fixed=False, error=0.):
     """Helper function to create a namedtuple with default values."""
     t = namedtuple('param', 'value bounds fixed error')
     _checkTupleEntries(value, bounds, fixed, error)
-    return t(value, bounds, fixed, error) 
+    return t(value, bounds, fixed, error)
 
-def _checkTupleEntries(value=1, bounds=(-np.inf, np.inf), 
+
+def _checkTupleEntries(value=1, bounds=(-np.inf, np.inf),
                        fixed=False, error=0.):
     """Check for entries in the 'pTuple'."""
     # check value attribute
@@ -59,13 +60,14 @@ def _checkTupleEntries(value=1, bounds=(-np.inf, np.inf),
         if not isinstance(error, (int, float)):
             raise ValueError("The parameter error should be integer or float.")
 
+
 class Parameters(OrderedDict):
     """A parameter class that handles names, values and bounds.
 
     Parameters
     ----------
     params : dict of dict
-        A dictionary of parameter names, each being associated with a 
+        A dictionary of parameter names, each being associated with a
         namedtuple containing the 'value', the 'bounds', the
         'fixed', and the 'error' attributes.
     kwargs : keywords
@@ -75,9 +77,12 @@ class Parameters(OrderedDict):
 
     """
     def __init__(self, params=None, **kwargs):
+        super().__init__()
+
         if params is None:
             params = {}
-        super().__init__(params)
+
+        self.update(**params)
 
         if kwargs is not None:
             for key, val in kwargs.items():
@@ -92,7 +97,7 @@ class Parameters(OrderedDict):
 
     def set(self, name, **kwargs):
         """Set a parameter entry with given attributes in 'kwargs'.
-        
+
         Parameters
         ----------
         name : str
@@ -106,7 +111,7 @@ class Parameters(OrderedDict):
 
         """
         # parse kwargs to keep only attributes from pTuple
-        kwargs = {key: val for key, val in kwargs.items() 
+        kwargs = {key: val for key, val in kwargs.items()
                   if key in ['value', 'bounds', 'fixed', 'error']}
 
         _checkTupleEntries(**kwargs)
@@ -155,7 +160,7 @@ class Parameters(OrderedDict):
 
         Returns
         -------
-        A 2-tuple in which the first entry contains the values and the 
+        A 2-tuple in which the first entry contains the values and the
         second the associated bounds.
 
         """
@@ -169,7 +174,7 @@ class Parameters(OrderedDict):
                 else:  # assumes a integer or float
                     params.append(np.array([val.value]))
                     size = 1
-                    
+
                 if val.bounds is not None:
                     [bounds.append(val.bounds) for i in range(size)]
                 else:
@@ -216,10 +221,15 @@ class Parameters(OrderedDict):
         """Fancy representation for the class."""
         out = ""
         for key, val in self.items():
-            out += '\n' + 50 * '-' + '\n' + key + ':\n'
+            out += '\n' + 20 * '_' + key + ':\n'
             for pKey, pVal in val._asdict().items():
                 if isinstance(pVal, np.ndarray):
-                    pVal = np.copy(pVal).flatten()
-                out += "\t{key}: {val}\n".format(key=pKey, val=pVal)
+                    pVal = np.copy(pVal)
+                    pVal = np.array2string(
+                        pVal,
+                        prefix='{key}: '.format(key=pKey),
+                        threshold=10)
+                out += "{key}: {val}".format(key=pKey, val=pVal)
+                out += "\n"
 
         return out

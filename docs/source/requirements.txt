@@ -1,8 +1,8 @@
-scipy 
-numpy
-matplotlib
-PyQt5==5.14
 h5py
+lmfit
+matplotlib
+numpy
+PyQt5==5.14
+scipy
 sphinx_rtd_theme
 sphinxcontrib-napoleon
-lmfit

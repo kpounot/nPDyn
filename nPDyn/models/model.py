@@ -1,4 +1,4 @@
-"""This module provides a template class to build models 
+"""This module provides a template class to build models
 that can be used to fit the data.
 
 """
@@ -59,7 +59,7 @@ class findParamNames(ast.NodeTransformer):
 class Model:
     """Model class to be used within nPDyn.
 
-    The model is structured in components that can be added 
+    The model is structured in components that can be added
     together, each component consisting of a name, a callable
     function and a dictionary of parameters. The parameters
     of two different components can have the same name such
@@ -68,7 +68,7 @@ class Model:
 
     Also, the components are separated in two classes, namely
     *eisfComponents* and *qisfComponents*, in order to
-    provide the possibility to separatly extract the elastic
+    provide the possibility to separately extract the elastic
     and quasi-elastic parts for analysis and plotting.
 
     Parameters
@@ -94,11 +94,11 @@ class Model:
         "/": operator.truediv,
         "*": operator.mul}
 
-    def __init__(self, 
+    def __init__(self,
                  params,
                  name="Model",
                  convolutions=None,
-                 on_undef_conv='raise'): 
+                 on_undef_conv='raise'):
         self.name = name
         self.params = deepcopy(params) if params is not None else {}
         self._components = OrderedDict()
@@ -127,7 +127,7 @@ class Model:
                 self.convolutions[key].update(val)
 
         self._optParams = None
-        self._fitkws = {}
+        self._userkws = {}
 
         self._on_undef_conv = on_undef_conv
 
@@ -147,7 +147,7 @@ class Model:
             Operator to be used to combine the new component with the others.
             If this is the first component, the operator is ignored.
             (default "+")
-        
+
         """
         if len(self._components.keys()) > 0:
             self._operators.append(self._opMap[operator])
@@ -163,7 +163,7 @@ class Model:
         """Setter for 'on_undef_conv'"""
         if val not in ['numeric', 'raise']:
             raise ValueError("The attribute 'on_undef_conv' can only be "
-                "'numeric' or 'raise'.")
+                             "'numeric' or 'raise'.")
         else:
             self._on_undef_conv = val
 
@@ -183,11 +183,11 @@ class Model:
                     name=self.name, address=hex(id(self))))
 
     @property
-    def fitkws(self):
+    def userkws(self):
         """Return the keywords used for the fit."""
-        return self._fitkws
+        return self._userkws
 
-    def fit(self, x, data=None, errors=None, fit_method='curve_fit', 
+    def fit(self, x, data=None, weights=None, fit_method='curve_fit',
             fit_kws=None, params=None, **kwargs):
         # process 'x' array and match the shape of data
         params, bounds = self.params._paramsToList()
@@ -203,16 +203,16 @@ class Model:
                 x,
                 data.flatten(),
                 params,
-                errors.flatten(),
+                weights.flatten(),
                 bounds=bounds,
                 **fit_kws)
 
             self._optParams = self.params._listToParams(
                 fit[0], np.sqrt(np.diag(fit[1])))
-        
+
         if fit_method == 'basinhopping':
             func = (lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data)**2 / errors**2))
+                (self.eval(x, p, **kwargs) - data)**2 / weights**2))
             if 'minimizer_kwargs' in fit_kws.keys():
                 fit_kws['minimizer_kwargs'].update(bounds=bounds)
             else:
@@ -222,35 +222,35 @@ class Model:
                 params,
                 **fit_kws)
 
-            errors = fit.lowest_optimization_result.hess_inv
-            if isinstance(errors, LinearOperator):
-                errors = errors.todense()
+            weights = fit.lowest_optimization_result.hess_inv
+            if isinstance(weights, LinearOperator):
+                weights = weights.todense()
             self._optParams = self.params._listToParams(
-                fit.x, np.sqrt(np.diag(errors)))
+                fit.x, np.sqrt(np.diag(weights)))
 
         if fit_method == 'minimize':
             func = (lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data)**2 / errors**2))
+                (self.eval(x, p, **kwargs) - data)**2 / weights**2))
             fit = minimize(
                 func,
                 params,
                 bounds=bounds,
                 **fit_kws)
 
-            errors = fit.hess_inv.todense()
+            weights = fit.hess_inv.todense()
             self._optParams = self.params._listToParams(
-                fit.x, np.sqrt(np.diag(errors)))
+                fit.x, np.sqrt(np.diag(weights)))
 
-        self._fitkws['x'] = x
-        self._fitkws['params'] = params
-        self._fitkws.update(**kwargs)
+        self._userkws['x'] = x
+        self._userkws['params'] = params
+        self._userkws.update(**kwargs)
 
     # --------------------------------------------------
     # accessors
     # --------------------------------------------------
     def eval(self, x, params=None, convolve=None, **kwargs):
         """Perform the assembly of the components and call
-         the provided functions with their parameters to 
+         the provided functions with their parameters to
          compute the model.
 
         Parameters
@@ -282,10 +282,10 @@ class Model:
 
         return res[0]
 
-    def evalComponents(self, x, params=None, convolve=None, **kwargs):
+    def eval_components(self, x, params=None, convolve=None, **kwargs):
         """Alias for `eval` with 'returnComponents' set to True.
-        
-        Perform the computation of the components 
+
+        Perform the computation of the components
         with the given x-axis values, parameters and convolutions.
 
         Returns
@@ -299,14 +299,14 @@ class Model:
 
     def copy(self):
         """Return a copy of the model."""
-        m = Model(self.params, self.name, 
+        m = Model(self.params, self.name,
                   self.convolutions,
                   self._on_undef_conv)
         for key, val in self._components.items():
             m._components[key] = deepcopy(val)
         m._operators = deepcopy(self._operators)
         m._optParams = deepcopy(self._optParams)
-        m._fitkws = deepcopy(self._fitkws)
+        m._userkws = deepcopy(self._userkws)
 
         return m
 
@@ -337,7 +337,7 @@ class Model:
                 model_kws = {}
                 try:
                     compParams = comp.optParams
-                    model_kws = comp.fitkws
+                    model_kws = comp.userkws
                     if 'x' in model_kws:
                         model_kws.pop('x')
                     if 'params' in model_kws:
@@ -356,56 +356,58 @@ class Model:
         """This method allows to identify the type of function
         given in the two components of the convolution.
 
-        If these function are refered to in the `convolutions`
-        attribute of the class, an analytical convolution will 
+        If these function are referred to in the `convolutions`
+        attribute of the class, an analytical convolution will
         be performed using the corresponding convolution function.
         Otherwise, a numerical convolution is performed.
 
         Parameters
         ----------
         x : np.ndarray
-            array for values corresponding to the x-axis
+            Array for values corresponding to the x-axis
         params : list, np.array, optional
-            parameters to be passed to the components.
-        comp : tuple(function, parameters, [convolutions]) 
-            component of the current :class:`Model` instance
+            Parameters to be passed to the components.
+        comp : tuple(function, parameters, [convolutions])
+            Component of the current :class:`Model` instance
             to be convolved with the components of the other
             model.
-        model : :class:`Model`
-            another :class:`Model` instance that is used for 
+        convolve : :class:`Model`
+            Another :class:`Model` instance that is used for
             convolution.
         kwargs:
             Additional keyword arguments to be passed to the components.
 
         """
+        try:
+            convParams = convolve.optParams
+        except ValueError:
+            print("No fitted parameters found for the model to convolve: "
+                  "{name} at {address}.\n"
+                  "Using initial parameters instead.".format(
+                      name=comp.name, address=hex(id(comp))))
+            convParams = convolve.params
+
         res = []
         if comp.func.__name__ in self.convolutions.keys():
             convDict = self.convolutions[comp.func.__name__]
             for key, val in convolve.components.items():
                 # if no convolution defined, go numerical or raise KeyError
-                if not val.func.__name__ in convDict.keys(): 
+                if val.func.__name__ not in convDict.keys():
                     if self._on_undef_conv == 'numeric':
                         res.append(fftconvolve(
                             comp.eval(x, params, **kwargs),
-                            val.eval(x, params, **kwargs),
+                            val.eval(x, convParams, **kwargs),
                             mode='same',
                             axes=-1))
                     else:
                         raise KeyError("The convolution function between "
-                            "{func1} and {func2} is not defined in the "
-                            "'convolutions' attribute.".format(
-                                func1=comp.func.__name__, 
-                                func2=val.func.__name__))
+                                       "{func1} and {func2} is not defined "
+                                       "in the 'convolutions' "
+                                       "attribute.".format(
+                                           func1=comp.func.__name__,
+                                           func2=val.func.__name__))
                 else:
                     convFunc = convDict[val.func.__name__]
-                    try:
-                        convParams = convolve.optParams
-                    except ValueError:
-                        print("No fitted parameters found for the convolved "
-                              "model: {name} at {address}.\n"
-                              "Using initial parameters instead.".format(
-                                  name=convolve.name, address=hex(id(comp))))
-                        convParams = convolve.params
                     res.append(convFunc(
                         x, comp, val, params, convParams, **kwargs))
         else:
@@ -413,15 +415,15 @@ class Model:
                 if self._on_undef_conv == 'numeric':
                     res.append(fftconvolve(
                         comp.eval(x, params, **kwargs),
-                        val.eval(x, params, **kwargs),
+                        val.eval(x, convParams, **kwargs),
                         mode='same',
                         axes=-1))
                 else:
                     raise KeyError("The convolution function between "
-                        "{func1} and {func2} is not defined in the "
-                        "'convolutions' attribute.".format(
-                            func1=comp.func.__name__, 
-                            func2=val.func.__name__))
+                                   "{func1} and {func2} is not defined in "
+                                   "the 'convolutions' attribute.".format(
+                                       func1=comp.func.__name__,
+                                       func2=val.func.__name__))
 
         # apply the operators from 'model'
         for idx, val in enumerate(res[1:]):
@@ -496,7 +498,7 @@ class Component:
     Examples
     --------
     For a `Model` class that has the following key in its `params`
-    attribute: ('amplitude', 'sigma'), the component for a 
+    attribute: ('amplitude', 'sigma'), the component for a
     Lorentzian, the width of which depends on a defined vector *q*,
     can be created using:
 
@@ -524,7 +526,7 @@ class Component:
 
     def eval(self, x, params, **kwargs):
         """Evaluate the components using the given parameters.
-        
+
         Parameters
         ----------
         params : :class:`Parameters` instance
@@ -532,7 +534,7 @@ class Component:
         kwargs : dict
             Additional parameters to be passed to the function.
             Can override params.
-        
+
         """
         args = self.processFuncArgs(params, **kwargs)
         return self.func(x, **args)

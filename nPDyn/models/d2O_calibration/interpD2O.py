@@ -3,6 +3,7 @@ import os
 import numpy as np
 import scipy.interpolate as sii
 
+
 def getD2Odata(volFraction=0.95):
     """This script extract D2O background signal from measurements performed
     on IN6 at the ILL.

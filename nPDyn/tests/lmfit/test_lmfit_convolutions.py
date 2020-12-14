@@ -31,8 +31,8 @@ def test_comp_analytic_numeric(modelPair):
     X = np.linspace(-10, 10, 1000)
 
     analytic = ConvolvedModel(modelPair[0], modelPair[1]).eval(x=X, q=[1])[0]
-    numeric = np.convolve(modelPair[0].eval(x=X, q=[1])[0], 
-                          modelPair[1].eval(x=X, q=[1])[0], 
+    numeric = np.convolve(modelPair[0].eval(x=X, q=[1])[0],
+                          modelPair[1].eval(x=X, q=[1])[0],
                           mode='same')
 
     # normalize both results

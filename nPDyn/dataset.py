@@ -1,8 +1,8 @@
-"""The module contains the central class of nPDyn. 
+"""The module contains the central class of nPDyn.
 
 The :class:`Dataset`
 class, which handles the various dataset loaded and provides
-methods to quicly perform processing and fitting operations in the
+methods to quickly perform processing and fitting operations in the
 experimental data.
 
 """
@@ -16,13 +16,13 @@ from nPDyn.plot import makeWindow, QENSPlot, FWSPlot
 
 
 class Dataset:
-    """Master class of nPDyn. 
-    
+    """Master class of nPDyn.
+
     It contains a list of data files, which can be
     sample, resolution, D2O data or anything else as long as the format
     can be recognized.
 
-    For call with ipython, the :class:`Dataset` class can be initialized 
+    For call with ipython, the :class:`Dataset` class can be initialized
     directly from command line using the following:
 
     .. code-block:: bash
@@ -30,7 +30,7 @@ class Dataset:
         $ ipython -i Dataset.py -- [dataset related optional arguments]
 
     It goes like this, when a file is imported, data are loaded into
-    a data type class, depending on the given data type. This class will 
+    a data type class, depending on the given data type. This class will
     inherit from :class:`baseType`, and might have specific methods or can
     redefine methods if needed by the data type.
 
@@ -53,17 +53,17 @@ class Dataset:
         files to be loaded
     FWSFiles : list(str), optional
         list of Fixed Window Scans data files to be loaded
-    ECFile : str, optional        
+    ECFile : str, optional
         Empty cell data to be loaded in `ECData` attribute.
-    ECFile : str, optional        
+    ECFile : str, optional
         Empty cell data to be loaded
-    resFiles : str, optional      
+    resFiles : str, optional
         list of resolution function related data to be loaded
-    D2OFile : str, optional      
+    D2OFile : str, optional
         D2O data to be loaded
 
     """
-    def __init__(self, QENSFiles=None, FWSFiles=None, 
+    def __init__(self, QENSFiles=None, FWSFiles=None,
                  ECFile=None, fECFile=None, resFiles=None,
                  D2OFile=None, fD2OFile=None):
         # Declaring attributes related to samples dataset
@@ -106,12 +106,12 @@ class Dataset:
 
         Parameters
         ----------
-        fileFormat : str, optional    
+        fileFormat : str, optional
             format of the file to be imported (inx, hdf5)
             (default None)
         QENSFiles, FWSFiles,... : str or list of str, optional
-            named parameters containing a list of files paths 
-            (for QENS, FWS, res) or a single file paths 
+            named parameters containing a list of files paths
+            (for QENS, FWS, res) or a single file paths
             for each file to be imported.
 
         Notes
@@ -270,7 +270,7 @@ class Dataset:
 
     def resFuncAssign(self):
         """Assign data for resolution function to each dataset.
-        
+
         This method is used during initialization, and can be used
         each time resolution functions need to be re-assigned to data
         (after a model change for instance).
@@ -296,13 +296,13 @@ class Dataset:
         if lenResData == len(self.dataList):
             for idx, data in enumerate(self.dataList):
                 data.resData = self.resData[idx]
-    
+
 # -------------------------------------------------
 # Importation, reset and deletion methods
 # -------------------------------------------------
     def removeDataset(self, fileIdx):
         """Remove a dataset from 'dataList' attribute.
-        
+
         This method takes either a single integer as argument,
         which corresponds to the index of the file to be removed
         from self.dataFiles, self.dataList and self.rawDataList.
@@ -410,9 +410,9 @@ class Dataset:
             self.dataList[i].normalize_usingSelf()
 
     def normalize_usingLowTemp(self, *fileIdxList, nbrBins=8):
-        """Normalize data using low temperature measurements. 
-        
-        For temperature based data, the given number of first bins 
+        """Normalize data using low temperature measurements.
+
+        For temperature based data, the given number of first bins
         are used to compute an average signal at low temperature.
         The average is then used to normalize the whole dataset.
         This for each q-value.
@@ -422,7 +422,7 @@ class Dataset:
         fileIdxList : int, optional
             List of indices of dataset in self.dataList to be normalized.
         nbrBins : int
-            Number of low temperature bins used to compute the 
+            Number of low temperature bins used to compute the
             normalization factor. (optional, default 8)
 
         """
@@ -436,14 +436,14 @@ class Dataset:
     def absorptionCorrection(self, *fileIdxList, canType='tube',
                              canScaling=0.95, neutron_wavelength=6.27,
                              absco_kwargs={}, D2O=True, res=True):
-        """ Method for quick absorption correction on all selected
-            dataset in fileIdxList.
+        """Method for quick absorption correction on all selected
+        dataset in fileIdxList.
 
-            Same arguments as in :class:`baseType` class, except D2O, which,
-            if True, involves that corrections are performed on D2O data too.
+        Same arguments as in :class:`baseType` class, except D2O, which,
+        if True, involves that corrections are performed on D2O data too.
 
-            Also, if *res* argument is set to True, correction are done for
-            resolution function data too.
+        Also, if *res* argument is set to True, correction are done for
+        resolution function data too.
 
         """
         # If not file indices were given, assumes that all should be use
@@ -453,8 +453,8 @@ class Dataset:
         # Apply corrections for samples data
         for i in fileIdxList:
             self.dataList[i].absorptionCorrection(canType, canScaling,
-                                                     neutron_wavelength,
-                                                     absco_kwargs)
+                                                  neutron_wavelength,
+                                                  absco_kwargs)
 
         if res:
             try:
@@ -499,14 +499,14 @@ class Dataset:
             the signal for the selected dataset.
 
             :arg subFactor:   pre-multiplying factor for empty cell
-                              data prior to substraction
-            :arg fileIdxList: can be "all", then every dataSet in
+                              data prior to subtraction
+            :arg fileIdxList: can be "all", then every dataset in
                               self.dataList is normalized
                               can also be a single integer or a list
                               of integer (optional, default "all")
-            :arg subD2O:      if True, tries to substract empty cell
+            :arg subD2O:      if True, tries to subtract empty cell
                               signal from D2O data too
-            :arg subRes:      if True, substract empty cell signal from
+            :arg subRes:      if True, subtract empty cell signal from
                               resolutions data too
             :arg useModel:    if True, will use the fitted model of empty cell
                               for subtraction.
@@ -664,7 +664,7 @@ class Dataset:
         representation possibilities.
 
         """
-        plotW = makeWindow(QENSPlot, self.resData)
+        makeWindow(QENSPlot, self.resData)
 
     def plotECFunc(self):
         """This method plots the empty cell lineshape fitted function.
@@ -673,7 +673,7 @@ class Dataset:
         possibilities.
 
         """
-        plotW = makeWindow(QENSPlot, [self.ECData])
+        makeWindow(QENSPlot, [self.ECData])
 
     def plotD2OFunc(self):
         """This method plots the resolution function.
@@ -682,7 +682,7 @@ class Dataset:
         possibilities.
 
         """
-        plotW = makeWindow(QENSPlot, [self.D2OData])
+        makeWindow(QENSPlot, [self.D2OData])
 
     def plotQENS(self, *fileIdxList):
         """This methods plot the sample data in a PyQt5 widget allowing
@@ -703,7 +703,7 @@ class Dataset:
 
         dataList = [self.dataList[i] for i in fileIdxList]
 
-        plotW = makeWindow(QENSPlot, dataList)
+        makeWindow(QENSPlot, dataList)
 
     def plotFWS(self, *fileIdxList):
         """This methods plot the sample data in a PyQt5 widget
@@ -721,4 +721,4 @@ class Dataset:
 
         dataList = [self.dataList[i] for i in fileIdxList]
 
-        plotW = makeWindow(FWSPlot, dataList)
+        makeWindow(FWSPlot, dataList)

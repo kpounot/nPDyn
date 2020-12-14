@@ -39,21 +39,21 @@ def subplotsFormat(caller, sharex=False, sharey=False,
                                subplot_kw={'projection': projection})
 
     if listSize > 4 and listSize <= 9:
-        caller.figure.subplots(int(np.ceil(listSize / 3)), 3, sharex=sharex, 
+        caller.figure.subplots(int(np.ceil(listSize / 3)), 3, sharex=sharex,
                                sharey=sharey,
                                subplot_kw={'projection': projection})
 
     if listSize > 9 and listSize <= 12:
-        caller.figure.subplots(int(np.ceil(listSize / 4)), 4, sharex=sharex, 
+        caller.figure.subplots(int(np.ceil(listSize / 4)), 4, sharex=sharex,
                                sharey=sharey,
                                subplot_kw={'projection': projection})
 
     if listSize > 12:
-        caller.figure.subplots(int(np.ceil(listSize / 5)), 5, sharex=sharex, 
+        caller.figure.subplots(int(np.ceil(listSize / 5)), 5, sharex=sharex,
                                sharey=sharey,
                                subplot_kw={'projection': projection})
 
-    # Removing unecessary axes
+    # Removing unnecessary axes
     for idx, subplot in enumerate(caller.figure.axes):
         if idx >= listSize:
             caller.figure.delaxes(subplot)
@@ -64,6 +64,7 @@ def subplotsFormat(caller, sharex=False, sharey=False,
         ax = np.array(ax)
 
     return ax
+
 
 def subplotsFormatWithColorBar(caller, sharex=False, sharey=False,
                                projection=None, params=False):
@@ -123,7 +124,7 @@ def subplotsFormatWithColorBar(caller, sharex=False, sharey=False,
                                subplot_kw={'projection': projection},
                                gridspec_kw={'width_ratios': 5 * [20, 1]})
 
-    # Removing unecessary axes
+    # Removing unnecessary axes
     for idx, subplot in enumerate(caller.figure.axes):
         if idx >= 2 * listSize:
             caller.figure.delaxes(subplot)

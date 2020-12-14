@@ -16,5 +16,5 @@ class QENSType(BaseType):
     def __init__(self, fileName, data=None, rawData=None,
                  resData=None, D2OData=None, ECData=None,
                  model=None):
-        super().__init__(fileName, data, rawData, resData, 
+        super().__init__(fileName, data, rawData, resData,
                          D2OData, ECData, model)

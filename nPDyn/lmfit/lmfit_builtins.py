@@ -1,8 +1,8 @@
 """This module provides several built-in models for incoherent
 neutron scattering data fitting.
 
-These functions generate a `Model` class instance from 
-the **lmfit** package [#]_. 
+These functions generate a `Model` class instance from
+the **lmfit** package [#]_.
 
 
 References
@@ -20,12 +20,12 @@ try:
     from lmfit import Model, CompositeModel
     from lmfit.models import COMMON_GUESS_DOC
 except ImportError:
-    print("The lmfit package cannot be found, please intall it to use "
+    print("The lmfit package cannot be found, please install it to use "
           "the interface with nPDyn.")
-    class Model: 
+    class Model:
         def __init__(self, tmp, **kwargs):
             pass
-    class CompositeModel: 
+    class CompositeModel:
         def __init__(self, tmp, **kwargs):
             pass
     COMMON_GUESS_DOC = ""
@@ -37,12 +37,13 @@ from nPDyn.lmfit.lmfit_presets import (
 
 from nPDyn.lmfit.convolutions import getGlobals
 
+
 # -------------------------------------------------------
 # Helper functions for the models
 # -------------------------------------------------------
 def guess_from_qens(pars, pGlobals, data, x, q, prefix=None):
     """Estimate starting values from 2D peak data and create Parameters.
-    
+
     Notes
     -----
     The dataset should be of shape (number of q-values, energies),
@@ -79,6 +80,7 @@ def guess_from_qens(pars, pGlobals, data, x, q, prefix=None):
 
     return pars
 
+
 def update_param_vals(pars, prefix, **kwargs):
     """Update parameter values with keyword arguments."""
     for key, val in kwargs.items():
@@ -87,6 +89,7 @@ def update_param_vals(pars, prefix, **kwargs):
             pars[pname].value = val
     pars.update_constraints()
     return pars
+
 
 # -------------------------------------------------------
 # Built-in models
@@ -184,11 +187,11 @@ class ModelDeltaLorentzians(CompositeModel):
             prefix = kwargs.pop('prefix')
 
         left = delta(q, prefix='%sdelta_' % prefix, **kwargs)
-    
+
         right = lorentzian(q, prefix='%sl0_' % prefix, **kwargs)
         for i in range(1, nLor):
             right = CompositeModel(
-                right, 
+                right,
                 lorentzian(q, prefix='%sl%i_' % (prefix, i), **kwargs),
                 operator.add)
 

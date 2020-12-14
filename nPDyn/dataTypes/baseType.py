@@ -8,19 +8,29 @@ routines. Moreover, each dataset created with this class can have associated
 data for corrections and fitting (see :class:`BaseType` documentation)
 
 """
-
 from functools import wraps
+
+import re
+
+from collections import OrderedDict
 
 import numpy as np
 
 from scipy.interpolate import interp1d
 
+try:
+    from lmfit import Model as lmModel
+except ImportError:
+    class lmModel:
+        pass
+
 from nPDyn.dataManipulation.binData import binData
 from nPDyn.fileFormatParser import guessFileFormat, readFile
 from nPDyn.dataParsers import (IN16B_FWS, IN16B_QENS)
 
-from nPDyn.models import Model, Component
+from nPDyn.models import Model, Component, Parameters
 from nPDyn.models.presets import linear
+from nPDyn.lmfit.convolvedModel import ConvolvedModel
 
 try:
     from nPDyn.lib.pyabsco import py_absco_slab, py_absco_tube
@@ -49,6 +59,7 @@ def ensure_attr(attr):
         return wrapper
     return dec
 
+
 def ensure_fit(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -60,6 +71,7 @@ def ensure_fit(func):
             return func(*args, **kwargs)
     return wrapper
 
+
 # -------------------------------------------------------
 # BaseType class
 # -------------------------------------------------------
@@ -70,21 +82,21 @@ class BaseType:
     Note
     ----
     This class is usually not used directly, but rather decorated by
-    more specialized class depending on the type of data that is 
-    imported (see :class:`QENSType`, :class:`FWSType`, 
+    more specialized class depending on the type of data that is
+    imported (see :class:`QENSType`, :class:`FWSType`,
     :class:`TempRampType`)
 
     Parameters
     ----------
     fileName : str or list(str), optional
-        name of the file(s) to be read, can also be a directory for 
+        name of the file(s) to be read, can also be a directory for
         raw data (in this case, all files in the directory are imported)
-    data : data namedtuple, optional    
+    data : data namedtuple, optional
         resulting namedtuple from data parsers
     rawData : data namedtuple, optional
-        named tuple containing the imported data without any further 
-        processing. Used by the decorator for specialized classes 
-    resData : :class:`resType`, optional 
+        named tuple containing the imported data without any further
+        processing. Used by the decorator for specialized classes
+    resData : :class:`resType`, optional
         data for resolution function
     D2OData : :class:`D2OType` or :class:`fD2OType`, optional
         D2O (or buffer) data if needed
@@ -98,8 +110,8 @@ class BaseType:
         self.data     = data
         self._rawData = rawData  # Used to reset data to its initial state
 
-        self.resData  = resData  
-        self.D2OData  = D2OData 
+        self.resData  = resData
+        self.D2OData  = D2OData
         self.ECData   = ECData
 
         self._QENS_redAlgo = {'IN16B': IN16B_QENS}
@@ -254,7 +266,7 @@ class BaseType:
     def normalize_usingResFunc(self):
         """Normalizes data using integral of `resData.fit_best()`
         or experimental measurement of `resData`.
-        
+
         """
         if not self.data.norm:
             intensities = self.data.intensities
@@ -269,10 +281,10 @@ class BaseType:
                 norm=True)
 
     def normalize_usingLowTemp(self, nbrBins):
-        """ Normalizes data using low temperature signal.
-            An average is performed over the given
-            number of bins for each q value and data
-            are divided by the result.
+        """Normalizes data using low temperature signal.
+
+        An average is performed over the given number of bins for each q value
+        and data are divided by the result.
 
         """
         normFList = np.mean(
@@ -307,7 +319,7 @@ class BaseType:
 
     @ensure_attr('ECData')
     def subtractEC(self, scaleFactor=0.95, useModel=True):
-        """Use the assigned empty cell data for substraction to loaded data.
+        """Use the assigned empty cell data for subtraction to loaded data.
 
         Parameters
         ----------
@@ -315,7 +327,7 @@ class BaseType:
             Empty cell data are scaled using the given
             factor prior to subtraction.
         useModel : bool
-            For QENS data, use the fitted model instead of experimental 
+            For QENS data, use the fitted model instead of experimental
             points to perform the subtraction if True.
 
         """
@@ -326,8 +338,9 @@ class BaseType:
             if ECData.shape == self.data.intensities.shape:
                 ECFunc = self.ECData.data.intensities
             else:
-                ids = np.argmin([(self.ECData.data.energies - val)**2
-                       for val in self.data.energies], axis=1)
+                ids = np.argmin([
+                    (self.ECData.data.energies - val)**2
+                    for val in self.data.energies], axis=1)
                 ECFunc = ECData[:, :, ids]
 
         normEC = np.zeros_like(self.data.intensities) + ECFunc
@@ -347,9 +360,9 @@ class BaseType:
     def absorptionCorrection(self, canType='tube', canScaling=0.9,
                              neutron_wavelength=6.27, absco_kwargs=None,
                              useModel=True):
-        """Computes absorption Paalman-Pings coefficients 
-        
-        Can be used for sample in a flat or tubular can and apply corrections 
+        """Computes absorption Paalman-Pings coefficients
+
+        Can be used for sample in a flat or tubular can and apply corrections
         to data, for each q-value in *data.qVals* attribute.
 
         Parameters
@@ -357,12 +370,12 @@ class BaseType:
         canType : {'tube', 'slab'}
             type of can used, either 'tube' or 'slab'
             (default 'tube')
-        canScaling : float         
-            scaling factor for empty can contribution term, set it to 0 
+        canScaling : float
+            scaling factor for empty can contribution term, set it to 0
             to use only correction of sample self-attenuation
-        neutron_wavelength : float 
+        neutron_wavelength : float
             incident neutrons wavelength
-        absco_kwargs : dict  
+        absco_kwargs : dict
             geometry arguments for absco library
             from Joachim Wuttke [#]_.
 
@@ -403,8 +416,9 @@ class BaseType:
             if ECData.shape == self.data.intensities:
                 ECFunc = self.ECData.data.intensities
             else:
-                ids = np.argmin([(self.ECData.data.energies - val)**2
-                       for val in self.data.energies], axis=1)
+                ids = np.argmin([
+                    (self.ECData.data.energies - val)**2
+                    for val in self.data.energies], axis=1)
                 ECFunc = ECData[:, :, ids]
 
         normEC = np.zeros_like(self.data.intensities) + ECFunc
@@ -424,8 +438,8 @@ class BaseType:
 
             # Applies correction
             sampleSignal[:, qIdx] = ((1 / A_S_SC) * sampleSignal[:, qIdx]
-                                    - A_C_SC / (A_S_SC * A_C_C)
-                                    * canScaling * normEC[:, qIdx])
+                                     - A_C_SC / (A_S_SC * A_C_C)
+                                     * canScaling * normEC[:, qIdx])
 
         self.data = self.data._replace(intensities=sampleSignal)
 
@@ -433,7 +447,7 @@ class BaseType:
         """Remove detectors (q-values)."""
         print(self.data.qIdx)
         print(qIdx)
-        ids = np.array([idx for idx, val in enumerate(self.data.qIdx) 
+        ids = np.array([idx for idx, val in enumerate(self.data.qIdx)
                         if val not in qIdx])
 
         self.data = self.data._replace(
@@ -447,9 +461,9 @@ class BaseType:
 
         Parameters
         ----------
-        minQ : float 
+        minQ : float
             Minimum value of the range.
-        maxQ : float 
+        maxQ : float
             Maximum value of the range.
 
         """
@@ -487,8 +501,9 @@ class BaseType:
     def model(self, model):
         """Setter for the model attribute."""
         if model is not None:
-            if not isinstance(model, Model):
+            if not isinstance(model, (lmModel, Model)):
                 raise ValueError("The model should be an instance of the "
+                                 "Model class or of the "
                                  "'lmfit.Model' class or a class instance "
                                  "that inherits from it.")
             else:
@@ -497,41 +512,61 @@ class BaseType:
             self._model = None
 
     @ensure_fit
-    def getFixedParams(self, obsIdx):
-        """Return the fixed parameters
+    def getFixedOptParams(self, obsIdx):
+        """Return the fixed optimal parameters
 
         The parameters are return for the given observable
-        value at index `obsIdx`.
+        value at index `obsIdx` or the first entry if there is only
+        one observable.
 
         """
-        params = self._fit[obsIdx].optParams
-        for key, par in params.items():
-            params.set(key, fixed=True)
+        fitList = self._fit
+
+        # check if the obsIdx is within the size, use the first index if not.
+        if not obsIdx <= len(fitList):
+            obsIdx = 0
+
+        bestModel = fitList[obsIdx]
+
+        if isinstance(self.model, Model):
+            params = bestModel.optParams
+            for key, par in params.items():
+                params.set(key, fixed=True)
+        else:
+            params = {}
+            opt = bestModel.params
+            for key, par in opt.items():
+                params[key] = OrderedDict({
+                    'value': par.value,
+                    'min': par.min,
+                    'max': par.max,
+                    'vary': False,
+                    'expr': par.expr})
 
         return params
 
-    def fit(self, model=None, cleanData='replace', convolveRes=False,
+    def fit(self, model=None, cleanData=None, convolveRes=False,
             addEC=False, addD2O=False, **kwargs):
         """Fit the dataset using the `model` attribute.
 
         Parameters
         ----------
-        model : :class:`Model` instance 
+        model : :class:`Model` instance
             The model to be used for fitting.
             If None, will look for a model instance in 'model' attribute of
             the class instance.
             If not None, will override the model attribute of the class
             instance.
         cleanData : {'replace', 'omit'} or anything else for no, optional
-            If set to 'replace' the locations of null or inf values in data 
+            If set to 'replace' the locations of null or inf values in data
             are set to *np.inf* in weights prior to fitting.
-            If set to 'omit' the locations of null or inf values in data 
+            If set to 'omit' the locations of null or inf values in data
             are removed from data, weights and x prior to fitting.
             Else, nothing is done.
         convolveRes : bool, optional
             If True, will use the attribute `resData`, fix the parameters,
-            and convolve it with the data using: 
-            ``model = ConvolvedModel(self, resModel)`` 
+            and convolve it with the data using:
+            ``model = ConvolvedModel(self, resModel)``
         addEC : bool, optional
             If True, will use the attribute `ECData`, fix the parameters,
             model by calling:
@@ -566,61 +601,95 @@ class BaseType:
         self._fit = []
 
         q = self.data.qVals
-        if not 'data' in kwargs.keys():
+        if 'data' not in kwargs.keys():
             data = np.copy(self.data.intensities)
         else:
             data = kwargs['data']
-        if not 'errors' in kwargs.keys():
+        if 'errors' not in kwargs.keys():
             errors = np.copy(self.data.errors)
         else:
             errors = kwargs['errors']
         x = np.copy(self.data.energies)
 
+        if cleanData is None:
+            if isinstance(self.model, Model):
+                cleanData = 'replace'
+            else:
+                cleanData = 'omit'
+
         if cleanData in ['replace', 'omit']:
             data, errors, x = self._cleanData(data, errors, x, cleanData)
 
-        fit_kwargs = {
-            'x': x,
-            'q': q,
-            'params': self.model.params._paramsToList()}
+        if isinstance(self.model, Model):
+            kwParams = self.model.params._paramsToList()
+        else:
+            kwParams = None
+
+        fit_kwargs = {'x': x, 'q': q, 'params': kwParams}
 
         if kwargs is not None:
             fit_kwargs.update(kwargs)
 
         if convolveRes:
-            resModel = self.resData.model.copy()
-            if self.data.norm and not self.resData.data.norm:
-                resModel /= Component(
-                    "norm", linear, a=0., b=self._getNormRes()[0])
-            fit_kwargs['convolve'] = resModel
+            if isinstance(self.model, Model):
+                resModel = self.resData.model.copy()
+                if self.data.norm and not self.resData.data.norm:
+                    resModel /= Component(
+                        "norm", linear, a=0., b=self._getNormRes()[0])
+                fit_kwargs['convolve'] = resModel
+            else:
+                resModel = self.resData.model
+                if self.data.norm and not self.resData.data.norm:
+                    resModel = resModel / lmModel(
+                        lambda x: self._getNormRes()[0])
+                model = ConvolvedModel(model, resModel)
+                model.param_hints.update(self.resData.getFixedOptParams(0))
 
         if addEC:
-            ecModel = self.ECData.model.copy()
-            if self.data.norm and not self.ECData.data.norm:
-                ecModel /= Component(
-                    "norm", linear, a=0., b=self._getNormRes()[0])
-            model = model + ecModel
+            if isinstance(self.model, Model):
+                ecModel = self.ECData.model.copy()
+                if self.data.norm and not self.ECData.data.norm:
+                    ecModel /= Component(
+                        "norm", linear, a=0., b=self._getNormRes()[0])
+                model = model + ecModel
+            else:
+                ecModel = self.ECData.model
+                if self.data.norm and not self.ECData.data.norm:
+                    resModel /= lmModel(lambda x: self._getNormRes()[0])
+                model = ConvolvedModel(model, resModel)
+                model.param_hints.update(self.ECData.getFixedOptParams(0))
 
         if addD2O:
-            D2OModel = self.D2OData.model.copy()
-            if self.data.norm and not self.D2OData.data.norm:
-                D2OModel /= Component(
-                    "norm", linear, a=0., b=self._getNormRes()[0])
-            model = model + D2OModel
+            if isinstance(self.model, Model):
+                D2OModel = self.D2OData.model.copy()
+                if self.data.norm and not self.D2OData.data.norm:
+                    D2OModel /= Component(
+                        "norm", linear, a=0., b=self._getNormRes()[0])
+                model = model + D2OModel
+            else:
+                D2OModel = self.D2OData.model
+                if self.data.norm and not self.D2OData.data.norm:
+                    D2OModel /= lmModel(lambda x: self._getNormRes()[0])
+                model += D2OModel
+                model.param_hints.update(self.D2OData.getFixedOptParams(0))
 
         for idx, obs in enumerate(self.data.observable):
             # get the right observable index for data and errors
             fit_kwargs['data'] = data[idx]
-            fit_kwargs['errors'] = errors[idx]
+            fit_kwargs['weights'] = errors[idx]
             print("\tFit of observable %i of %i (%s=%s)" %
-                  (idx + 1, 
+                  (idx + 1,
                    self.data.intensities.shape[0],
                    self.data.observable_name,
                    self.data.observable[idx]), end='\r')
-                  
-            model.fit(**fit_kwargs)
 
-            self._fit.append(model.optParams)
+            fitRes = model.fit(**fit_kwargs)
+
+            if isinstance(self.model, Model):
+                tmp = model.copy()
+                self._fit.append(tmp)
+            else:
+                self._fit.append(fitRes)
 
         self.model = model
 
@@ -630,25 +699,36 @@ class BaseType:
     @ensure_fit
     def params(self):
         """Return the best values and errors from the fit result."""
-        return self._fit
+        out = []
+        for obsIdx, val in enumerate(self._fit):
+            if isinstance(self.model, Model):
+                out.append(val.optParams)
+            else:
+                out.append(self._extract_lmfit_params(val))
+
+        return out
 
     @ensure_fit
     def fit_best(self, **kwargs):
         """Return the fitted model.
-               
+
         Parameters
         ----------
         kwargs : dict
-            Additional keyword arguments to pass to 
+            Additional keyword arguments to pass to
             `ModelResult.eval`.
 
         """
-        kws = self.model.fitkws
+        kws = self._fit[0].userkws
         kws.update(**kwargs)
 
         out = []
         for idx, fit in enumerate(self._fit):
-            kws['params'] = self.params[idx]
+            if isinstance(self.model, Model):
+                kws['params'] = fit.optParams
+            else:
+                kws['params'] = fit.params
+
             out.append(self.model.eval(**kws))
 
         return np.array(out)
@@ -656,21 +736,27 @@ class BaseType:
     @ensure_fit
     def fit_components(self, **kwargs):
         """Return the fitted components.
-        
+
         Parameters
         ----------
         kwargs : dict
-            Additional keyword arguments to pass to 
+            Additional keyword arguments to pass to
             `ModelResult.eval_components`.
 
         """
-        kws = self.model.fitkws
+        kws = self._fit[0].userkws
         kws.update(**kwargs)
 
-        comps = {key: [] for key in self.model.components.keys()}
+        comps = {}
         for idx, fit in enumerate(self._fit):
-            kws['params'] = self.params[idx]
-            for key, val in self.model.evalComponents(**kws).items():
+            if isinstance(self.model, Model):
+                kws['params'] = fit.optParams
+            else:
+                kws['params'] = fit.params
+
+            for key, val in self.model.eval_components(**kws).items():
+                if key not in comps.keys():
+                    comps[key] = []
                 comps[key].append(val)
 
         for key, val in comps.items():
@@ -678,23 +764,29 @@ class BaseType:
 
         return comps
 
+    @property
+    @ensure_fit
+    def model_best(self):
+        """Return the model with the fitted parameters."""
+        return self._fit
+
     def _cleanData(self, data, errors, x, processType='replace'):
         """Remove inf and null values from the input arrays.
-        
+
         Parameters
         ----------
         processType : {'omit', 'replace'}
             Type of processing to be performed.
                 - 'omit': discard the bad entries from the input arrays.
                 - 'replace': replace the bad entries by inf.
-        
+
         """
         if processType == 'omit':
             mask = ~(data <= 0.) & ~(data == np.inf)
             for idx, val in enumerate(mask):
                 mask[0] = mask[0] & val
 
-            data = data[:, :, mask[0, 0]] 
+            data = data[:, :, mask[0, 0]]
             errors = errors[:, :, mask[0, 0]]
             x = x[mask[0, 0]]
 
@@ -703,3 +795,27 @@ class BaseType:
             np.place(errors, data == np.inf, np.inf)
 
         return data, errors, x
+
+    def _extract_lmfit_params(self, modelRes):
+        """Convert lmfit parameters into the format used in nPDyn."""
+        out = Parameters()
+
+        tmp = {}
+        for key, val in modelRes.params.items():
+            if re.search(r'_\d+$', key):
+                key = key[:key.rfind('_')]
+            if key not in tmp.keys():
+                tmp[key] = {
+                    'value': [],
+                    'error': [],
+                    'fixed': False,
+                    'bounds': (-np.inf, np.inf)}
+            tmp[key]['value'].append(val.value)
+            tmp[key]['error'].append(
+                val.stderr if val.stderr is not None else 0)
+            tmp[key]['fixed'] = not val.vary
+            tmp[key]['bounds'] = (val.min, val.max)
+
+        out.update(**tmp)
+
+        return out

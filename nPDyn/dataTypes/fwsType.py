@@ -21,7 +21,7 @@ except ImportError:
 
 class FWSType(BaseType):
     """Specialized class for fixed-window scans (FWS).
-    
+
     This class inherits from :class:`baseType` class.
 
     """
@@ -29,7 +29,7 @@ class FWSType(BaseType):
     def __init__(self, fileName, data=None, rawData=None,
                  resData=None, D2OData=None, ECData=None,
                  model=None):
-        super().__init__(fileName, data, rawData, resData, 
+        super().__init__(fileName, data, rawData, resData,
                          D2OData, ECData, model)
 
     def importData(self, fileFormat=None):
@@ -69,4 +69,3 @@ class FWSType(BaseType):
             return
         else:
             self.data = binData(self.data, binSize, axis)
-

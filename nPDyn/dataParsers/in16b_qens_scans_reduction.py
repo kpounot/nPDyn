@@ -43,7 +43,7 @@ class IN16B_QENS:
                       as used in Mantid.
                       If set to `no`, no detector gouping is performed
                       and the data represents the signal for each
-                      pixel on the detectors. In this case, the 
+                      pixel on the detectors. In this case, the
                       observable become the momentum transfer q in
                       the vertical direction.
     :arg normalize:   whether the data should be normalized to the
@@ -233,7 +233,7 @@ class IN16B_QENS:
                     dataset['entry0/instrument/SingleD/data'][(idx)].squeeze())
 
         if self.observable == '$q_z$':
-            tmpSD = np.zeros((len(dataSD), data.shape[1], data.shape[2])) 
+            tmpSD = np.zeros((len(dataSD), data.shape[1], data.shape[2]))
             tmpSD[:, 64] += np.array(dataSD)
             data  = np.row_stack((tmpSD, data)).transpose(0, 2, 1)
         else:
@@ -295,7 +295,7 @@ class IN16B_QENS:
         using the selected method.
 
         """
-        # if detGroup is not, sum over all vertical positions to find 
+        # if detGroup is not, sum over all vertical positions to find
         # peaks more effectively
         if data.ndim == 3:
             data = data.sum(2)

@@ -19,7 +19,7 @@ filePath = os.path.abspath(__file__)
 dirPath = os.path.dirname(filePath)
 
 
-with open(dirPath + '/README.rst', 'r') as f:
+with open(dirPath + '/README.rst') as f:
     description = f.read()
 
 gsl_lib = ['gsl', 'gslcblas']
@@ -50,7 +50,7 @@ packagesList = ['nPDyn',
                 'nPDyn.plot',
                 'nPDyn.lib']
 
-pyabsco_ext = Extension("nPDyn.lib.pyabsco", 
+pyabsco_ext = Extension("nPDyn.lib.pyabsco",
                         [dirPath + "/nPDyn/lib/src/absco.c", dirPath + "/nPDyn/lib/pyabsco.pyx"],
                         include_dirs=[dirPath + "/nPDyn/lib/src"],
                         libraries=gsl_lib)

@@ -5,7 +5,7 @@
 import numpy as np
 
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QCheckBox,
-                             QPushButton, QVBoxLayout, 
+                             QPushButton, QVBoxLayout,
                              QHBoxLayout, QFrame, QSlider)
 from PyQt5 import QtCore
 
@@ -32,9 +32,10 @@ class QENSPlot(QWidget):
         and several buttons corresponding to the different type of plots.
             - Plot      - plot the experimental data for
                           the selected observable and q-value.
-            - Compare   - plot the datasets on top of each other for 
+            - Compare   - plot the datasets on top of each other for
                           direct comparison.
-            - 3D Plot   - plot the whole datasets in 3D (energies E, q, S(q, E)).
+            - 3D Plot   - plot the whole datasets in 3D
+                          (energies E, q, S(q, E)).
             - Analysis  - plot the different model parameters as a
                           function of q-value.
 
@@ -69,7 +70,7 @@ class QENSPlot(QWidget):
 
         self.compareButton = QPushButton('Compare')
         self.compareButton.clicked.connect(self.compare)
-        
+
         self.analysisButton = QPushButton('Analysis')
         self.analysisButton.clicked.connect(self.analysisPlot)
 
@@ -153,7 +154,7 @@ class QENSPlot(QWidget):
             energies = self.dataset[idx].data.energies
             intensities = self.dataset[idx].data.intensities[obsIdx][qIdx]
 
-            # Plot the datas for selected q value
+            # Plot the data for selected q value
             subplot.errorbar(
                 energies,
                 intensities,
@@ -165,7 +166,7 @@ class QENSPlot(QWidget):
             subplot.set_ylim(0.1 * intensities[intensities > 0].min(),
                              1.5 * intensities.max())
 
-            if not self.noFit:                
+            if not self.noFit:
                 if self.fitBox.isChecked():
                     # Plot the model
                     subplot.plot(
@@ -186,9 +187,9 @@ class QENSPlot(QWidget):
                             ls='--',
                             zorder=2)
 
-            subplot.set_xlabel('$\hslash\omega [\mu eV]$')
+            subplot.set_xlabel(r'$\hslash\omega [\mu eV]$')
             subplot.set_yscale('log')
-            subplot.set_ylabel('$S(%.2f, \omega)$' % self.qRange[qIdx])
+            subplot.set_ylabel(r'$S(%.2f, \omega)$' % self.qRange[qIdx])
             subplot.set_title(self.dataset[idx].fileName)
             subplot.legend()
 
@@ -212,7 +213,7 @@ class QENSPlot(QWidget):
             energies = dataset.data.energies
             intensities = dataset.data.intensities[obsIdx][qIdx]
 
-            # Plot the datas for selected q value
+            # Plot the data for selected q value
             ax.errorbar(
                 energies,
                 intensities,
@@ -224,9 +225,9 @@ class QENSPlot(QWidget):
             ax.set_ylim(0.1 * intensities[intensities > 0].min(),
                         1.5 * intensities.max())
 
-            ax.set_xlabel('$\hslash\omega [\mu eV]$')
+            ax.set_xlabel(r'$\hslash\omega [\mu eV]$')
             ax.set_yscale('log')
-            ax.set_ylabel('$S(%.2f, \omega)$' % self.qRange[qIdx])
+            ax.set_ylabel(r'$S(%.2f, \omega)$' % self.qRange[qIdx])
             ax.set_title(dataset.fileName)
             ax.legend()
 
@@ -239,7 +240,6 @@ class QENSPlot(QWidget):
         self.figure.clear()
 
         obsIdx = self.obsSlider.value()
-        qIdx = self.qSlider.value()
 
         # Use a fancy colormap
         normColors = matplotlib.colors.Normalize(vmin=0, vmax=2)
@@ -248,7 +248,8 @@ class QENSPlot(QWidget):
         ax = subplotsFormat(self, projection='3d')
 
         for idx, subplot in enumerate(ax):
-            for i, qWiseData in enumerate(self.dataset[idx].data.intensities[obsIdx]):
+            for i, qWiseData in enumerate(
+                    self.dataset[idx].data.intensities[obsIdx]):
                 subplot.plot(
                     self.dataset[idx].data.energies,
                     qWiseData,
@@ -257,9 +258,9 @@ class QENSPlot(QWidget):
                     zorder=len(ax) - idx,
                     c=cmap(normColors(self.dataset[idx].data.qVals[i])))
 
-            subplot.set_xlabel('$\hslash \omega \ [\mu eV]$')
+            subplot.set_xlabel(r'$\hslash \omega \ [\mu eV]$')
             subplot.set_ylabel('$q$')
-            subplot.set_zlabel('$S \ (q, \omega)$')
+            subplot.set_zlabel(r'$S \ (q, \omega)$')
             subplot.set_title(self.dataset[idx].fileName, fontsize=10)
 
         self.canvas.draw()
@@ -272,7 +273,6 @@ class QENSPlot(QWidget):
         self.figure.clear()
 
         obsIdx = self.obsSlider.value()
-        qIdx = self.qSlider.value()
 
         # Creates as many subplots as there are parameters in the model
         ax = subplotsFormat(self, True, False, None, True)
@@ -295,17 +295,17 @@ class QENSPlot(QWidget):
                 if values.size == 1:
                     values = np.zeros_like(qList) + values
                     errors = np.zeros_like(qList) + errors
-                    marker=None
+                    marker = None
 
-                ax[idx].plot(qList, 
-                             values, 
-                             marker=marker, 
+                ax[idx].plot(qList,
+                             values,
+                             marker=marker,
                              label=dataset.fileName)
 
                 ax[idx].fill_between(
                     qList, values - errors, values + errors, alpha=0.4)
                 ax[idx].set_ylabel(key)
-                ax[idx].set_xlabel('$q \ [\AA^{-1}]$')
+                ax[idx].set_xlabel(r'$q \ [\AA^{-1}]$')
 
         ax[-1].legend(framealpha=0.5)
 
@@ -316,7 +316,7 @@ class QENSPlot(QWidget):
     # -------------------------------------------------
     def get_qRange(self):
         """Return the q-values used in the dataset(s).
-        
+
         This assumes the q-values are the same for all datasets.
 
         """
@@ -324,7 +324,7 @@ class QENSPlot(QWidget):
 
     def get_obsRange(self):
         """Return the observables used in the dataset(s).
-        
+
         This assumes the observables are the same for all datasets.
 
         """
@@ -335,7 +335,7 @@ class QENSPlot(QWidget):
         obsIdx = self.obsSlider.value()
         qIdx = self.qSlider.value()
 
-        self.obsVal.setText(self.obsRange.astype(str)[obsIdx])
+        self.obsVal.setText('%.2f' % self.obsRange.astype(str)[obsIdx])
         self.qVal.setText('%.2f' % self.qRange[qIdx])
 
     def updatePlot(self):
@@ -348,7 +348,7 @@ class QENSPlot(QWidget):
 
         """
 
-        if np.any(np.array(self.dataset) == None):
+        if np.any(np.array(self.dataset) is None):
             raise ValueError("No data were loaded.\n"
                              "Please import data before using this method.")
 

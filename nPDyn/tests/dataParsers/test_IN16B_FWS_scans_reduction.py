@@ -21,5 +21,3 @@ def test_listImport():
     result = IN16B_FWS(dataPath)
     result.process()
     assert len(result.qList) == 32
-
-

@@ -1,11 +1,11 @@
-all: init build 
+all: init build
 
 init:
 	pip3 install -r requirements.txt
 
 
 build: setup.py
-	python3 setup.py build 
+	python3 setup.py build
 
 
 PACKAGE_DIR = package/

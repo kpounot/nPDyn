@@ -5,7 +5,7 @@
 import numpy as np
 
 from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QCheckBox,
-                             QPushButton, QVBoxLayout, 
+                             QPushButton, QVBoxLayout,
                              QHBoxLayout, QFrame, QSlider,
                              QGroupBox, QRadioButton)
 from PyQt5 import QtCore
@@ -188,14 +188,14 @@ class FWSPlot(QWidget):
                 X = self.dataset[idx].data.qVals
                 Y = intensities[obsIdx, :, eIdx]
                 Err = errors[obsIdx, :, eIdx]
-                xLabel = 'Momentum transfer q $[\AA^{-1}$]'
+                xLabel = r'Momentum transfer q $[\AA^{-1}$]'
             elif self.eRadioButton.isChecked():
                 X = energies
                 Y = intensities[obsIdx, qIdx]
                 Err = errors[obsIdx, qIdx]
-                xLabel = 'Energies [$\mu eV$]'
+                xLabel = r'Energies [$\mu eV$]'
 
-            # Plot the datas for selected q value
+            # Plot the data for selected q value
             subplot.errorbar(
                 X,
                 Y,
@@ -204,7 +204,7 @@ class FWSPlot(QWidget):
                 label='experimental',
                 zorder=1)
 
-            if not self.noFit:                
+            if not self.noFit:
                 if self.fitBox.isChecked():
                     if self.oRadioButton.isChecked():
                         Y = self.dataset[idx].fit_best()[:, qIdx, eIdx]
@@ -239,7 +239,7 @@ class FWSPlot(QWidget):
                             zorder=2)
 
             subplot.set_xlabel(xLabel)
-            subplot.set_ylabel('$S(q, \omega)$')
+            subplot.set_ylabel(r'$S(q, \omega)$')
             subplot.set_title(self.dataset[idx].fileName)
             subplot.legend()
 
@@ -275,7 +275,7 @@ class FWSPlot(QWidget):
             xx,
             yy,
             self.dataset[0].data.intensities[:, :, eIdx],
-            label=('$\\Delta E$ = %.2f $\mu eV$'
+            label=('$\\Delta E$ = %.2f $\\mu eV$'
                    % self.dataset[0].data.energies[eIdx]),
             colors=cmapList[eIdx](normColors(np.arange(maxScan))))
 
@@ -295,7 +295,6 @@ class FWSPlot(QWidget):
         self.figure.clear()
 
         qIdx = self.qSlider.value()
-        eIdx = self.eSlider.value()
 
         # Creates as many subplots as there are parameters in the model
         ax = subplotsFormat(self, True, False, None, True)
@@ -316,7 +315,7 @@ class FWSPlot(QWidget):
                     X = qList
                     Y = np.array(params[obsIdx][key].value)
                     Err = np.array(params[obsIdx][key].error)
-                    xLabel = 'Momentum transfer q $[\AA^{-1}$]'
+                    xLabel = r'Momentum transfer q $[\AA^{-1}$]'
                 elif self.eRadioButton.isChecked():
                     X = self.eRange
                     Y = np.array(params[obsIdx][key].value).flatten()
@@ -324,7 +323,7 @@ class FWSPlot(QWidget):
                     if Y.size == qList.size:
                         Y = Y[qIdx]
                         Err = Err[qIdx]
-                    xLabel = 'Energies [$\mu eV$]'
+                    xLabel = r'Energies [$\mu eV$]'
 
                 Y = Y.flatten()
                 Err = Err.flatten()
@@ -336,11 +335,11 @@ class FWSPlot(QWidget):
                 if Y.size == 1:
                     Y = np.zeros_like(X) + Y
                     Err = np.zeros_like(X) + Err
-                    marker=None
+                    marker = None
 
-                ax[idx].plot(X, 
-                             Y, 
-                             marker=marker, 
+                ax[idx].plot(X,
+                             Y,
+                             marker=marker,
                              label=dataset.fileName)
 
                 ax[idx].fill_between(X, Y - Err, Y + Err, alpha=0.4)
@@ -356,7 +355,7 @@ class FWSPlot(QWidget):
     # -------------------------------------------------
     def get_qRange(self):
         """Return the q-values used in the dataset(s).
-        
+
         This assumes the q-values are the same for all datasets.
 
         """
@@ -364,7 +363,7 @@ class FWSPlot(QWidget):
 
     def get_eRange(self):
         """Return the energies used in the dataset(s).
-        
+
         This assumes the energies are the same for all datasets.
 
         """
@@ -372,7 +371,7 @@ class FWSPlot(QWidget):
 
     def get_obsRange(self):
         """Return the observables used in the dataset(s).
-        
+
         """
         obsRange = []
         for idx, dataset in enumerate(self.dataset):
@@ -384,7 +383,7 @@ class FWSPlot(QWidget):
 
     @property
     def obsIdx(self):
-        """Return a list of index of the closest observable value to the 
+        """Return a list of index of the closest observable value to the
         slider value for each dataset.
 
         """
@@ -401,7 +400,7 @@ class FWSPlot(QWidget):
         qIdx = self.qSlider.value()
         eIdx = self.eSlider.value()
 
-        self.obsVal.setText(self.obsRange.astype(str)[obsIdx])
+        self.obsVal.setText('%.2f' % self.obsRange.astype(str)[obsIdx])
         self.qVal.setText('%.2f' % self.qRange[qIdx])
         self.eVal.setText('%.1f' % self.eRange[eIdx])
 
@@ -415,7 +414,7 @@ class FWSPlot(QWidget):
 
         """
 
-        if np.any(np.array(self.dataset) == None):
+        if np.any(np.array(self.dataset) is None):
             raise ValueError("No data were loaded.\n"
                              "Please import data before using this method.")
 

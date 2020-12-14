@@ -17,9 +17,9 @@ except ImportError:
 
 @pytest.mark.skipif(_FOUND_MANTID is False, reason="Requires Mantid")
 @pytest.mark.parametrize(
-    "attr", 
-    ['intensities', 'errors', 'energies', 'qVals', 
-     'qIdx', 'times', 'temps', 'observable', 
+    "attr",
+    ['intensities', 'errors', 'energies', 'qVals',
+     'qIdx', 'times', 'temps', 'observable',
      'observable_name', 'name'])
 def test_workspace(attr):
     vana = IndirectILLReductionQENS(
@@ -31,7 +31,7 @@ def test_workspace(attr):
 
 @pytest.mark.skipif(_FOUND_MANTID is False, reason="Requires Mantid")
 @pytest.mark.parametrize(
-    "replace,expect", 
+    "replace,expect",
     [pytest.param('intensities', [0, 1, 2], marks=pytest.mark.xfail),
      ('qVals', [0, 1, 2]),
      pytest.param('error', [0, 1, 2], marks=pytest.mark.xfail)])

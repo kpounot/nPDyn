@@ -29,9 +29,10 @@ def gaussian(x, scale=1, width=1, center=0):
         center from the zero-centered lineshape
 
     """
-    res = scale * np.exp(-(x - center)**2 / (2 * width**2)) 
+    res = scale * np.exp(-(x - center)**2 / (2 * width**2))
     res /= np.sqrt(2 * np.pi * width**2)
     return res
+
 
 def lorentzian(x, scale=1, width=1, center=0):
     """A normalized Lorentzian function.
@@ -51,6 +52,7 @@ def lorentzian(x, scale=1, width=1, center=0):
     res = scale * width / (np.pi * ((x - center)**2 + width**2))
     return res
 
+
 def voigt(x, scale=1, sigma=1, gamma=1, center=0):
     """A normalized Voigt profile.
 
@@ -69,9 +71,10 @@ def voigt(x, scale=1, sigma=1, gamma=1, center=0):
 
     """
     res = scale * wofz(((x - center) + 1j * gamma) / (sigma * np.sqrt(2))).real
-    res /= sigma * np.sqrt(2 * np.pi) 
+    res /= sigma * np.sqrt(2 * np.pi)
 
     return res
+
 
 def delta(x, scale=1, center=0):
     """A Dirac delta centered on *center*
@@ -92,9 +95,11 @@ def delta(x, scale=1, center=0):
     out[center] = scale / (x[1] - x[0])
     return out
 
+
 def linear(x, a=0., b=1.):
     """A linear model of the form :math:`a x + b`"""
     return a * x + b
+
 
 def calibratedD2O(x, q, volFraction, temp, amplitude=1.):
     """Lineshape for D2O where the Lorentzian width was obtained
@@ -112,10 +117,11 @@ def calibratedD2O(x, q, volFraction, temp, amplitude=1.):
         Amplitude of the D2O signal. The parameter to be fitted.
 
     """
-    out = (amplitude * getD2Odata(volFraction)(temp, q) 
-           / (np.pi * (x**2 + getD2Odata(volFraction)(temp, q)**2))) 
+    out = (amplitude * getD2Odata(volFraction)(temp, q)
+           / (np.pi * (x**2 + getD2Odata(volFraction)(temp, q)**2)))
 
     return out
+
 
 # -------------------------------------------------------
 # Define some analytic convolutions
@@ -146,8 +152,9 @@ def conv_lorentzian_lorentzian(x, comp1, comp2, params1, params2, **kwargs):
     scale = p1['scale'] * p2['scale']
     width = p1['width'] + p2['width']
     center = p1['center'] + p2['center']
-    
+
     return lorentzian(x, scale, width, center)
+
 
 def conv_gaussian_gaussian(x, comp1, comp2, params1, params2, **kwargs):
     """Convolution between two Gaussians
@@ -175,8 +182,9 @@ def conv_gaussian_gaussian(x, comp1, comp2, params1, params2, **kwargs):
     scale = p1['scale'] * p2['scale']
     width = np.sqrt(p1['width']**2 + p2['width']**2)
     center = p1['center'] + p2['center']
-    
+
     return gaussian(x, scale, width, center)
+
 
 def conv_lorentzian_gaussian(x, comp1, comp2, params1, params2, **kwargs):
     """Convolution between a Lorentzian and a Gaussian
@@ -212,6 +220,7 @@ def conv_lorentzian_gaussian(x, comp1, comp2, params1, params2, **kwargs):
 
     return voigt(x, scale, sigma, gamma, center)
 
+
 def conv_delta(x, comp1, comp2, params1, params2, **kwargs):
     """Convolution between a Lorentzian and a Gaussian
 
@@ -242,6 +251,7 @@ def conv_delta(x, comp1, comp2, params1, params2, **kwargs):
     p2['center'] += p1['center']
 
     return comp2.func(x, **p2)
+
 
 def conv_linear(x, comp1, comp2, params1, params2, **kwargs):
     """Convolution with a linear model.
@@ -279,6 +289,7 @@ def conv_linear(x, comp1, comp2, params1, params2, **kwargs):
         return comp1.func(x, **p1) + comp2.func(x, **p2)
     else:
         return comp1.func(x, **p1)
+
 
 def _switchComps(comp1, comp2, p1, p2):
     """Switch components and parameters."""

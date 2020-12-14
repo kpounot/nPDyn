@@ -51,7 +51,7 @@ def binData(data, binS, axis):
 
 
                     if errSlice[row, col][
-                        errSlice[row, col] != np.inf].size != 0:
+                            errSlice[row, col] != np.inf].size != 0:
                         tmpErrors[row, col, i] = np.mean(
                             errSlice[row, col][errSlice[row, col] != np.inf])
                     else:
@@ -64,7 +64,7 @@ def binData(data, binS, axis):
             tmpIntensities[i] = np.mean(intSlice, 0)
             tmpErrors[i] = np.mean(errSlice, 0)
 
-    # Remove unecessary data after binning
+    # Remove unnecessary data after binning
     if axis == 'energies':
         data = data._replace(energies   = tmpX[:loopSize],
                              intensities = tmpIntensities[:, :, :loopSize],

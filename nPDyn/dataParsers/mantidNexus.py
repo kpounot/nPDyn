@@ -16,26 +16,26 @@ def processNexus(dataFile, FWS=False, averageTemp=True):
 
     Then the result is stored as a namedtuple containing several
     members (all being numpy arrays).
-        - intensities   - 3D array of counts values for each frame 
-                          (axis 0), q-value (axis 1) and energy channels 
+        - intensities   - 3D array of counts values for each frame
+                          (axis 0), q-value (axis 1) and energy channels
                           (axis 2)
-        - errors        - 3D array of errors values for each frame 
-                          (axis 0), q-value (axis 0) and energy channels 
+        - errors        - 3D array of errors values for each frame
+                          (axis 0), q-value (axis 0) and energy channels
                           (axis 2)
         - energies      - 1D array of energy offsets used
         - temps         - 2D array of temperatures, the first dimension
-                          is of size 1 for QENS, and of the same size 
+                          is of size 1 for QENS, and of the same size
                           as the number of energy offsets for FWS. The
                           second dimensions represents the frames
         - times         - same structure as for temps but representing
                           the time
         - name          - name that is stored in the 'subtitle' entry
-        - qVals         - 1D array of q-values used 
+        - qVals         - 1D array of q-values used
         - qIdx          - same as selQ but storing the indices
-        - observable    - data for the observable used for data series 
+        - observable    - data for the observable used for data series
                           ('time' or 'temperature')
         - observable_name - name of the observable used for data series
-        - norm          - boolean, wether data were normalized or not
+        - norm          - boolean, whether data were normalized or not
 
     """
 
@@ -98,7 +98,7 @@ def processNexus(dataFile, FWS=False, averageTemp=True):
         # process observable name
         if observable_name == "time":
             listObs = listObs / 3600  # converts to hours
-            times = np.copy(listObs) 
+            times = np.copy(listObs)
         if observable_name == "temperature":
             listT = np.copy(listObs)
             times = np.array([parse(times.split(',')[0])])
@@ -111,7 +111,7 @@ def processNexus(dataFile, FWS=False, averageTemp=True):
                              listT,
                              times,
                              name,
-                             listQ, 
+                             listQ,
                              np.arange(listQ.size),
                              listObs,
                              observable_name,
@@ -161,13 +161,14 @@ def processNexus(dataFile, FWS=False, averageTemp=True):
                              temps,
                              times,
                              name,
-                             listQ, 
+                             listQ,
                              np.arange(listQ.size),
                              listObs,
                              observable_name,
                              False)
 
         return dataList
+
 
 def _interpFWS(listX, listI, listErr):
     """ In the case of different sampling for the energy transfers
@@ -210,16 +211,17 @@ def _interpFWS(listX, listI, listErr):
 
     return listX, listI, listErr
 
+
 def _processAlgoInfo(f):
     """ This function is used to extract information about the parameters
         that were used in Mantid for data reduction.
 
-        In particular, it extracts the observable used as well as the 
+        In particular, it extracts the observable used as well as the
         spectrum axis (either 'SpectrumNumber', '2Theta', 'Q', 'Q2')
 
         Note
         ----
-        The function assumes that the configuration is the same for 
+        The function assumes that the configuration is the same for
         all workspaces in the file and that the first algorithm is
         the one corresponding to data reduction.
 
@@ -231,12 +233,12 @@ def _processAlgoInfo(f):
     obs = "time"  # default value in case no observable is found
     specAx = ""
 
-    for l in algoConfig:
-        if 'Observable' in l:
-            obs = l.split(',')[1]
+    for i in algoConfig:
+        if 'Observable' in i:
+            obs = i.split(',')[1]
             obs = obs[obs.find(':') + 2:]
-        if 'SpectrumAxis' in l:
-            specAx = l.split(',')[1]
+        if 'SpectrumAxis' in i:
+            specAx = i.split(',')[1]
             specAx = specAx[specAx.find(':') + 2:]
 
     if obs == "start_time":

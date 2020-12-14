@@ -1,3 +1,7 @@
+"""This module handles the different file format that can be recognized
+by nPDyn and it calls the roght algorithm to parse them.
+
+"""
 import re
 
 from nPDyn.dataParsers import processNexus, WorkspaceHandler, convert
@@ -5,6 +9,7 @@ from nPDyn.dataParsers import processNexus, WorkspaceHandler, convert
 fileImporters = {'inx': convert,
                  'nexus': processNexus,
                  'mantid': WorkspaceHandler}
+
 
 def readFile(fileFormat, dataFile, FWS=False):
     """Extract data from file using the given file format.
@@ -25,6 +30,7 @@ def readFile(fileFormat, dataFile, FWS=False):
     """
     data = fileImporters[fileFormat](dataFile, FWS)
     return data
+
 
 def guessFileFormat(dataFile, FWS=False):
     """Tries to guess file format based on file name.

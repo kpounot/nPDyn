@@ -11,12 +11,12 @@ from scipy.signal import fftconvolve
 try:
     from lmfit import Model, CompositeModel
 except ImportError:
-    print("The lmfit package cannot be found, please intall it to use "
+    print("The lmfit package cannot be found, please install it to use "
           "the interface with nPDyn.")
-    class Model: 
+    class Model:
         def __init__(self, tmp, **kwargs):
             pass
-    class CompositeModel: 
+    class CompositeModel:
         def __init__(self, tmp, **kwargs):
             pass
 
@@ -53,7 +53,7 @@ class ConvolvedModel(Model):
     convMap : mapping, optional
         Dictionary of dictionaries to map the convolution function
         to a pair of model. A default convMap is already present in
-        the class but can be overriden by this argument.
+        the class but can be overridden by this argument.
     **kws : optional
         Additional keywords are passed to `Model` when creating this
         new model.
@@ -68,7 +68,7 @@ class ConvolvedModel(Model):
     provided for left and right.
 
     The :meth:`eval_components` returns the convoluted components from
-    `left` by default. This behavior can be changed by using 
+    `left` by default. This behavior can be changed by using
     `returnComponents="right"` in the keyword arguments passed to
     the method.
 
@@ -97,14 +97,14 @@ class ConvolvedModel(Model):
     Assign the convolution function `myConv` to the pair of 'lorentzian'
     using:
 
-    >>> convModel.convMap = {'lorentzian': {'lorentzian': myConv}} 
+    >>> convModel.convMap = {'lorentzian': {'lorentzian': myConv}}
 
     """
     _names_collide = ("\nTwo models have parameters named '{clash}'. "
                       "Use distinct names.")
     _bad_arg = "ConvolvedModel: argument {arg} is not a Model"
 
-    def __init__(self, left, right, on_undefined_conv='numeric', 
+    def __init__(self, left, right, on_undefined_conv='numeric',
                  convMap=None, **kws):
         if not isinstance(left, Model):
             raise ValueError(self._bad_arg.format(arg=left))
@@ -112,7 +112,7 @@ class ConvolvedModel(Model):
             raise ValueError(self._bad_arg.format(arg=right))
         if not np.isin(on_undefined_conv, ['numeric', 'raise']):
             raise ValueError("Parameter 'on_undefined_conv' should be either "
-                "of 'numeric' or 'raise'.")
+                             "'numeric' or 'raise'.")
 
         self.left = left
         self.right = right
@@ -192,7 +192,7 @@ class ConvolvedModel(Model):
                                   self.right._func_haskeywords)
         self._func_allargs = (self.left._func_allargs +
                               self.right._func_allargs)
-        self.def_vals = {self.right.prefix + key: val 
+        self.def_vals = {self.right.prefix + key: val
                          for key, val in self.right.def_vals.items()}
         self.def_vals.update({self.left.prefix + key: val
                               for key, val in self.left.def_vals.items()})
@@ -239,9 +239,9 @@ class ConvolvedModel(Model):
     @on_undefined_conv.setter
     def on_undefined_conv(self, value):
         """Setter for 'on_undefined_conv parameter'."""
-        if not np.isin(on_undefined_conv, ['numeric', 'raise', 'skip']):
+        if not np.isin(value, ['numeric', 'raise', 'skip']):
             raise ValueError("Parameter 'on_undefined_conv' should be either "
-                "of 'numeric', 'raise' or 'skip'.")
+                             "of 'numeric', 'raise' or 'skip'.")
         self._on_undefined_conv = value
 
     def _operators(self):
@@ -265,7 +265,8 @@ class ConvolvedModel(Model):
                 self.right._get_state())
 
     def _set_state(self, state, funcdefs=None):
-        return _buildmodel(state, funcdefs=funcdefs)
+        raise NotImplementedError("This method is not available yet with "
+                                  "the 'ConvolvedModel' class.")
 
     def _make_all_args(self, params=None, **kwargs):
         """Generate **all** function arguments for all functions."""
@@ -273,9 +274,9 @@ class ConvolvedModel(Model):
         out.update(self.left._make_all_args(params=params, **kwargs))
         return out
 
-    def _convolve(self, left, right, params=None, 
+    def _convolve(self, left, right, params=None,
                   returnComponents=None, **kwargs):
-        """Perform a convolution between `left` and `right`.
+        r"""Perform a convolution between `left` and `right`.
 
         If the convolutions between function in `left` and the
         function in `right` is defined in `convolutions` attribute,
@@ -346,7 +347,8 @@ class ConvolvedModel(Model):
                         elif self._on_undefined_conv == 'raise':
                             raise KeyError(
                                 'Convolution function between %s and %s is '
-                                'not defined.' % (lcomp.func.__name__, funcName))
+                                'not defined.' % (
+                                    lcomp.func.__name__, funcName))
                 else:
                     if self._on_undefined_conv == 'numeric':
                         convFunc = lambda l, r: fftconvolve(
@@ -373,4 +375,3 @@ class ConvolvedModel(Model):
             for val in zip(compPrefix, models):
                 out[val[0]] = val[1]
             return out
-

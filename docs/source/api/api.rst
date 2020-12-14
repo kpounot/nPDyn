@@ -6,7 +6,6 @@ API reference
 
     dataset
     fileFormatParser
-    MDParser
     dataManipulation/index
     dataParsers/index
     dataTypes/index

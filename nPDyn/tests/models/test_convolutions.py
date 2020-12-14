@@ -6,7 +6,7 @@ from numpy.testing import assert_array_almost_equal
 import pytest
 
 from nPDyn.models import Model, Parameters, Component
-from nPDyn.models.presets import (lorentzian, gaussian, linear, delta) 
+from nPDyn.models.presets import (lorentzian, gaussian, linear, delta)
 from nPDyn.models.builtins import (modelPVoigt, modelLorentzianSum,
                                    modelPVoigtBkgd, modelGaussBkgd)
 
@@ -14,7 +14,7 @@ from nPDyn.models.builtins import (modelPVoigt, modelLorentzianSum,
 def get_models():
     """Set up the models with the associated convolutions."""
     pLor = Parameters(
-        scale=1, 
+        scale=1,
         width=2,
         center=0.0)
     lor = Model(pLor)
@@ -46,7 +46,7 @@ def get_models():
 def test_comp_analytic_numeric(modelPair):
     X = np.linspace(-10, 10, 1000)
 
-    numeric = np.convolve(modelPair[0].eval(x=X), 
+    numeric = np.convolve(modelPair[0].eval(x=X),
                           modelPair[1].eval(x=X),
                           mode='same')
 

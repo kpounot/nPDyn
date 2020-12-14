@@ -19,7 +19,7 @@ def test_model_component_operators():
         a=2,
         b=0.5)
 
-    model1 = Model(params) + Component('lor1', lorentzian) 
+    model1 = Model(params) + Component('lor1', lorentzian)
     model2 = Model(params) + Component('lor2', lorentzian)
     model = model1 + model2
     model = model - Component('lor3', lorentzian, scale=0.5)

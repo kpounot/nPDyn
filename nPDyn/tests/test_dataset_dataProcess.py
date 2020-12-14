@@ -21,7 +21,7 @@ def test_remove_dataset(fullQENSDataset):
 def test_bin_data_QENS_energies(fullQENSDataset):
     fullQENSDataset.binDataset(5, 0)
     assert fullQENSDataset.dataList[0].data.intensities.shape[2] == 204
-    
+
 def test_bin_resData_energies(fullQENSDataset):
     fullQENSDataset.binResData(5)
     assert fullQENSDataset.resData[0].data.intensities.shape[2] == 204

@@ -1,15 +1,15 @@
-exclude: 'versioneer.py|lmfit/_version|doc/conf.py'
+exclude: 'versioneer.py|nPDyn/_version.py|docs/source/conf.py|^build/|^dist/|^htmlcov/|^nPDyn.egg-info/|$__.py'
 
 repos:
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v2.6.2
+    rev: v2.7.4
     hooks:
     -   id: pyupgrade
         # for now don't force to change from %-operator to {}
         args: [--keep-percent-format, --py3-plus]
 
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.1.0
+    rev: v3.3.0
     hooks:
     -   id: check-builtin-literals
     -   id: check-merge-conflict
@@ -23,27 +23,14 @@ repos:
     -   id: mixed-line-ending
 
 -   repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.3
+    rev: 3.8.4
     hooks:
     -   id: flake8
+        args: [nPDyn --config .flake8]
         additional_dependencies: [flake8-deprecated, flake8-mutable]
 
--   repo: local
-    hooks:
-    -   id: rstcheck
-        name: rstcheck
-        entry: rstcheck
-        files: '.rst'
-        language: python
-        additional_dependencies: [rstcheck, sphinx]
-
--   repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.5.1
-    hooks:
-    -   id: rst-backticks
-
 -   repo: https://github.com/codespell-project/codespell
-    rev: v1.17.1
+    rev: v2.0.0
     hooks:
     -   id: codespell
         files: '.py|.rst'
@@ -53,6 +40,6 @@ repos:
         args: [-L nnumber]
 
 -   repo: https://github.com/asottile/yesqa
-    rev: v1.2.1
+    rev: v1.2.2
     hooks:
     -   id: yesqa

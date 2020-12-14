@@ -9,28 +9,28 @@ def convert(datafile, FWS=None):
 
         Then the result is stored as a namedtuple containing several
         members (all being numpy arrays).
-            - intensities   - 3D array of counts values for each frame 
-                              (axis 0), q-value (axis 1) and energy channels 
+            - intensities   - 3D array of counts values for each frame
+                              (axis 0), q-value (axis 1) and energy channels
                               (axis 2)
-            - errors        - 3D array of errors values for each frame 
-                              (axis 0), q-value (axis 0) and energy channels 
+            - errors        - 3D array of errors values for each frame
+                              (axis 0), q-value (axis 0) and energy channels
                               (axis 2)
             - energies      - 1D array of energy offsets used
             - temps         - 2D array of temperatures, the first dimension
-                              is of size 1 for QENS, and of the same size 
+                              is of size 1 for QENS, and of the same size
                               as the number of energy offsets for FWS. The
                               second dimensions represents the frames
             - times         - same structure as for temps but representing
                               the time
             - name          - name that is stored in the 'subtitle' entry
-            - qVals         - 1D array of q-values used 
+            - qVals         - 1D array of q-values used
             - selQ          - same as qVals, used later to define a q-range
                               for analysis
             - qIdx          - same as selQ but storing the indices
-            - observable    - data for the observable used for data series 
+            - observable    - data for the observable used for data series
                               ('time' or 'temperature')
             - observable_name - name of the observable used for data series
-            - norm          - boolean, wether data were normalized or not
+            - norm           - boolean, whether data were normalized or not
 
     """
 
@@ -44,7 +44,7 @@ def convert(datafile, FWS=None):
                            'observable_name norm')
 
 
-    with open(datafile, 'r') as fileinput:
+    with open(datafile) as fileinput:
         data = fileinput.read().splitlines()
 
     # Get the index of the data corresponding to each q-value

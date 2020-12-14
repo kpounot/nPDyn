@@ -2,5 +2,4 @@ fileFormatParser
 ================
 
 .. automodule:: fileFormatParser
-   :members:
-
+    :members:

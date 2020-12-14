@@ -33,7 +33,7 @@ author = 'Kevin Pounot'
 version = release = nPDyn.__version__
 
 # -- General configuration ---------------------------------------------------
- 
+
 import sphinxcontrib.napoleon
 import sphinx_rtd_theme
 

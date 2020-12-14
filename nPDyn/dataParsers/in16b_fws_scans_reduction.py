@@ -46,7 +46,7 @@ class IN16B_FWS:
                              a path to an xml file as used in Mantid.
                              If set to `no`, no detector gouping is performed
                              and the data represents the signal for each
-                             pixel on the detectors. In this case, the 
+                             pixel on the detectors. In this case, the
                              observable become the momentum transfer q in
                              the vertical direction.
         :arg normalize:      whether the data should be normalized
@@ -184,7 +184,7 @@ class IN16B_FWS:
 
             dataset.close()
 
-        
+
         for idx, data in enumerate(self.dataList):
 
             if self.normalize:
@@ -237,7 +237,7 @@ class IN16B_FWS:
                     dataset['entry0/instrument/SingleD/data'][(idx)].squeeze())
 
         if self.observable == '$q_z$':
-            tmpSD = np.zeros((len(dataSD), data.shape[1], data.shape[2])) 
+            tmpSD = np.zeros((len(dataSD), data.shape[1], data.shape[2]))
             tmpSD += np.array(np.array(dataSD)[:, np.newaxis, :])
             data  = np.row_stack((tmpSD, data)).transpose(0, 2, 1)
         else:
@@ -309,7 +309,8 @@ class IN16B_FWS:
             qDataPeaks = []
             for peak in peaks:
                 qDataPeaks.append(qData[
-                    int(np.heaviside(peak - halfBin, 0)):peak + halfBin].max(0))
+                    int(np.heaviside(
+                        peak - halfBin, 0)):peak + halfBin].max(0))
 
             qDataPeaks = np.array(qDataPeaks)
             errors     = np.sqrt(qDataPeaks)

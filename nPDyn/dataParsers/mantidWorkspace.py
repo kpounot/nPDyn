@@ -19,10 +19,11 @@ def validate_mantid(cls):
         if not _FOUND_MANTID:
             print("Cannot import Mantid API. Please verify your Mantid "
                   "installation or your PATH variable.")
-            return 
+            return
         else:
             return cls(*args, **kwargs)
     return wrapper
+
 
 @validate_mantid
 class WorkspaceHandler:
@@ -39,7 +40,7 @@ class WorkspaceHandler:
         are loaded.
 
     """
-    _mutableKeys = ['name', 'qVals', 'qIdx', 'times', 'temps', 
+    _mutableKeys = ['name', 'qVals', 'qIdx', 'times', 'temps',
                     'observable', 'observable_name']
     _immutableKeys = ['energies', 'intensities', 'errors', 'norm']
 
@@ -90,16 +91,15 @@ class WorkspaceHandler:
 
         xaxis = ws.getAxis(0)
         xcaption = xaxis.getUnit().caption()
-        xsymbol = xaxis.getUnit().symbol().utf8()
 
         if self._fws:
             self._observable = ws.extractX()
             self._observable_name = xcaption
             self._energies = np.append(
-                energies, 
+                self._energies,
                 ws.getRun()['Doppler.maximum_delta_energy'].value)
         else:
-            self._observable = (self._times if self._obsName == 'time'    
+            self._observable = (self._times if self._obsName == 'time'
                                 else self._temps)
             self._observable_name = self._obsName
             self._energies = ws.extractX
@@ -139,7 +139,7 @@ class WorkspaceHandler:
     def energies(self):
         """Accessor for 'energies' attribute."""
         if self._fws:
-            out = self._energies 
+            out = self._energies
         else:
             out = self._energies()[0] * 1e3
             # match the shapes of intensities and errors
@@ -216,13 +216,13 @@ class WorkspaceHandler:
         out = self.copy()
 
         for key in kwargs.keys():
-            if key in self._mutableKeys: 
+            if key in self._mutableKeys:
                 out.__setattr__('_' + key, kwargs[key])
             elif key in self._immutableKeys:
                 print("Attribute %s cannot be changed with the "
                       "WorkspaceHandler class as it is read from "
                       "the Mantid workspace on each request.\n"
-                      "Please use Mantid API to modify it." % key) 
+                      "Please use Mantid API to modify it." % key)
                 continue
             else:
                 raise AttributeError("WorkspaceHandler object has no "
