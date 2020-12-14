@@ -1,7 +1,7 @@
 # Python CircleCI 2.0 configuration file
 version: 2
 jobs:
-  machine:
+  mantid:
     machine: true
     steps:
       - run: docker pull mantidproject/mantid
@@ -47,3 +47,11 @@ jobs:
           command: |
             . venv/bin/activate
             bash <(curl -s https://codecov.io/bash)
+
+workflows:
+  version: 2
+
+  run:
+    jobs:
+      - mantid
+      - build
