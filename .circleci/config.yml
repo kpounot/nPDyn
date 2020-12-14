@@ -26,6 +26,7 @@ jobs:
           command: |
             . venv/bin/activate
             python3 setup.py install
+            cp build/lib*/nPDyn/lib/*.so nPDyn/lib/
 
       # Step 4: run linter and tests
       - run:

@@ -51,7 +51,7 @@ packagesList = ['nPDyn',
                 'nPDyn.lib']
 
 pyabsco_ext = Extension("nPDyn.lib.pyabsco",
-                        [dirPath + "/nPDyn/lib/src/absco.c", dirPath + "/nPDyn/lib/pyabsco.pyx"],
+                        ["/nPDyn/lib/src/absco.c", "/nPDyn/lib/pyabsco.pyx"],
                         include_dirs=[dirPath + "/nPDyn/lib/src"],
                         libraries=gsl_lib)
 
