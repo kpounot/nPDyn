@@ -1,6 +1,11 @@
 # Python CircleCI 2.0 configuration file
 version: 2
 jobs:
+  machine:
+    machine: true
+    steps:
+      - run: docker pull mantidproject/mantid
+
   build:
     docker:
         - image: circleci/python:3.7
@@ -8,9 +13,6 @@ jobs:
     working_directory: ~/repo
 
     steps:
-
-      - docker/pull:
-          images: mantidproject/mantid
       # Step 1: obtain repo from GitHub
       - checkout
 
