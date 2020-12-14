@@ -1,12 +1,8 @@
 # Python CircleCI 2.0 configuration file
 version: 2
 jobs:
-  mantid:
-    machine: true
-    steps:
-      - run: docker pull mantidproject/mantid
-
   build:
+    machine: True
     docker:
         - image: circleci/python:3.7
 
@@ -20,6 +16,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
+            docker pull mantidproject/mantid
             sudo apt-get install libgsl-dev
             python3 -m venv venv
             . venv/bin/activate
@@ -47,11 +44,3 @@ jobs:
           command: |
             . venv/bin/activate
             bash <(curl -s https://codecov.io/bash)
-
-workflows:
-  version: 2
-
-  run:
-    jobs:
-      - mantid
-      - build
