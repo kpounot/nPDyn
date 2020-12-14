@@ -2,7 +2,6 @@
 version: 2
 jobs:
   build:
-    machine: True
     docker:
         - image: circleci/python:3.7
 
