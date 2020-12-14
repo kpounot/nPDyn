@@ -74,7 +74,7 @@ inherits from ``baseType.BaseType``.
 
 In a neutron backscattering experiment, there is not only the measurement of
 samples but also some calibration measurements like vanadium, empty cell
-and solvent signal (often :math:`\rm D_2O`).
+and solvent signal (often D2O).
 The ``dataset.Dataset`` can handle these in the special attributes
 ``Dataset.resData``, ``Dataset.ECData`` and ``Dataset.D2OData``, respectively.
 Each data in ``Dataset.dataList`` can have some calibration data associated
@@ -93,7 +93,7 @@ in ``Dataset.resData``.
 The aforementioned structure of the API is sketched below for two samples,
 measured at temperatures t1 and t2 each,
 with one vanadium measurement for the resolution function, one measurement
-of empty cell and one of :math:`\rm D_2O` background:
+of empty cell and one of  D2O background:
 
 .. image:: docs/fig/sketch_structure_02.png
     :width: 600
