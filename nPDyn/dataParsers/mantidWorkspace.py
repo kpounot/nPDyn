@@ -8,6 +8,7 @@ import numpy as np
 
 try:
     from mantid.api import WorkspaceGroup, MatrixWorkspace
+
     _FOUND_MANTID = True
 except ImportError:
     _FOUND_MANTID = False
@@ -17,11 +18,14 @@ def validate_mantid(cls):
     @wraps(cls)
     def wrapper(*args, **kwargs):
         if not _FOUND_MANTID:
-            print("Cannot import Mantid API. Please verify your Mantid "
-                  "installation or your PATH variable.")
+            print(
+                "Cannot import Mantid API. Please verify your Mantid "
+                "installation or your PATH variable."
+            )
             return
         else:
             return cls(*args, **kwargs)
+
     return wrapper
 
 
@@ -40,19 +44,27 @@ class WorkspaceHandler:
         are loaded.
 
     """
-    _mutableKeys = ['name', 'qVals', 'qIdx', 'times', 'temps',
-                    'observable', 'observable_name']
-    _immutableKeys = ['energies', 'intensities', 'errors', 'norm']
 
-    def __init__(self, ws, fws=False, obsName='time'):
-        self._name = ''
+    _mutableKeys = [
+        "name",
+        "qVals",
+        "qIdx",
+        "times",
+        "temps",
+        "observable",
+        "observable_name",
+    ]
+    _immutableKeys = ["energies", "intensities", "errors", "norm"]
+
+    def __init__(self, ws, fws=False, obsName="time"):
+        self._name = ""
         self._energies = []
         self._qVals = []
         self._qIdx = []
         self._temps = []
         self._times = []
         self._observable = []
-        self._observable_name = ''
+        self._observable_name = ""
         self._norm = False
 
         self._ws = ws
@@ -72,22 +84,23 @@ class WorkspaceHandler:
 
     def _getWorkspaceInfo(self, ws):
         """Helper function to extract useful information from a workspace."""
-        self._name = ws.getRun()['subtitle'].value
-        wavelength = ws.getRun()['wavelength'].value
+        self._name = ws.getRun()["subtitle"].value
+        wavelength = ws.getRun()["wavelength"].value
 
         qVals = ws.getAxis(1).extractValues()
         qCaption = ws.getAxis(1).getUnit().caption()
         self._qVals = qVals
-        if qCaption == 'Scattering angle':
+        if qCaption == "Scattering angle":
             self._qVals = 4 * np.pi * np.sin(np.pi * qVals / 360) / wavelength
-        if qCaption == 'Q2':
+        if qCaption == "Q2":
             self._qVals = np.sqrt(qVals)
         self._qIdx = np.arange(self._qVals.size)
 
-        time = ws.getRun()['start_time'].value.split(',')[0]
+        time = ws.getRun()["start_time"].value.split(",")[0]
         self._times = np.append(self._times, tparse(time))
         self._temps = np.append(
-            self._temps, np.mean(ws.getRun()['sample.temperature'].value))
+            self._temps, np.mean(ws.getRun()["sample.temperature"].value)
+        )
 
         xaxis = ws.getAxis(0)
         xcaption = xaxis.getUnit().caption()
@@ -97,13 +110,14 @@ class WorkspaceHandler:
             self._observable_name = xcaption
             self._energies = np.append(
                 self._energies,
-                ws.getRun()['Doppler.maximum_delta_energy'].value)
+                ws.getRun()["Doppler.maximum_delta_energy"].value,
+            )
         else:
-            self._observable = (self._times if self._obsName == 'time'
-                                else self._temps)
+            self._observable = (
+                self._times if self._obsName == "time" else self._temps
+            )
             self._observable_name = self._obsName
             self._energies = ws.extractX
-
 
     @property
     def intensities(self):
@@ -217,15 +231,18 @@ class WorkspaceHandler:
 
         for key in kwargs.keys():
             if key in self._mutableKeys:
-                out.__setattr__('_' + key, kwargs[key])
+                out.__setattr__("_" + key, kwargs[key])
             elif key in self._immutableKeys:
-                print("Attribute %s cannot be changed with the "
-                      "WorkspaceHandler class as it is read from "
-                      "the Mantid workspace on each request.\n"
-                      "Please use Mantid API to modify it." % key)
+                print(
+                    "Attribute %s cannot be changed with the "
+                    "WorkspaceHandler class as it is read from "
+                    "the Mantid workspace on each request.\n"
+                    "Please use Mantid API to modify it." % key
+                )
                 continue
             else:
-                raise AttributeError("WorkspaceHandler object has no "
-                                     "attribute %s" % key)
+                raise AttributeError(
+                    "WorkspaceHandler object has no " "attribute %s" % key
+                )
 
         return out

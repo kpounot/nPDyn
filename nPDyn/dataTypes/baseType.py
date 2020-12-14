@@ -21,12 +21,14 @@ from scipy.interpolate import interp1d
 try:
     from lmfit import Model as lmModel
 except ImportError:
+
     class lmModel:
         pass
 
+
 from nPDyn.dataManipulation.binData import binData
 from nPDyn.fileFormatParser import guessFileFormat, readFile
-from nPDyn.dataParsers import (IN16B_FWS, IN16B_QENS)
+from nPDyn.dataParsers import IN16B_FWS, IN16B_QENS
 
 from nPDyn.models import Model, Component, Parameters
 from nPDyn.models.presets import linear
@@ -35,11 +37,13 @@ from nPDyn.lmfit.convolvedModel import ConvolvedModel
 try:
     from nPDyn.lib.pyabsco import py_absco_slab, py_absco_tube
 except ImportError:
-    print('\nAbsorption correction libraries are not available. '
-          'Paalman_Pings correction cannot be used.\n'
-          'Verify that GSL libraries are available on this computer, '
-          'and the path was correctly \n'
-          'set in the setup.cfg file during package installation.\n')
+    print(
+        "\nAbsorption correction libraries are not available. "
+        "Paalman_Pings correction cannot be used.\n"
+        "Verify that GSL libraries are available on this computer, "
+        "and the path was correctly \n"
+        "set in the setup.cfg file during package installation.\n"
+    )
     pass
 
 
@@ -53,10 +57,13 @@ def ensure_attr(attr):
             if getattr(args[0], attr) is None:
                 raise AttributeError(
                     "Attribute '%s' is None, please set it "
-                    "before using this method." % attr)
+                    "before using this method." % attr
+                )
             else:
                 return func(*args, **kwargs)
+
         return wrapper
+
     return dec
 
 
@@ -66,9 +73,11 @@ def ensure_fit(func):
         if args[0]._fit is []:
             raise ValueError(
                 "Dataset (%s) has no fitted model associated with "
-                "it, please fit a model before using it." % args[0].__repr__())
+                "it, please fit a model before using it." % args[0].__repr__()
+            )
         else:
             return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -104,33 +113,42 @@ class BaseType:
         empty cell measurement data
 
     """
-    def __init__(self, fileName=None, data=None, rawData=None, resData=None,
-                 D2OData=None, ECData=None, model=None):
+
+    def __init__(
+        self,
+        fileName=None,
+        data=None,
+        rawData=None,
+        resData=None,
+        D2OData=None,
+        ECData=None,
+        model=None,
+    ):
         self.fileName = fileName
-        self.data     = data
+        self.data = data
         self._rawData = rawData  # Used to reset data to its initial state
 
-        self.resData  = resData
-        self.D2OData  = D2OData
-        self.ECData   = ECData
+        self.resData = resData
+        self.D2OData = D2OData
+        self.ECData = ECData
 
-        self._QENS_redAlgo = {'IN16B': IN16B_QENS}
-        self._FWS_redAlgo  = {'IN16B': IN16B_FWS}
+        self._QENS_redAlgo = {"IN16B": IN16B_QENS}
+        self._FWS_redAlgo = {"IN16B": IN16B_FWS}
 
         self.model = model
         self._fit = []
 
     def importData(self, fileFormat=None):
-        """ Extract data from file and store them in *data* and *rawData*
-            attributes.
+        """Extract data from file and store them in *data* and *rawData*
+        attributes.
 
-            If no fileFormat is given, tries to guess it, try hdf5 format
-            if format cannot be guessed.
+        If no fileFormat is given, tries to guess it, try hdf5 format
+        if format cannot be guessed.
 
-            Parameters
-            ----------
-            fileFormat : str, optional
-                file format to be used, can be 'inx' or 'mantid'
+        Parameters
+        ----------
+        fileFormat : str, optional
+            file format to be used, can be 'inx' or 'mantid'
 
         """
         if fileFormat:
@@ -140,49 +158,51 @@ class BaseType:
 
         self.data = data
         self._rawData = self.data._replace(
-            qVals       = np.copy(self.data.qVals),
-            times       = np.copy(self.data.times),
-            intensities = np.copy(self.data.intensities),
-            errors      = np.copy(self.data.errors),
-            temps       = np.copy(self.data.temps),
-            norm        = False,
-            qIdx        = np.copy(self.data.qIdx),
-            energies    = np.copy(self.data.energies),
-            observable  = np.copy(self.data.observable),
-            observable_name = np.copy(self.data.observable_name))
+            qVals=np.copy(self.data.qVals),
+            times=np.copy(self.data.times),
+            intensities=np.copy(self.data.intensities),
+            errors=np.copy(self.data.errors),
+            temps=np.copy(self.data.temps),
+            norm=False,
+            qIdx=np.copy(self.data.qIdx),
+            energies=np.copy(self.data.energies),
+            observable=np.copy(self.data.observable),
+            observable_name=np.copy(self.data.observable_name),
+        )
 
     def importRawData(self, dataList, instrument, dataType, kwargs):
-        """ This method uses instrument-specific algorithm to process raw data.
+        """This method uses instrument-specific algorithm to process raw data.
 
-            :arg dataList:      a list of data files to be imported
-            :arg instrument:    the instrument used to record data
-                                (only 'IN16B' possible for now)
-            :arg dataType:      type of data recorded (can be 'QENS' or 'FWS')
-            :arg kwargs:        keyword arguments to be passed to the algorithm
-                                (see algorithm in dataParsers for details)
+        :arg dataList:      a list of data files to be imported
+        :arg instrument:    the instrument used to record data
+                            (only 'IN16B' possible for now)
+        :arg dataType:      type of data recorded (can be 'QENS' or 'FWS')
+        :arg kwargs:        keyword arguments to be passed to the algorithm
+                            (see algorithm in dataParsers for details)
 
         """
-        if dataType in ['QENS', 'res', 'ec', 'D2O']:
+        if dataType in ["QENS", "res", "ec", "D2O"]:
             data = self._QENS_redAlgo[instrument](dataList, **kwargs)
             data.process()
             self.data = data.outTuple
 
-        elif dataType in ['FWS', 'fec', 'fD2O']:
+        elif dataType in ["FWS", "fec", "fD2O"]:
             data = self._FWS_redAlgo[instrument](dataList, **kwargs)
             data.process()
             self.data = data.outTuple
 
         self._rawData = self.data._replace(
-            qVals       = np.copy(self.data.qVals),
-            times       = np.copy(self.data.times),
-            intensities = np.copy(self.data.intensities),
-            errors      = np.copy(self.data.errors),
-            temps       = np.copy(self.data.temps),
-            norm        = False,
-            qIdx        = np.copy(self.data.qIdx),
-            energies    = np.copy(self.data.energies),
-            observable  = np.copy(self.data.observable),
-            observable_name = np.copy(self.data.observable_name))
+            qVals=np.copy(self.data.qVals),
+            times=np.copy(self.data.times),
+            intensities=np.copy(self.data.intensities),
+            errors=np.copy(self.data.errors),
+            temps=np.copy(self.data.temps),
+            norm=False,
+            qIdx=np.copy(self.data.qIdx),
+            energies=np.copy(self.data.energies),
+            observable=np.copy(self.data.observable),
+            observable_name=np.copy(self.data.observable_name),
+        )
 
     def resetData(self):
         """Reset *data* attrbute to its initial state by
@@ -190,16 +210,17 @@ class BaseType:
 
         """
         self.data = self.data._replace(
-            qVals       = np.copy(self._rawData.qVals),
-            times       = np.copy(self._rawData.times),
-            intensities = np.copy(self._rawData.intensities),
-            errors      = np.copy(self._rawData.errors),
-            temps       = np.copy(self._rawData.temps),
-            norm        = False,
-            qIdx        = np.copy(self._rawData.qIdx),
-            energies    = np.copy(self._rawData.energies),
-            observable  = np.copy(self._rawData.observable),
-            observable_name = np.copy(self._rawData.observable_name))
+            qVals=np.copy(self._rawData.qVals),
+            times=np.copy(self._rawData.times),
+            intensities=np.copy(self._rawData.intensities),
+            errors=np.copy(self._rawData.errors),
+            temps=np.copy(self._rawData.temps),
+            norm=False,
+            qIdx=np.copy(self._rawData.qIdx),
+            energies=np.copy(self._rawData.energies),
+            observable=np.copy(self._rawData.observable),
+            observable_name=np.copy(self._rawData.observable_name),
+        )
 
     @property
     def resData(self):
@@ -213,7 +234,8 @@ class BaseType:
             if not isinstance(data, BaseType):
                 raise ValueError(
                     "This attribute should be an instance of class "
-                    "'BaseType' or inherits from it.")
+                    "'BaseType' or inherits from it."
+                )
             self._resData = data
         else:
             self._resData = None
@@ -230,7 +252,8 @@ class BaseType:
             if not isinstance(data, BaseType):
                 raise ValueError(
                     "This attribute should be an instance of class "
-                    "'BaseType' or inherits from it.")
+                    "'BaseType' or inherits from it."
+                )
             self._ECData = data
         else:
             self._ECData = None
@@ -247,7 +270,8 @@ class BaseType:
             if not isinstance(data, BaseType):
                 raise ValueError(
                     "This attribute should be an instance of class "
-                    "'BaseType' or inherits from it.")
+                    "'BaseType' or inherits from it."
+                )
             self._D2OData = data
         else:
             self._D2OData = None
@@ -260,9 +284,10 @@ class BaseType:
         """Scale intensities and errors using the provided `scale`."""
         self.data = self.data._replace(
             intensities=scale * self.data.intensities,
-            errors=scale * self.data.errors)
+            errors=scale * self.data.errors,
+        )
 
-    @ensure_attr('resData')
+    @ensure_attr("resData")
     def normalize_usingResFunc(self):
         """Normalizes data using integral of `resData.fit_best()`
         or experimental measurement of `resData`.
@@ -276,9 +301,8 @@ class BaseType:
 
             # Applying normalization
             self.data = self.data._replace(
-                intensities=intensities / norm,
-                errors=errors / norm,
-                norm=True)
+                intensities=intensities / norm, errors=errors / norm, norm=True
+            )
 
     def normalize_usingLowTemp(self, nbrBins):
         """Normalizes data using low temperature signal.
@@ -287,13 +311,15 @@ class BaseType:
         and data are divided by the result.
 
         """
-        normFList = np.mean(
-            self.data.intensities[:nbrBins, :, :], axis=0)[np.newaxis, :, :]
+        normFList = np.mean(self.data.intensities[:nbrBins, :, :], axis=0)[
+            np.newaxis, :, :
+        ]
 
         self.data = self.data._replace(
             intensities=self.data.intensities / normFList,
             errors=self.data.errors / normFList,
-            norm=True)
+            norm=True,
+        )
 
     def normalize_usingSelf(self):
         """Normalized data using the integral of the model or experimental."""
@@ -303,7 +329,7 @@ class BaseType:
             errors = self.data.errors
 
             if len(self._fit) > 0:
-                x = self._fit[0].userkws['x']
+                x = self._fit[0].userkws["x"]
                 norm = self.fit_best()
             else:
                 x = energies
@@ -313,11 +339,10 @@ class BaseType:
 
             # Applying normalization
             self.data = self.data._replace(
-                intensities=intensities / norm,
-                errors=errors / norm,
-                norm=True)
+                intensities=intensities / norm, errors=errors / norm, norm=True
+            )
 
-    @ensure_attr('ECData')
+    @ensure_attr("ECData")
     def subtractEC(self, scaleFactor=0.95, useModel=True):
         """Use the assigned empty cell data for subtraction to loaded data.
 
@@ -338,9 +363,13 @@ class BaseType:
             if ECData.shape == self.data.intensities.shape:
                 ECFunc = self.ECData.data.intensities
             else:
-                ids = np.argmin([
-                    (self.ECData.data.energies - val)**2
-                    for val in self.data.energies], axis=1)
+                ids = np.argmin(
+                    [
+                        (self.ECData.data.energies - val) ** 2
+                        for val in self.data.energies
+                    ],
+                    axis=1,
+                )
                 ECFunc = ECData[:, :, ids]
 
         normEC = np.zeros_like(self.data.intensities) + ECFunc
@@ -354,12 +383,18 @@ class BaseType:
             normEC /= norm
 
         self.data = self.data._replace(
-            intensities = intensities - scaleFactor * normEC)
+            intensities=intensities - scaleFactor * normEC
+        )
 
-    @ensure_attr('ECData')
-    def absorptionCorrection(self, canType='tube', canScaling=0.9,
-                             neutron_wavelength=6.27, absco_kwargs=None,
-                             useModel=True):
+    @ensure_attr("ECData")
+    def absorptionCorrection(
+        self,
+        canType="tube",
+        canScaling=0.9,
+        neutron_wavelength=6.27,
+        absco_kwargs=None,
+        useModel=True,
+    ):
         """Computes absorption Paalman-Pings coefficients
 
         Can be used for sample in a flat or tubular can and apply corrections
@@ -386,22 +421,24 @@ class BaseType:
 
         """
         # Defining some defaults arguments
-        kwargs = {'mu_i_S': 0.660,
-                  'mu_f_S': 0.660,
-                  'mu_i_C': 0.147,
-                  'mu_f_C': 0.147}
+        kwargs = {
+            "mu_i_S": 0.660,
+            "mu_f_S": 0.660,
+            "mu_i_C": 0.147,
+            "mu_f_C": 0.147,
+        }
 
-        if canType == 'slab':
-            kwargs['slab_angle']        = 45
-            kwargs['thickness_S']       = 0.03
-            kwargs['thickness_C_front'] = 0.5
-            kwargs['thickness_C_rear']  = 0.5
+        if canType == "slab":
+            kwargs["slab_angle"] = 45
+            kwargs["thickness_S"] = 0.03
+            kwargs["thickness_C_front"] = 0.5
+            kwargs["thickness_C_rear"] = 0.5
 
-        if canType == 'tube':
-            kwargs['radius']            = 2.15
-            kwargs['thickness_S']       = 0.03
-            kwargs['thickness_C_inner'] = 0.1
-            kwargs['thickness_C_outer'] = 0.1
+        if canType == "tube":
+            kwargs["radius"] = 2.15
+            kwargs["thickness_S"] = 0.03
+            kwargs["thickness_C_inner"] = 0.1
+            kwargs["thickness_C_outer"] = 0.1
 
         # Modifies default arguments with given ones, if any
         if absco_kwargs is not None:
@@ -416,9 +453,13 @@ class BaseType:
             if ECData.shape == self.data.intensities:
                 ECFunc = self.ECData.data.intensities
             else:
-                ids = np.argmin([
-                    (self.ECData.data.energies - val)**2
-                    for val in self.data.energies], axis=1)
+                ids = np.argmin(
+                    [
+                        (self.ECData.data.energies - val) ** 2
+                        for val in self.data.energies
+                    ],
+                    axis=1,
+                )
                 ECFunc = ECData[:, :, ids]
 
         normEC = np.zeros_like(self.data.intensities) + ECFunc
@@ -431,15 +472,15 @@ class BaseType:
 
         for qIdx, angle in enumerate(self.data.qVals):
             angle = np.arcsin(neutron_wavelength * angle / (4 * np.pi))
-            if canType == 'slab':
+            if canType == "slab":
                 A_S_SC, A_C_SC, A_C_C = py_absco_slab(angle, **kwargs)
-            if canType == 'tube':
+            if canType == "tube":
                 A_S_SC, A_C_SC, A_C_C = py_absco_tube(angle, **kwargs)
 
             # Applies correction
-            sampleSignal[:, qIdx] = ((1 / A_S_SC) * sampleSignal[:, qIdx]
-                                     - A_C_SC / (A_S_SC * A_C_C)
-                                     * canScaling * normEC[:, qIdx])
+            sampleSignal[:, qIdx] = (1 / A_S_SC) * sampleSignal[
+                :, qIdx
+            ] - A_C_SC / (A_S_SC * A_C_C) * canScaling * normEC[:, qIdx]
 
         self.data = self.data._replace(intensities=sampleSignal)
 
@@ -447,14 +488,16 @@ class BaseType:
         """Remove detectors (q-values)."""
         print(self.data.qIdx)
         print(qIdx)
-        ids = np.array([idx for idx, val in enumerate(self.data.qIdx)
-                        if val not in qIdx])
+        ids = np.array(
+            [idx for idx, val in enumerate(self.data.qIdx) if val not in qIdx]
+        )
 
         self.data = self.data._replace(
             intensities=self.data.intensities[:, ids],
             errors=self.data.errors[:, ids],
             qVals=self.data.qVals[ids],
-            qIdx=self.data.qIdx[ids])
+            qIdx=self.data.qIdx[ids],
+        )
 
     def setQRange(self, minQ, maxQ):
         """Discard detectors that do not lie inside required q-range
@@ -467,20 +510,22 @@ class BaseType:
             Maximum value of the range.
 
         """
-        ids = np.argwhere(np.logical_and(self.data.qVals > minQ,
-                                         self.data.qVals < maxQ)).flatten()
+        ids = np.argwhere(
+            np.logical_and(self.data.qVals > minQ, self.data.qVals < maxQ)
+        ).flatten()
         self.data = self.data._replace(
             intensities=self.data.intensities[:, ids],
             errors=self.data.errors[:, ids],
             qVals=self.data.qVals[ids],
-            qIdx=ids)
+            qIdx=ids,
+        )
 
-    @ensure_attr('resData')
+    @ensure_attr("resData")
     def _getNormRes(self):
         """Return the normalization factors from `resData`."""
         if len(self.resData._fit) > 0:
             res = self.resData.fit_best()
-            x = self.resData.model.fitkws['x']
+            x = self.resData.model.fitkws["x"]
         else:
             x = self.resData.data.energies
             res = self.resData.data.intensities
@@ -489,9 +534,9 @@ class BaseType:
 
         return norm[:, :, np.newaxis]
 
-# -------------------------------------------------------
-# Methods related to data fitting
-# -------------------------------------------------------
+    # -------------------------------------------------------
+    # Methods related to data fitting
+    # -------------------------------------------------------
     @property
     def model(self):
         """Return the model instance."""
@@ -502,10 +547,12 @@ class BaseType:
         """Setter for the model attribute."""
         if model is not None:
             if not isinstance(model, (lmModel, Model)):
-                raise ValueError("The model should be an instance of the "
-                                 "Model class or of the "
-                                 "'lmfit.Model' class or a class instance "
-                                 "that inherits from it.")
+                raise ValueError(
+                    "The model should be an instance of the "
+                    "Model class or of the "
+                    "'lmfit.Model' class or a class instance "
+                    "that inherits from it."
+                )
             else:
                 self._model = model
         else:
@@ -536,17 +583,27 @@ class BaseType:
             params = {}
             opt = bestModel.params
             for key, par in opt.items():
-                params[key] = OrderedDict({
-                    'value': par.value,
-                    'min': par.min,
-                    'max': par.max,
-                    'vary': False,
-                    'expr': par.expr})
+                params[key] = OrderedDict(
+                    {
+                        "value": par.value,
+                        "min": par.min,
+                        "max": par.max,
+                        "vary": False,
+                        "expr": par.expr,
+                    }
+                )
 
         return params
 
-    def fit(self, model=None, cleanData=None, convolveRes=False,
-            addEC=False, addD2O=False, **kwargs):
+    def fit(
+        self,
+        model=None,
+        cleanData=None,
+        convolveRes=False,
+        addEC=False,
+        addD2O=False,
+        **kwargs
+    ):
         """Fit the dataset using the `model` attribute.
 
         Parameters
@@ -589,10 +646,12 @@ class BaseType:
 
         if model is None:
             if self.model is None:
-                raise ValueError("The dataset has no model associated "
-                                 "with it.\n"
-                                 "Please assign one before using this method "
-                                 "without specifying a model.")
+                raise ValueError(
+                    "The dataset has no model associated "
+                    "with it.\n"
+                    "Please assign one before using this method "
+                    "without specifying a model."
+                )
             else:
                 model = self.model
         self.model = model
@@ -601,23 +660,23 @@ class BaseType:
         self._fit = []
 
         q = self.data.qVals
-        if 'data' not in kwargs.keys():
+        if "data" not in kwargs.keys():
             data = np.copy(self.data.intensities)
         else:
-            data = kwargs['data']
-        if 'errors' not in kwargs.keys():
+            data = kwargs["data"]
+        if "errors" not in kwargs.keys():
             errors = np.copy(self.data.errors)
         else:
-            errors = kwargs['errors']
+            errors = kwargs["errors"]
         x = np.copy(self.data.energies)
 
         if cleanData is None:
             if isinstance(self.model, Model):
-                cleanData = 'replace'
+                cleanData = "replace"
             else:
-                cleanData = 'omit'
+                cleanData = "omit"
 
-        if cleanData in ['replace', 'omit']:
+        if cleanData in ["replace", "omit"]:
             data, errors, x = self._cleanData(data, errors, x, cleanData)
 
         if isinstance(self.model, Model):
@@ -625,7 +684,7 @@ class BaseType:
         else:
             kwParams = None
 
-        fit_kwargs = {'x': x, 'q': q, 'params': kwParams}
+        fit_kwargs = {"x": x, "q": q, "params": kwParams}
 
         if kwargs is not None:
             fit_kwargs.update(kwargs)
@@ -635,13 +694,15 @@ class BaseType:
                 resModel = self.resData.model.copy()
                 if self.data.norm and not self.resData.data.norm:
                     resModel /= Component(
-                        "norm", linear, a=0., b=self._getNormRes()[0])
-                fit_kwargs['convolve'] = resModel
+                        "norm", linear, a=0.0, b=self._getNormRes()[0]
+                    )
+                fit_kwargs["convolve"] = resModel
             else:
                 resModel = self.resData.model
                 if self.data.norm and not self.resData.data.norm:
                     resModel = resModel / lmModel(
-                        lambda x: self._getNormRes()[0])
+                        lambda x: self._getNormRes()[0]
+                    )
                 model = ConvolvedModel(model, resModel)
                 model.param_hints.update(self.resData.getFixedOptParams(0))
 
@@ -650,7 +711,8 @@ class BaseType:
                 ecModel = self.ECData.model.copy()
                 if self.data.norm and not self.ECData.data.norm:
                     ecModel /= Component(
-                        "norm", linear, a=0., b=self._getNormRes()[0])
+                        "norm", linear, a=0.0, b=self._getNormRes()[0]
+                    )
                 model = model + ecModel
             else:
                 ecModel = self.ECData.model
@@ -664,7 +726,8 @@ class BaseType:
                 D2OModel = self.D2OData.model.copy()
                 if self.data.norm and not self.D2OData.data.norm:
                     D2OModel /= Component(
-                        "norm", linear, a=0., b=self._getNormRes()[0])
+                        "norm", linear, a=0.0, b=self._getNormRes()[0]
+                    )
                 model = model + D2OModel
             else:
                 D2OModel = self.D2OData.model
@@ -675,13 +738,18 @@ class BaseType:
 
         for idx, obs in enumerate(self.data.observable):
             # get the right observable index for data and errors
-            fit_kwargs['data'] = data[idx]
-            fit_kwargs['weights'] = errors[idx]
-            print("\tFit of observable %i of %i (%s=%s)" %
-                  (idx + 1,
-                   self.data.intensities.shape[0],
-                   self.data.observable_name,
-                   self.data.observable[idx]), end='\r')
+            fit_kwargs["data"] = data[idx]
+            fit_kwargs["weights"] = errors[idx]
+            print(
+                "\tFit of observable %i of %i (%s=%s)"
+                % (
+                    idx + 1,
+                    self.data.intensities.shape[0],
+                    self.data.observable_name,
+                    self.data.observable[idx],
+                ),
+                end="\r",
+            )
 
             fitRes = model.fit(**fit_kwargs)
 
@@ -725,9 +793,9 @@ class BaseType:
         out = []
         for idx, fit in enumerate(self._fit):
             if isinstance(self.model, Model):
-                kws['params'] = fit.optParams
+                kws["params"] = fit.optParams
             else:
-                kws['params'] = fit.params
+                kws["params"] = fit.params
 
             out.append(self.model.eval(**kws))
 
@@ -750,9 +818,9 @@ class BaseType:
         comps = {}
         for idx, fit in enumerate(self._fit):
             if isinstance(self.model, Model):
-                kws['params'] = fit.optParams
+                kws["params"] = fit.optParams
             else:
-                kws['params'] = fit.params
+                kws["params"] = fit.params
 
             for key, val in self.model.eval_components(**kws).items():
                 if key not in comps.keys():
@@ -770,7 +838,7 @@ class BaseType:
         """Return the model with the fitted parameters."""
         return self._fit
 
-    def _cleanData(self, data, errors, x, processType='replace'):
+    def _cleanData(self, data, errors, x, processType="replace"):
         """Remove inf and null values from the input arrays.
 
         Parameters
@@ -781,8 +849,8 @@ class BaseType:
                 - 'replace': replace the bad entries by inf.
 
         """
-        if processType == 'omit':
-            mask = ~(data <= 0.) & ~(data == np.inf)
+        if processType == "omit":
+            mask = ~(data <= 0.0) & ~(data == np.inf)
             for idx, val in enumerate(mask):
                 mask[0] = mask[0] & val
 
@@ -790,8 +858,8 @@ class BaseType:
             errors = errors[:, :, mask[0, 0]]
             x = x[mask[0, 0]]
 
-        if processType == 'replace':
-            np.place(errors, data <= 0., np.inf)
+        if processType == "replace":
+            np.place(errors, data <= 0.0, np.inf)
             np.place(errors, data == np.inf, np.inf)
 
         return data, errors, x
@@ -802,19 +870,21 @@ class BaseType:
 
         tmp = {}
         for key, val in modelRes.params.items():
-            if re.search(r'_\d+$', key):
-                key = key[:key.rfind('_')]
+            if re.search(r"_\d+$", key):
+                key = key[: key.rfind("_")]
             if key not in tmp.keys():
                 tmp[key] = {
-                    'value': [],
-                    'error': [],
-                    'fixed': False,
-                    'bounds': (-np.inf, np.inf)}
-            tmp[key]['value'].append(val.value)
-            tmp[key]['error'].append(
-                val.stderr if val.stderr is not None else 0)
-            tmp[key]['fixed'] = not val.vary
-            tmp[key]['bounds'] = (val.min, val.max)
+                    "value": [],
+                    "error": [],
+                    "fixed": False,
+                    "bounds": (-np.inf, np.inf),
+                }
+            tmp[key]["value"].append(val.value)
+            tmp[key]["error"].append(
+                val.stderr if val.stderr is not None else 0
+            )
+            tmp[key]["fixed"] = not val.vary
+            tmp[key]["bounds"] = (val.min, val.max)
 
         out.update(**tmp)
 

@@ -6,9 +6,11 @@ import re
 
 from nPDyn.dataParsers import processNexus, WorkspaceHandler, convert
 
-fileImporters = {'inx': convert,
-                 'nexus': processNexus,
-                 'mantid': WorkspaceHandler}
+fileImporters = {
+    "inx": convert,
+    "nexus": processNexus,
+    "mantid": WorkspaceHandler,
+}
 
 
 def readFile(fileFormat, dataFile, FWS=False):
@@ -39,12 +41,14 @@ def guessFileFormat(dataFile, FWS=False):
 
     """
     if isinstance(dataFile, str):
-        if re.search('.inx', dataFile):
-            return readFile('inx', dataFile, FWS)
-        elif re.search('.nxs', dataFile):
-            return readFile('nexus', dataFile, FWS)
+        if re.search(".inx", dataFile):
+            return readFile("inx", dataFile, FWS)
+        elif re.search(".nxs", dataFile):
+            return readFile("nexus", dataFile, FWS)
         else:
-            raise ValueError("The file format cannot be guessed.\n"
-                             "Please provide the format to be used.")
+            raise ValueError(
+                "The file format cannot be guessed.\n"
+                "Please provide the format to be used."
+            )
     else:  # Try a Mantid Workspace
-        return readFile('mantid', dataFile, FWS)
+        return readFile("mantid", dataFile, FWS)

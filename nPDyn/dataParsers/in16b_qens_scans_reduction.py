@@ -54,29 +54,35 @@ class IN16B_QENS:
                       It can be `time` or `temperature`
 
     """
-    def __init__(self, scanList,
-                 sumScans=True,
-                 unmirroring=True,
-                 vanadiumRef=None,
-                 peakFindingMask=None,
-                 detGroup=None,
-                 normalize=True,
-                 strip=10,
-                 observable='time'):
 
-        self.data = namedtuple('data',
-                               'intensities errors energies '
-                               'temps times name qVals '
-                               'qIdx observable '
-                               'observable_name norm')
+    def __init__(
+        self,
+        scanList,
+        sumScans=True,
+        unmirroring=True,
+        vanadiumRef=None,
+        peakFindingMask=None,
+        detGroup=None,
+        normalize=True,
+        strip=10,
+        observable="time",
+    ):
+
+        self.data = namedtuple(
+            "data",
+            "intensities errors energies "
+            "temps times name qVals "
+            "qIdx observable "
+            "observable_name norm",
+        )
 
         # Process the scanList argument in case a single string is given
         self.scanList = scanList
         if isinstance(scanList, str):
             if os.path.isdir(scanList):
-                if scanList[-1] != '/':
-                    scanList = scanList + '/'
-                fList    = os.listdir(scanList)
+                if scanList[-1] != "/":
+                    scanList = scanList + "/"
+                fList = os.listdir(scanList)
                 self.scanList = [scanList + val for val in fList]
             else:
                 self.scanList = [scanList]
@@ -90,8 +96,8 @@ class IN16B_QENS:
         self.vanadiumRef = vanadiumRef
         if isinstance(scanList, str):
             if os.path.isdir(scanList):
-                fList    = os.listdir(scanList)
-                scanList = [scanList.strip('/') + '/' + val for val in fList]
+                fList = os.listdir(scanList)
+                scanList = [scanList.strip("/") + "/" + val for val in fList]
             else:
                 scanList = [scanList]
 
@@ -100,11 +106,11 @@ class IN16B_QENS:
         self.normalize = normalize
         self.observable = observable
         self.strip = strip
-        self.dataList   = []
-        self.errList    = []
+        self.dataList = []
+        self.errList = []
         self.energyList = []
-        self.qList      = []
-        self.tempList   = []
+        self.qList = []
+        self.tempList = []
 
         self.outTuple = None
 
@@ -113,27 +119,28 @@ class IN16B_QENS:
         reduce them using the given parameters.
 
         """
-        self.dataList       = []
-        self.energyList     = []
-        self.qList          = []
-        self.tempList       = []
-        self.startTimeList  = []
-        self.monitor        = []
+        self.dataList = []
+        self.energyList = []
+        self.qList = []
+        self.tempList = []
+        self.startTimeList = []
+        self.monitor = []
 
         for dataFile in self.scanList:
-            dataset = h5py.File(dataFile, mode='r')
+            dataset = h5py.File(dataFile, mode="r")
 
-            data = dataset['entry0/data/PSD_data'][()]
+            data = dataset["entry0/data/PSD_data"][()]
 
-            self.name = dataset['entry0/subtitle'][(0)].astype(str)
+            self.name = dataset["entry0/subtitle"][(0)].astype(str)
 
-            monitor = dataset[
-                'entry0/monitor/data'][()].squeeze().astype('float')
+            monitor = (
+                dataset["entry0/monitor/data"][()].squeeze().astype("float")
+            )
 
             self.monitor.append(monitor)
 
             if self.detGroup == "no":
-                self.observable = '$q_z$'
+                self.observable = "$q_z$"
                 nbrDet = data.shape[0]
                 nbrChn = int(data.shape[2] / 2)
             else:
@@ -142,24 +149,34 @@ class IN16B_QENS:
                 nbrDet = data.shape[0]
                 nbrChn = int(data.shape[1] / 2)
 
-            maxDeltaE  = dataset[
-                'entry0/instrument/Doppler/maximum_delta_energy'][()]
-            energies   = 2 * np.arange(nbrChn)
-            energies   = energies * (maxDeltaE / nbrChn) - maxDeltaE
+            maxDeltaE = dataset[
+                "entry0/instrument/Doppler/maximum_delta_energy"
+            ][()]
+            energies = 2 * np.arange(nbrChn)
+            energies = energies * (maxDeltaE / nbrChn) - maxDeltaE
 
-            wavelength = dataset['entry0/wavelength'][()]
+            wavelength = dataset["entry0/wavelength"][()]
 
-            angles = np.array([dataset[
-                'entry0/instrument/PSD/PSD angle %s' % int(val + 1)][()]
-                for val in range(nbrDet)])
+            angles = np.array(
+                [
+                    dataset[
+                        "entry0/instrument/PSD/PSD angle %s" % int(val + 1)
+                    ][()]
+                    for val in range(nbrDet)
+                ]
+            )
 
             data, angles = self._getSingleD(dataset, data, angles)
 
-            angles = 4 * np.pi * np.sin(
-                np.pi * np.array(angles).squeeze() / 360) / wavelength
+            angles = (
+                4
+                * np.pi
+                * np.sin(np.pi * np.array(angles).squeeze() / 360)
+                / wavelength
+            )
 
-            temp = dataset['entry0/sample/temperature'][()]
-            time = parse(dataset['entry0/start_time'][0])
+            temp = dataset["entry0/sample/temperature"][()]
+            time = parse(dataset["entry0/start_time"][0])
 
             self.dataList.append(np.copy(data))
             self.energyList.append(np.copy(energies))
@@ -170,23 +187,23 @@ class IN16B_QENS:
             dataset.close()
 
         if self.sumScans:
-            self.monitor  = [np.sum(np.array(self.monitor), 0)]
+            self.monitor = [np.sum(np.array(self.monitor), 0)]
             self.dataList = [np.sum(np.array(self.dataList), 0)]
 
         for idx, data in enumerate(self.dataList):
             if self.unmirroring:
                 if self.vanadiumRef is not None:
-                    vana = IN16B_QENS(self.vanadiumRef,
-                                      detGroup=None)
+                    vana = IN16B_QENS(self.vanadiumRef, detGroup=None)
                     vana.process()
-                    self.leftPeak  = vana.leftPeak
+                    self.leftPeak = vana.leftPeak
                     self.rightPeak = vana.rightPeak
                 else:
                     self._findPeaks(data)
 
                 data = self._unmirrorData(data)
                 self.monitor[idx] = self._unmirrorData(
-                    self.monitor[idx].reshape(1, self.monitor[idx].shape[0]))
+                    self.monitor[idx].reshape(1, self.monitor[idx].shape[0])
+                )
                 np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
 
                 errData = np.sqrt(data)
@@ -194,16 +211,15 @@ class IN16B_QENS:
             else:
                 errData = np.sqrt(data)
 
-
             if self.normalize:
                 np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
 
-                if self.detGroup == 'no':
+                if self.detGroup == "no":
                     monitor = self.monitor[idx][:, :, np.newaxis]
                 else:
                     monitor = self.monitor[idx]
 
-                data    = data / monitor
+                data = data / monitor
                 errData = errData / monitor
 
             self.dataList[idx] = data
@@ -218,26 +234,35 @@ class IN16B_QENS:
         :returns: data and angles arrays with the single detector data.
 
         """
-        dataSD   = []
+        dataSD = []
         anglesSD = []
 
-        keysSD = ['SD1 angle', 'SD2 angle', 'SD3 angle', 'SD4 angle',
-                  'SD5 angle', 'SD6 angle', 'SD7 angle', 'SD8 angle']
+        keysSD = [
+            "SD1 angle",
+            "SD2 angle",
+            "SD3 angle",
+            "SD4 angle",
+            "SD5 angle",
+            "SD6 angle",
+            "SD7 angle",
+            "SD8 angle",
+        ]
 
         for idx, key in enumerate(keysSD):
-            angle = dataset['entry0/instrument/SingleD/%s' % key][()]
+            angle = dataset["entry0/instrument/SingleD/%s" % key][()]
 
             if angle > 0:
                 anglesSD.append(angle)
                 dataSD.append(
-                    dataset['entry0/instrument/SingleD/data'][(idx)].squeeze())
+                    dataset["entry0/instrument/SingleD/data"][(idx)].squeeze()
+                )
 
-        if self.observable == '$q_z$':
+        if self.observable == "$q_z$":
             tmpSD = np.zeros((len(dataSD), data.shape[1], data.shape[2]))
             tmpSD[:, 64] += np.array(dataSD)
-            data  = np.row_stack((tmpSD, data)).transpose(0, 2, 1)
+            data = np.row_stack((tmpSD, data)).transpose(0, 2, 1)
         else:
-            data   = np.row_stack((np.array(dataSD).squeeze(), data))
+            data = np.row_stack((np.array(dataSD).squeeze(), data))
 
         angles = np.concatenate((anglesSD, angles))
 
@@ -249,9 +274,9 @@ class IN16B_QENS:
 
         """
         if self.strip > 0:
-            data = np.array(self.dataList)[:, :, self.strip:-self.strip]
-            errors = np.array(self.errList)[:, :, self.strip:-self.strip]
-            energies = self.energyList[0][self.strip:-self.strip]
+            data = np.array(self.dataList)[:, :, self.strip : -self.strip]
+            errors = np.array(self.errList)[:, :, self.strip : -self.strip]
+            energies = self.energyList[0][self.strip : -self.strip]
         else:
             data = np.array(self.dataList)
             errors = np.array(self.errList)
@@ -269,26 +294,28 @@ class IN16B_QENS:
                 times[idx] = t.total_seconds() / 3600
             temps = np.array(self.tempList).squeeze()
 
-        if self.observable == 'time':
+        if self.observable == "time":
             Y = times
-        elif self.observable == 'temperature':
+        elif self.observable == "temperature":
             Y = temps
-        elif self.observable == '$q_z$':
+        elif self.observable == "$q_z$":
             data = data.transpose(3, 1, 2, 0).squeeze()
             errors = errors.transpose(3, 1, 2, 0).squeeze()
             Y = np.arange(data.shape[0])
 
-        self.outTuple = self.data(data,
-                                  errors,
-                                  energies,
-                                  temps,
-                                  times,
-                                  self.name,
-                                  self.qList[0],
-                                  np.arange(self.qList[0].shape[0]),
-                                  Y,
-                                  self.observable,
-                                  False)
+        self.outTuple = self.data(
+            data,
+            errors,
+            energies,
+            temps,
+            times,
+            self.name,
+            self.qList[0],
+            np.arange(self.qList[0].shape[0]),
+            Y,
+            self.observable,
+            False,
+        )
 
     def _findPeaks(self, data):
         """Find the peaks in each subset of mirrored data
@@ -301,63 +328,71 @@ class IN16B_QENS:
             data = data.sum(2)
 
         nbrChannels = data.shape[1]
-        midChannel  = int(nbrChannels / 2)
+        midChannel = int(nbrChannels / 2)
 
         if self.peakFindingMask is None:
             mask = np.zeros_like(data)
-            mask[:, int(midChannel / 4):int(3 * midChannel / 4)]   = 1
-            mask[:, int(5 * midChannel / 4):int(7 * midChannel / 4)] = 1
+            mask[:, int(midChannel / 4) : int(3 * midChannel / 4)] = 1
+            mask[:, int(5 * midChannel / 4) : int(7 * midChannel / 4)] = 1
 
         maskedData = data * mask
 
         # Finds the peaks using a Savitsky-Golay filter to
         # smooth the data, followed by extracting the position of the maximum
-        filters  = np.array([savgol_filter(maskedData, 5, 4),
-                             savgol_filter(maskedData, 11, 4),
-                             savgol_filter(maskedData, 19, 3),
-                             savgol_filter(maskedData, 25, 3)])
-
+        filters = np.array(
+            [
+                savgol_filter(maskedData, 5, 4),
+                savgol_filter(maskedData, 11, 4),
+                savgol_filter(maskedData, 19, 3),
+                savgol_filter(maskedData, 25, 3),
+            ]
+        )
 
         savGol_leftPeak = np.mean(np.argmax(filters[:, :, :midChannel], 2), 0)
         savGol_rightPeak = np.mean(np.argmax(filters[:, :, midChannel:], 2), 0)
 
         # Finds the peaks by using a Gaussian function to fit the data
         Gaussian = lambda x, normF, gauW, shift, bkgd: (
-            normF * np.exp(-((x - shift)**2) / (2 * gauW**2))
-            / (gauW * np.sqrt(2 * np.pi)) + bkgd)
+            normF
+            * np.exp(-((x - shift) ** 2) / (2 * gauW ** 2))
+            / (gauW * np.sqrt(2 * np.pi))
+            + bkgd
+        )
 
         try:
-            leftPeaks  = []
+            leftPeaks = []
             rightPeaks = []
             for qIdx, qData in enumerate(maskedData):
                 errors = np.sqrt(qData)
                 np.place(errors, errors == 0, np.inf)
 
-                params = curve_fit(Gaussian,
-                                   np.arange(midChannel),
-                                   qData[:midChannel],
-                                   sigma=errors[:midChannel],
-                                   p0=[qData[:midChannel].max(),
-                                       1,
-                                       midChannel / 2, 0])
+                params = curve_fit(
+                    Gaussian,
+                    np.arange(midChannel),
+                    qData[:midChannel],
+                    sigma=errors[:midChannel],
+                    p0=[qData[:midChannel].max(), 1, midChannel / 2, 0],
+                )
                 leftPeaks.append(params[0][2])
 
-                params = curve_fit(Gaussian,
-                                   np.arange(midChannel),
-                                   qData[midChannel:],
-                                   sigma=errors[midChannel:],
-                                   p0=[qData[midChannel:].max(),
-                                       1,
-                                       midChannel / 2, 0])
+                params = curve_fit(
+                    Gaussian,
+                    np.arange(midChannel),
+                    qData[midChannel:],
+                    sigma=errors[midChannel:],
+                    p0=[qData[midChannel:].max(), 1, midChannel / 2, 0],
+                )
                 rightPeaks.append(params[0][2])
 
-            gauss_leftPeak  = np.array(leftPeaks)
+            gauss_leftPeak = np.array(leftPeaks)
             gauss_rightPeak = np.array(rightPeaks)
 
-            self.leftPeak  = (0.85 * gauss_leftPeak
-                              + 0.15 * savGol_leftPeak).astype(int)
-            self.rightPeak = (0.85 * gauss_rightPeak
-                              + 0.15 * savGol_rightPeak).astype(int)
+            self.leftPeak = (
+                0.85 * gauss_leftPeak + 0.15 * savGol_leftPeak
+            ).astype(int)
+            self.rightPeak = (
+                0.85 * gauss_rightPeak + 0.15 * savGol_rightPeak
+            ).astype(int)
 
         except RuntimeError:
             self.leftPeak = savGol_leftPeak.astype(int)
@@ -373,18 +408,17 @@ class IN16B_QENS:
 
         """
         nbrChannels = data.shape[1]
-        midChannel  = int(nbrChannels / 2)
+        midChannel = int(nbrChannels / 2)
 
         out = np.zeros_like(data)
         for qIdx, qOut in enumerate(out):
-            leftPos  = midChannel - self.leftPeak[qIdx]
+            leftPos = midChannel - self.leftPeak[qIdx]
             rightPos = midChannel - self.rightPeak[qIdx]
 
-            qOut[leftPos:leftPos + midChannel]   += data[qIdx, :midChannel]
-            qOut[rightPos:rightPos + midChannel] += data[qIdx, midChannel:]
+            qOut[leftPos : leftPos + midChannel] += data[qIdx, :midChannel]
+            qOut[rightPos : rightPos + midChannel] += data[qIdx, midChannel:]
 
-
-        data = out[:, int(midChannel / 2):int(midChannel / 2) + midChannel]
+        data = out[:, int(midChannel / 2) : int(midChannel / 2) + midChannel]
 
         return data
 
@@ -411,8 +445,8 @@ class IN16B_QENS:
         """
         if isinstance(self.detGroup, int):
             midPos = int(data.shape[1] / 2)
-            data = data[:, midPos - self.detGroup:midPos + self.detGroup, :]
-            out  = np.sum(data, 1)
+            data = data[:, midPos - self.detGroup : midPos + self.detGroup, :]
+            out = np.sum(data, 1)
 
         elif isinstance(self.detGroup, (list, tuple, np.ndarray)):
             midPos = int(data.shape[1] / 2)
@@ -420,21 +454,23 @@ class IN16B_QENS:
             out = np.zeros((data.shape[0], data.shape[2]))
             for detId, detData in enumerate(data):
                 detData = detData[
-                    midPos - self.detGroup[detId]:midPos
-                    + self.detGroup[detId]]
+                    midPos
+                    - self.detGroup[detId] : midPos
+                    + self.detGroup[detId]
+                ]
                 out[detId] = np.sum(detData, 0)
 
         elif isinstance(self.detGroup, str):
             numTubes = data.shape[0]
-            xmlData  = IN16B_XML(self.detGroup, numTubes)
+            xmlData = IN16B_XML(self.detGroup, numTubes)
 
             detRanges = xmlData.getPSDValues()
 
             out = np.zeros((data.shape[0], data.shape[2]))
             for detId, vals in enumerate(detRanges):
-                out[detId] = data[detId, vals[0]:vals[1]].sum(0)
+                out[detId] = data[detId, vals[0] : vals[1]].sum(0)
 
         elif self.detGroup is None:
             out = np.sum(data, 1)
 
-        return out.astype('float')
+        return out.astype("float")

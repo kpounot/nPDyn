@@ -14,6 +14,7 @@ def test_import_QENS():
     result = processNexus(dataPath)
     assert result.intensities.shape == (1, 18, 1024)
 
+
 def test_import_FWS():
     dataPath = path + "/sample_data/lys_part_01_FWS.nxs"
     result = processNexus(dataPath, True)

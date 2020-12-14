@@ -1,1 +1,1 @@
-__all__ = ['binData']
+__all__ = ["binData"]

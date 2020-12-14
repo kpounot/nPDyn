@@ -24,14 +24,19 @@ from scipy.special import wofz, spherical_jn
 try:
     from lmfit import Model, CompositeModel
 except ImportError:
-    print("The lmfit package cannot be found, please install it to use "
-          "the interface with nPDyn.")
+    print(
+        "The lmfit package cannot be found, please install it to use "
+        "the interface with nPDyn."
+    )
+
     class Model:
         def __init__(self, tmp, **kwargs):
             pass
+
     class CompositeModel:
         def __init__(self, tmp, **kwargs):
             pass
+
 
 from nPDyn.models.d2O_calibration.interpD2O import getD2Odata
 
@@ -40,16 +45,17 @@ from nPDyn.models.d2O_calibration.interpD2O import getD2Odata
 # Function builder for lmfit
 # -------------------------------------------------------
 def build_2D_model(
-        q,
-        funcName,
-        funcBody,
-        defVals=None,
-        bounds=None,
-        vary=None,
-        expr=None,
-        paramGlobals=None,
-        prefix='',
-        var='x'):
+    q,
+    funcName,
+    funcBody,
+    defVals=None,
+    bounds=None,
+    vary=None,
+    expr=None,
+    paramGlobals=None,
+    prefix="",
+    var="x",
+):
     """Builds a 2D `lmfit.Model`.
 
     Parameters
@@ -104,11 +110,12 @@ def build_2D_model(
     q = q.reshape((q.size, 1))
 
     # parse the parameter names to check for "q"
-    paramNames = [pName for _, pName, _, _
-                  in Formatter().parse(funcBody) if pName]
+    paramNames = [
+        pName for _, pName, _, _ in Formatter().parse(funcBody) if pName
+    ]
     paramNames = list(set(paramNames))
-    param_q = True if 'q' in paramNames else False
-    paramNames = [p for p in paramNames if p != 'q']
+    param_q = True if "q" in paramNames else False
+    paramNames = [p for p in paramNames if p != "q"]
 
     # check default values, bounds and expression
     # if none, try to give default parameters
@@ -133,63 +140,80 @@ def build_2D_model(
     params = {}
     for pId, pName in enumerate(paramNames):
         if pName in paramGlobals:
-            params[pName] = (paramDefVals[pName],
-                             paramBounds[pName][0],
-                             paramBounds[pName][1],
-                             paramVary[pName],
-                             paramExpr[pName])
+            params[pName] = (
+                paramDefVals[pName],
+                paramBounds[pName][0],
+                paramBounds[pName][1],
+                paramVary[pName],
+                paramExpr[pName],
+            )
         else:
             for qId, qVal in enumerate(q):
-                params[pName + '_%i' % qId] = (paramDefVals[pName],
-                                               paramBounds[pName][0],
-                                               paramBounds[pName][1],
-                                               paramVary[pName],
-                                               paramExpr[pName])
+                params[pName + "_%i" % qId] = (
+                    paramDefVals[pName],
+                    paramBounds[pName][0],
+                    paramBounds[pName][1],
+                    paramVary[pName],
+                    paramExpr[pName],
+                )
 
     # set the function text
     funcTxt = "def {funcName}({var}, q, {funcArgs}):\n".format(
         funcName=funcName,
         var=var,
-        funcArgs=', '.join(
-            ['%s=%f' % (key, val[0]) for key, val in params.items()]))
+        funcArgs=", ".join(
+            ["%s=%f" % (key, val[0]) for key, val in params.items()]
+        ),
+    )
     funcTxt += "    out = []\n"
     for qId, qVal in enumerate(q):
-        pMap = {'q': '%f' % qVal} if param_q else {}
+        pMap = {"q": "%f" % qVal} if param_q else {}
         for p in paramNames:
             if p in paramGlobals:
                 pMap.update({p: p})
             else:
-                pMap.update({p: p + '_%i' % qId})
+                pMap.update({p: p + "_%i" % qId})
         funcTxt += "    out.append(" + funcBody.format(**pMap) + ")\n"
     funcTxt += "    out = np.vstack(out)\n"
     funcTxt += "    return out"
 
     # compile the function
     func_code = compile(funcTxt, "<string>", "exec")
-    code = [entry for entry in func_code.co_consts
-            if isinstance(entry, CodeType)][0]
+    code = [
+        entry for entry in func_code.co_consts if isinstance(entry, CodeType)
+    ][0]
     func = FunctionType(
-        code, globals(), funcName, argdefs=func_code.co_consts[-1])
+        code, globals(), funcName, argdefs=func_code.co_consts[-1]
+    )
 
     # instantiate the `lmfit.Model`
-    model = Model(func, independent_vars=[var, 'q'], prefix=prefix)
+    model = Model(func, independent_vars=[var, "q"], prefix=prefix)
 
     # set the parameter hints
     for p in paramNames:
         if p in paramGlobals:
-            model.set_param_hint(p, min=params[p][1], max=params[p][2],
-                                 vary=params[p][3], expr=params[p][4])
+            model.set_param_hint(
+                p,
+                min=params[p][1],
+                max=params[p][2],
+                vary=params[p][3],
+                expr=params[p][4],
+            )
         else:
             for qId, qVal in enumerate(q):
-                key = p + '_%i' % qId
+                key = p + "_%i" % qId
                 # add suffix to parameter in expr if expr is not None
                 qExpr = None
                 if params[key][4] is not None:
                     if p in params[key][4]:
                         qExpr = params[key][4].replace(p, "%s_%i" % (p, qId))
                 model.set_param_hint(
-                    key, min=params[key][1], max=params[key][2],
-                    vary=params[key][3], expr=qExpr)
+                    key,
+                    min=params[key][1],
+                    max=params[key][2],
+                    vary=params[key][3],
+                    expr=qExpr,
+                )
 
     return model
 
@@ -211,40 +235,27 @@ def linear(q, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'a': 0,
-            'b': 0.1},
-        'bounds': {
-            'a': (-np.inf, np.inf),
-            'b': (0., np.inf)}}
+        "defVals": {"a": 0, "b": 0.1},
+        "bounds": {"a": (-np.inf, np.inf), "b": (0.0, np.inf)},
+    }
 
     defaults.update(kwargs)
 
     model = build_2D_model(
-        q,
-        'linear',
-        'np.zeros_like(x) + {a} * x + {b}',
-        **defaults)
+        q, "linear", "np.zeros_like(x) + {a} * x + {b}", **defaults
+    )
 
     return model
 
 
 def hline(q, **kwargs):
-    """A horizontal line.
-
-    """
+    """A horizontal line."""
     # set default values (will be overridden by any in 'kwargs')
-    defaults = {
-        'defVals': {'b': 0.1},
-        'bounds': {'b': (0., np.inf)}}
+    defaults = {"defVals": {"b": 0.1}, "bounds": {"b": (0.0, np.inf)}}
 
     defaults.update(kwargs)
 
-    model = build_2D_model(
-        q,
-        'linear',
-        'np.zeros_like(x) + {b}',
-        **defaults)
+    model = build_2D_model(q, "linear", "np.zeros_like(x) + {b}", **defaults)
 
     return model
 
@@ -281,32 +292,33 @@ def gaussian(q, qwise=True, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'center': 0.0,
-            'sigma': 1},
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'center': (-np.inf, np.inf),
-            'sigma': (0.0, np.inf)}}
+        "defVals": {"amplitude": 1, "center": 0.0, "sigma": 1},
+        "bounds": {
+            "amplitude": (0.0, np.inf),
+            "center": (-np.inf, np.inf),
+            "sigma": (0.0, np.inf),
+        },
+    }
 
     defaults.update(kwargs)
 
     if qwise:
         model = build_2D_model(
             q,
-            'gaussian',
-            '{amplitude} / np.sqrt(np.pi * 2 * {sigma}**2) '
-            '* np.exp(-(x - {center})**2 / (2 * {sigma}**2))',
-            **defaults)
+            "gaussian",
+            "{amplitude} / np.sqrt(np.pi * 2 * {sigma}**2) "
+            "* np.exp(-(x - {center})**2 / (2 * {sigma}**2))",
+            **defaults
+        )
     else:
         model = build_2D_model(
             q,
-            'gaussian',
-            '{amplitude} / np.sqrt(np.pi * 2 * ({sigma} * {q}**2)**2) '
-            '* np.exp(-(x - {center})**2 / (2 * ({sigma} * {q}**2)**2))',
-            paramGlobals=['sigma'],
-            **defaults)
+            "gaussian",
+            "{amplitude} / np.sqrt(np.pi * 2 * ({sigma} * {q}**2)**2) "
+            "* np.exp(-(x - {center})**2 / (2 * ({sigma} * {q}**2)**2))",
+            paramGlobals=["sigma"],
+            **defaults
+        )
 
     return model
 
@@ -343,32 +355,33 @@ def lorentzian(q, qwise=False, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'center': 0.0,
-            'sigma': 2},
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'center': (-np.inf, np.inf),
-            'sigma': (0.0, np.inf)}}
+        "defVals": {"amplitude": 1, "center": 0.0, "sigma": 2},
+        "bounds": {
+            "amplitude": (0.0, np.inf),
+            "center": (-np.inf, np.inf),
+            "sigma": (0.0, np.inf),
+        },
+    }
 
     defaults.update(kwargs)
 
     if qwise:
         model = build_2D_model(
             q,
-            'lorentzian',
-            '{amplitude} / np.pi '
-            '* {sigma} / ((x - {center})**2 + {sigma}**2)',
-            **defaults)
+            "lorentzian",
+            "{amplitude} / np.pi "
+            "* {sigma} / ((x - {center})**2 + {sigma}**2)",
+            **defaults
+        )
     else:
         model = build_2D_model(
             q,
-            'lorentzian',
-            '{amplitude} / np.pi '
-            '* {sigma} * {q}**2 / ((x - {center})**2 + ({sigma} * {q}**2)**2)',
-            paramGlobals=['sigma', 'amplitude'],
-            **defaults)
+            "lorentzian",
+            "{amplitude} / np.pi "
+            "* {sigma} * {q}**2 / ((x - {center})**2 + ({sigma} * {q}**2)**2)",
+            paramGlobals=["sigma", "amplitude"],
+            **defaults
+        )
 
     return model
 
@@ -404,36 +417,36 @@ def jump_diff(q, qwise=False, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'center': 0.0,
-            'sigma': 1,
-            'tau': 1},
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'center': (-np.inf, np.inf),
-            'sigma': (0.0, np.inf),
-            'tau': (0.0, np.inf)}}
+        "defVals": {"amplitude": 1, "center": 0.0, "sigma": 1, "tau": 1},
+        "bounds": {
+            "amplitude": (0.0, np.inf),
+            "center": (-np.inf, np.inf),
+            "sigma": (0.0, np.inf),
+            "tau": (0.0, np.inf),
+        },
+    }
 
     defaults.update(kwargs)
 
     if qwise:
         model = build_2D_model(
             q,
-            'jump_diff',
-            '{amplitude} / np.pi '
-            '* {sigma} / ((x - {center})**2 + {sigma}**2)',
-            **defaults)
+            "jump_diff",
+            "{amplitude} / np.pi "
+            "* {sigma} / ((x - {center})**2 + {sigma}**2)",
+            **defaults
+        )
     else:
         model = build_2D_model(
             q,
-            'jump_diff',
-            '{amplitude} / np.pi * '
-            '({sigma} * {q}**2 / (1 + {sigma}*{q}**2*{tau})) / '
-            '((x - {center})**2 + ({sigma} * {q}**2 / '
-            '(1 + {sigma} * {q}**2 * {tau}))**2)',
-            paramGlobals=['amplitude', 'sigma', 'tau'],
-            **defaults)
+            "jump_diff",
+            "{amplitude} / np.pi * "
+            "({sigma} * {q}**2 / (1 + {sigma}*{q}**2*{tau})) / "
+            "((x - {center})**2 + ({sigma} * {q}**2 / "
+            "(1 + {sigma} * {q}**2 * {tau}))**2)",
+            paramGlobals=["amplitude", "sigma", "tau"],
+            **defaults
+        )
 
     return model
 
@@ -460,20 +473,15 @@ def delta(q, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'center': 0.0},
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'center': (-np.inf, np.inf)}}
+        "defVals": {"amplitude": 1, "center": 0.0},
+        "bounds": {"amplitude": (0.0, np.inf), "center": (-np.inf, np.inf)},
+    }
 
     defaults.update(kwargs)
 
     model = build_2D_model(
-        q,
-        'delta',
-        'getDelta(x, {amplitude}, {center})',
-        **defaults)
+        q, "delta", "getDelta(x, {amplitude}, {center})", **defaults
+    )
 
     return model
 
@@ -501,20 +509,20 @@ def calibratedD2O(q, volFraction, temp, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1},
-        'bounds': {
-            'amplitude': (0., np.inf)}}
+        "defVals": {"amplitude": 1},
+        "bounds": {"amplitude": (0.0, np.inf)},
+    }
 
     defaults.update(kwargs)
 
     model = build_2D_model(
         q,
-        'calibrationD2O',
-        '{amplitude} * getD2Odata(%s)(%f, {q}) '
-        '/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))'
+        "calibrationD2O",
+        "{amplitude} * getD2Odata(%s)(%f, {q}) "
+        "/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))"
         % (volFraction, temp, volFraction, temp),
-        **defaults)
+        **defaults
+    )
 
     return model
 
@@ -556,40 +564,43 @@ def rotations(q, qwise=False, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'center': 0.0,
-            'sigma': 1,
-            'bondDist': 0.96},  # default for O-H distance in water
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'center': (-np.inf, np.inf),
-            'sigma': (0.0, np.inf),
-            'bondDist': (0.0, np.inf)},
-        'vary': {'bondDist': False},
-        'paramGlobals': ['bondDist']}
+        "defVals": {
+            "amplitude": 1,
+            "center": 0.0,
+            "sigma": 1,
+            "bondDist": 0.96,
+        },  # default for O-H distance in water
+        "bounds": {
+            "amplitude": (0.0, np.inf),
+            "center": (-np.inf, np.inf),
+            "sigma": (0.0, np.inf),
+            "bondDist": (0.0, np.inf),
+        },
+        "vary": {"bondDist": False},
+        "paramGlobals": ["bondDist"],
+    }
 
     # parse the keywords arguments provided by the user
     if not qwise:
-        paramGlobals = ['sigma', 'amplitude', 'bondDist']
-        if 'paramGlobals' in kwargs.keys():
-            paramGlobals = list(set(
-                paramGlobals + kwargs.pop('paramGlobals')))
-        kwargs['paramGlobals'] = paramGlobals
+        paramGlobals = ["sigma", "amplitude", "bondDist"]
+        if "paramGlobals" in kwargs.keys():
+            paramGlobals = list(set(paramGlobals + kwargs.pop("paramGlobals")))
+        kwargs["paramGlobals"] = paramGlobals
 
     defaults.update(kwargs)
 
     model = build_2D_model(
         q,
-        'rotations',
-        'spherical_jn(0, {q}*{bondDist})**2 * '
-        'getDelta(x, {amplitude}, {center})'
-        ' + '
-        '{amplitude} * np.sum([spherical_jn(l, {q}*{bondDist})**2 '
-        '* (2 * l + 1) * '
-        'l * (l + 1) * {sigma} / (np.pi * ((x - {center})**2 + '
-        '(l * (l + 1) * {sigma})**2)) for l in range(1, 5)], axis=0)',
-        **defaults)
+        "rotations",
+        "spherical_jn(0, {q}*{bondDist})**2 * "
+        "getDelta(x, {amplitude}, {center})"
+        " + "
+        "{amplitude} * np.sum([spherical_jn(l, {q}*{bondDist})**2 "
+        "* (2 * l + 1) * "
+        "l * (l + 1) * {sigma} / (np.pi * ((x - {center})**2 + "
+        "(l * (l + 1) * {sigma})**2)) for l in range(1, 5)], axis=0)",
+        **defaults
+    )
 
     return model
 
@@ -618,25 +629,24 @@ def voigt(q, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'center': 0.0,
-            'sigma': 1,
-            'gamma': 1},
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'center': (-np.inf, np.inf),
-            'sigma': (0.0, np.inf),
-            'gamma': (0.0, np.inf)}}
+        "defVals": {"amplitude": 1, "center": 0.0, "sigma": 1, "gamma": 1},
+        "bounds": {
+            "amplitude": (0.0, np.inf),
+            "center": (-np.inf, np.inf),
+            "sigma": (0.0, np.inf),
+            "gamma": (0.0, np.inf),
+        },
+    }
 
     defaults.update(kwargs)
 
     model = build_2D_model(
         q,
-        'voigt',
-        '{amplitude} * wofz((x - {center}) + 1j * {gamma}).real / '
-        '({sigma} * np.sqrt(2)) / ({sigma} * np.sqrt(2 * np.pi))',
-        **defaults)
+        "voigt",
+        "{amplitude} * wofz((x - {center}) + 1j * {gamma}).real / "
+        "({sigma} * np.sqrt(2)) / ({sigma} * np.sqrt(2 * np.pi))",
+        **defaults
+    )
 
     return model
 
@@ -665,28 +675,32 @@ def pseudo_voigt(q, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'center': 0.0,
-            'sigma': 1,
-            'fraction': 0.5},
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'center': (-np.inf, np.inf),
-            'sigma': (0.0, np.inf),
-            'fraction': (0.0, 1.0)}}
+        "defVals": {
+            "amplitude": 1,
+            "center": 0.0,
+            "sigma": 1,
+            "fraction": 0.5,
+        },
+        "bounds": {
+            "amplitude": (0.0, np.inf),
+            "center": (-np.inf, np.inf),
+            "sigma": (0.0, np.inf),
+            "fraction": (0.0, 1.0),
+        },
+    }
 
     defaults.update(kwargs)
 
     model = build_2D_model(
         q,
-        'pvoigt',
-        '{amplitude} * ({fraction} * np.exp(-(x - {center})**2 / '
-        '(2 * ({sigma} / np.sqrt(2 * np.log(2)))**2)) / '
-        'np.sqrt(2 * np.pi * ({sigma} / np.sqrt(2 * np.log(2)))**2) +'
-        '(1 - {fraction}) * {sigma} / (np.pi * ((x - {center})**2 +'
-        '{sigma}**2)))',
-        **defaults)
+        "pvoigt",
+        "{amplitude} * ({fraction} * np.exp(-(x - {center})**2 / "
+        "(2 * ({sigma} / np.sqrt(2 * np.log(2)))**2)) / "
+        "np.sqrt(2 * np.pi * ({sigma} / np.sqrt(2 * np.log(2)))**2) +"
+        "(1 - {fraction}) * {sigma} / (np.pi * ((x - {center})**2 +"
+        "{sigma}**2)))",
+        **defaults
+    )
 
     return model
 
@@ -719,23 +733,23 @@ def kww(q, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'tau': 1,
-            'beta': 1.0},
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'tau': (0.0, np.inf),
-            'beta': (0.0, np.inf)}}
+        "defVals": {"amplitude": 1, "tau": 1, "beta": 1.0},
+        "bounds": {
+            "amplitude": (0.0, np.inf),
+            "tau": (0.0, np.inf),
+            "beta": (0.0, np.inf),
+        },
+    }
 
     defaults.update(kwargs)
 
     model = build_2D_model(
         q,
-        'kww',
-        '{amplitude} * fftshift(fft(np.exp(-t / {tau})**{beta})).real',
-        var='t',
-        **defaults)
+        "kww",
+        "{amplitude} * fftshift(fft(np.exp(-t / {tau})**{beta})).real",
+        var="t",
+        **defaults
+    )
 
     return model
 
@@ -771,33 +785,38 @@ def two_diff_state(q, qwise=False, **kwargs):
     """
     # set default values (will be overridden by any in 'kwargs')
     defaults = {
-        'defVals': {
-            'amplitude': 1,
-            'center': 0.0,
-            'gamma1': 1.0,
-            'gamma2': 1.0,
-            'tau1': 1.0,
-            'tau2': 1.0},
-        'bounds': {
-            'amplitude': (0., np.inf),
-            'center': (-np.inf, np.inf),
-            'gamma1': (0., np.inf),
-            'gamma2': (0., np.inf),
-            'tau1': (0., np.inf),
-            'tau2': (0., np.inf)}}
+        "defVals": {
+            "amplitude": 1,
+            "center": 0.0,
+            "gamma1": 1.0,
+            "gamma2": 1.0,
+            "tau1": 1.0,
+            "tau2": 1.0,
+        },
+        "bounds": {
+            "amplitude": (0.0, np.inf),
+            "center": (-np.inf, np.inf),
+            "gamma1": (0.0, np.inf),
+            "gamma2": (0.0, np.inf),
+            "tau1": (0.0, np.inf),
+            "tau2": (0.0, np.inf),
+        },
+    }
 
     defaults.update(kwargs)
 
     # parse the keywords arguments provided by the user
     if not qwise:
-        paramGlobals = ['amplitude', 'gamma1', 'gamma2', 'tau1', 'tau2']
-        if 'paramGlobals' in kwargs.keys():
-            paramGlobals = list(set(paramGlobals + kwargs.pop('paramGlobals')))
-        kwargs['paramGlobals'] = paramGlobals
+        paramGlobals = ["amplitude", "gamma1", "gamma2", "tau1", "tau2"]
+        if "paramGlobals" in kwargs.keys():
+            paramGlobals = list(set(paramGlobals + kwargs.pop("paramGlobals")))
+        kwargs["paramGlobals"] = paramGlobals
 
     # define the different component of the model
-    Lambda = ("({gamma1} - {gamma2} + (1 / {tau1}) - (1 / {tau2}))**2"
-              "+ 4 / ({tau1} * {tau2})")
+    Lambda = (
+        "({gamma1} - {gamma2} + (1 / {tau1}) - (1 / {tau2}))**2"
+        "+ 4 / ({tau1} * {tau2})"
+    )
 
     lambda_1 = "{gamma1} + (1 / {tau1}) + {gamma2} + (1 / {tau2}) / 2"
     lambda_1 = lambda_1 + " + " + Lambda + " / 2"
@@ -805,21 +824,24 @@ def two_diff_state(q, qwise=False, **kwargs):
     lambda_2 = "{gamma1} + (1 / {tau1}) + {gamma2} + (1 / {tau2}) / 2"
     lambda_2 = lambda_1 + " - " + Lambda + " / 2"
 
-    alpha = ("1 / (" + lambda_2 + " - " + lambda_1 + ") * ("
-             "{tau1} / ({tau1} + {tau2}) * "
-             "({gamma2} + (1 / {tau1}) + (1 / {tau2}) - " + lambda_1 + ")+"
-             "{tau2} / ({tau1} + {tau2}) * "
-             "({gamma1} + (1 / {tau1}) + (1 / {tau2}) - " + lambda_1 + "))")
+    alpha = (
+        "1 / (" + lambda_2 + " - " + lambda_1 + ") * ("
+        "{tau1} / ({tau1} + {tau2}) * "
+        "({gamma2} + (1 / {tau1}) + (1 / {tau2}) - " + lambda_1 + ")+"
+        "{tau2} / ({tau1} + {tau2}) * "
+        "({gamma1} + (1 / {tau1}) + (1 / {tau2}) - " + lambda_1 + "))"
+    )
 
     # build the models for the two coupled Lorentzians
     model = build_2D_model(
         q,
-        'two_diff_state',
+        "two_diff_state",
         "{amplitude} * (" + alpha + " * " + lambda_1 + " /"
         "(np.pi * (x - {center})**2 + " + lambda_1 + "**2) +"
         "(1 - " + alpha + ")" + " * " + lambda_2 + " /"
         "(np.pi * (x - {center})**2 + " + lambda_2 + "**2))",
-        **defaults)
+        **defaults
+    )
 
     return model
 
@@ -832,7 +854,7 @@ def getDelta(x, amplitude, center):
 
     out = np.zeros_like(x)
 
-    peakPos = np.argmin((x - center)**2)
+    peakPos = np.argmin((x - center) ** 2)
 
     out[peakPos] = 1 / (x[1] - x[0])
     out = amplitude * out

@@ -15,6 +15,7 @@ def test_dirImport():
     result.process()
     assert len(result.qList) == 4
 
+
 def test_listImport():
     dataPath = path + "/sample_data/vanadium/"
     dataFiles = glob.glob(dataPath)

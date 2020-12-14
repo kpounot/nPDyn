@@ -11,14 +11,19 @@ from scipy.signal import fftconvolve
 try:
     from lmfit import Model, CompositeModel
 except ImportError:
-    print("The lmfit package cannot be found, please install it to use "
-          "the interface with nPDyn.")
+    print(
+        "The lmfit package cannot be found, please install it to use "
+        "the interface with nPDyn."
+    )
+
     class Model:
         def __init__(self, tmp, **kwargs):
             pass
+
     class CompositeModel:
         def __init__(self, tmp, **kwargs):
             pass
+
 
 from nPDyn.lmfit.convolutions import (
     conv_lorentzian_lorentzian,
@@ -31,7 +36,8 @@ from nPDyn.lmfit.convolutions import (
     conv_jumpdiff_pvoigt,
     conv_rotations_pvoigt,
     conv_delta,
-    conv_linear)
+    conv_linear,
+)
 
 
 class ConvolvedModel(Model):
@@ -100,19 +106,24 @@ class ConvolvedModel(Model):
     >>> convModel.convMap = {'lorentzian': {'lorentzian': myConv}}
 
     """
-    _names_collide = ("\nTwo models have parameters named '{clash}'. "
-                      "Use distinct names.")
+
+    _names_collide = (
+        "\nTwo models have parameters named '{clash}'. " "Use distinct names."
+    )
     _bad_arg = "ConvolvedModel: argument {arg} is not a Model"
 
-    def __init__(self, left, right, on_undefined_conv='numeric',
-                 convMap=None, **kws):
+    def __init__(
+        self, left, right, on_undefined_conv="numeric", convMap=None, **kws
+    ):
         if not isinstance(left, Model):
             raise ValueError(self._bad_arg.format(arg=left))
         if not isinstance(right, Model):
             raise ValueError(self._bad_arg.format(arg=right))
-        if not np.isin(on_undefined_conv, ['numeric', 'raise']):
-            raise ValueError("Parameter 'on_undefined_conv' should be either "
-                             "'numeric' or 'raise'.")
+        if not np.isin(on_undefined_conv, ["numeric", "raise"]):
+            raise ValueError(
+                "Parameter 'on_undefined_conv' should be either "
+                "'numeric' or 'raise'."
+            )
 
         self.left = left
         self.right = right
@@ -121,19 +132,20 @@ class ConvolvedModel(Model):
 
         name_collisions = set(left.param_names) & set(right.param_names)
         if len(name_collisions) > 0:
-            msg = ''
+            msg = ""
             for collision in name_collisions:
                 msg += self._names_collide.format(clash=collision)
             raise NameError(msg)
 
         # we assume that all the sub-models have the same independent vars
-        if 'independent_vars' not in kws:
-            kws['independent_vars'] = self.left.independent_vars
-        if 'nan_policy' not in kws:
-            kws['nan_policy'] = self.left.nan_policy
+        if "independent_vars" not in kws:
+            kws["independent_vars"] = self.left.independent_vars
+        if "nan_policy" not in kws:
+            kws["nan_policy"] = self.left.nan_policy
 
         def _tmp(self, *args, **kws):
             pass
+
         Model.__init__(self, _tmp, **kws)
 
         for side in (left, right):
@@ -143,72 +155,92 @@ class ConvolvedModel(Model):
 
         # set a default convolution map
         self.convMap = {
-            'lorentzian': {'lorentzian': conv_lorentzian_lorentzian,
-                           'gaussian': conv_gaussian_lorentzian,
-                           'pvoigt': conv_lorentzian_pvoigt,
-                           'delta': conv_delta,
-                           'linear': conv_linear},
-            'gaussian': {'lorentzian': conv_gaussian_lorentzian,
-                         'gaussian': conv_gaussian_gaussian,
-                         'delta': conv_delta,
-                         'linear': conv_linear,
-                         'pvoigt': conv_gaussian_pvoigt},
-            'pvoigt': {'lorentzian': conv_lorentzian_pvoigt,
-                       'gaussian': conv_gaussian_pvoigt,
-                       'jump_diff': conv_jumpdiff_pvoigt,
-                       'linear': conv_linear,
-                       'delta': conv_delta,
-                       'rotations': conv_rotations_pvoigt},
-            'jump_diff': {'gaussian': conv_gaussian_jumpdiff,
-                          'delta': conv_delta,
-                          'linear': conv_linear,
-                          'pvoigt': conv_jumpdiff_pvoigt},
-            'rotations': {'gaussian': conv_gaussian_rotations,
-                          'delta': conv_delta,
-                          'linear': conv_linear,
-                          'pvoigt': conv_rotations_pvoigt},
-            'delta': {'gaussian': conv_delta,
-                      'lorentzian': conv_delta,
-                      'voigt': conv_delta,
-                      'pvoigt': conv_delta,
-                      'jump_diff': conv_delta,
-                      'rotations': conv_delta,
-                      'linear': conv_linear,
-                      'two_diff_state': conv_delta},
-            'linear': {'gaussian': conv_linear,
-                       'lorentzian': conv_linear,
-                       'voigt': conv_linear,
-                       'pvoigt': conv_linear,
-                       'jump_diff': conv_linear,
-                       'rotations': conv_linear,
-                       'two_diff_state': conv_linear}}
+            "lorentzian": {
+                "lorentzian": conv_lorentzian_lorentzian,
+                "gaussian": conv_gaussian_lorentzian,
+                "pvoigt": conv_lorentzian_pvoigt,
+                "delta": conv_delta,
+                "linear": conv_linear,
+            },
+            "gaussian": {
+                "lorentzian": conv_gaussian_lorentzian,
+                "gaussian": conv_gaussian_gaussian,
+                "delta": conv_delta,
+                "linear": conv_linear,
+                "pvoigt": conv_gaussian_pvoigt,
+            },
+            "pvoigt": {
+                "lorentzian": conv_lorentzian_pvoigt,
+                "gaussian": conv_gaussian_pvoigt,
+                "jump_diff": conv_jumpdiff_pvoigt,
+                "linear": conv_linear,
+                "delta": conv_delta,
+                "rotations": conv_rotations_pvoigt,
+            },
+            "jump_diff": {
+                "gaussian": conv_gaussian_jumpdiff,
+                "delta": conv_delta,
+                "linear": conv_linear,
+                "pvoigt": conv_jumpdiff_pvoigt,
+            },
+            "rotations": {
+                "gaussian": conv_gaussian_rotations,
+                "delta": conv_delta,
+                "linear": conv_linear,
+                "pvoigt": conv_rotations_pvoigt,
+            },
+            "delta": {
+                "gaussian": conv_delta,
+                "lorentzian": conv_delta,
+                "voigt": conv_delta,
+                "pvoigt": conv_delta,
+                "jump_diff": conv_delta,
+                "rotations": conv_delta,
+                "linear": conv_linear,
+                "two_diff_state": conv_delta,
+            },
+            "linear": {
+                "gaussian": conv_linear,
+                "lorentzian": conv_linear,
+                "voigt": conv_linear,
+                "pvoigt": conv_linear,
+                "jump_diff": conv_linear,
+                "rotations": conv_linear,
+                "two_diff_state": conv_linear,
+            },
+        }
 
         # override default convolutions with provided ones
         if convMap is not None:
             self.convMap.update(convMap)
 
     def _parse_params(self):
-        self._func_haskeywords = (self.left._func_haskeywords or
-                                  self.right._func_haskeywords)
-        self._func_allargs = (self.left._func_allargs +
-                              self.right._func_allargs)
-        self.def_vals = {self.right.prefix + key: val
-                         for key, val in self.right.def_vals.items()}
-        self.def_vals.update({self.left.prefix + key: val
-                              for key, val in self.left.def_vals.items()})
+        self._func_haskeywords = (
+            self.left._func_haskeywords or self.right._func_haskeywords
+        )
+        self._func_allargs = self.left._func_allargs + self.right._func_allargs
+        self.def_vals = {
+            self.right.prefix + key: val
+            for key, val in self.right.def_vals.items()
+        }
+        self.def_vals.update(
+            {
+                self.left.prefix + key: val
+                for key, val in self.left.def_vals.items()
+            }
+        )
         self.opts = deepcopy(self.right.opts)
         self.opts.update(self.left.opts)
 
     def _reprstring(self, long=False):
-        return "(%s %s)" % (self.left._reprstring(long=long),
-                            self.right._reprstring(long=long))
+        return "(%s %s)" % (
+            self.left._reprstring(long=long),
+            self.right._reprstring(long=long),
+        )
 
     def eval(self, params=None, **kwargs):
         """Evaluate model function for convolved model."""
-        return self._convolve(self.left,
-                              self.right,
-                              params,
-                              **kwargs)
+        return self._convolve(self.left, self.right, params, **kwargs)
 
     def eval_components(self, **kwargs):
         """Return OrderedDict of name, results for each component."""
@@ -216,10 +248,9 @@ class ConvolvedModel(Model):
         if "returnComponents" in kwargs.keys():
             returnComponents = kwargs["returnComponents"]
 
-        return self._convolve(self.left,
-                              self.right,
-                              returnComponents=returnComponents,
-                              **kwargs)
+        return self._convolve(
+            self.left, self.right, returnComponents=returnComponents, **kwargs
+        )
 
     @property
     def param_names(self):
@@ -239,9 +270,11 @@ class ConvolvedModel(Model):
     @on_undefined_conv.setter
     def on_undefined_conv(self, value):
         """Setter for 'on_undefined_conv parameter'."""
-        if not np.isin(value, ['numeric', 'raise', 'skip']):
-            raise ValueError("Parameter 'on_undefined_conv' should be either "
-                             "of 'numeric', 'raise' or 'skip'.")
+        if not np.isin(value, ["numeric", "raise", "skip"]):
+            raise ValueError(
+                "Parameter 'on_undefined_conv' should be either "
+                "of 'numeric', 'raise' or 'skip'."
+            )
         self._on_undefined_conv = value
 
     def _operators(self):
@@ -250,23 +283,24 @@ class ConvolvedModel(Model):
         right = self.right
         lops = []
         rops = []
-        while hasattr(left, 'op') or hasattr(right, 'op'):
-            if hasattr(left, 'op'):
+        while hasattr(left, "op") or hasattr(right, "op"):
+            if hasattr(left, "op"):
                 lops.insert(0, left.op)
                 left = left.left
-            if hasattr(right, 'op'):
+            if hasattr(right, "op"):
                 rops.insert(0, right.op)
                 right = right.right
 
         return lops, rops
 
     def _get_state(self):
-        return (self.left._get_state(),
-                self.right._get_state())
+        return (self.left._get_state(), self.right._get_state())
 
     def _set_state(self, state, funcdefs=None):
-        raise NotImplementedError("This method is not available yet with "
-                                  "the 'ConvolvedModel' class.")
+        raise NotImplementedError(
+            "This method is not available yet with "
+            "the 'ConvolvedModel' class."
+        )
 
     def _make_all_args(self, params=None, **kwargs):
         """Generate **all** function arguments for all functions."""
@@ -274,8 +308,9 @@ class ConvolvedModel(Model):
         out.update(self.left._make_all_args(params=params, **kwargs))
         return out
 
-    def _convolve(self, left, right, params=None,
-                  returnComponents=None, **kwargs):
+    def _convolve(
+        self, left, right, params=None, returnComponents=None, **kwargs
+    ):
         r"""Perform a convolution between `left` and `right`.
 
         If the convolutions between function in `left` and the
@@ -338,24 +373,31 @@ class ConvolvedModel(Model):
                         convFunc = leftConvMap[funcName]
                         tmpRes.append(convFunc(lcomp, rcomp, params, **kwargs))
                     else:
-                        if self._on_undefined_conv == 'numeric':
+                        if self._on_undefined_conv == "numeric":
                             convFunc = lambda l, r: fftconvolve(
-                                l, r, mode='same', axes=-1)
+                                l, r, mode="same", axes=-1
+                            )
                             tmpRes.append(
                                 CompositeModel(lcomp, rcomp, convFunc).eval(
-                                    params, **kwargs))
-                        elif self._on_undefined_conv == 'raise':
+                                    params, **kwargs
+                                )
+                            )
+                        elif self._on_undefined_conv == "raise":
                             raise KeyError(
-                                'Convolution function between %s and %s is '
-                                'not defined.' % (
-                                    lcomp.func.__name__, funcName))
+                                "Convolution function between %s and %s is "
+                                "not defined."
+                                % (lcomp.func.__name__, funcName)
+                            )
                 else:
-                    if self._on_undefined_conv == 'numeric':
+                    if self._on_undefined_conv == "numeric":
                         convFunc = lambda l, r: fftconvolve(
-                            l, r, mode='same', axes=-1)
+                            l, r, mode="same", axes=-1
+                        )
                         tmpRes.append(
                             CompositeModel(lcomp, rcomp, convFunc).eval(
-                                params, **kwargs))
+                                params, **kwargs
+                            )
+                        )
 
             # apply operators from the right
             if len(tmpRes) > 1:

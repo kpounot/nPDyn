@@ -9,25 +9,28 @@ from collections import OrderedDict, namedtuple
 import numpy as np
 
 
-def pTuple(value=1, bounds=(-np.inf, np.inf), fixed=False, error=0.):
+def pTuple(value=1, bounds=(-np.inf, np.inf), fixed=False, error=0.0):
     """Helper function to create a namedtuple with default values."""
-    t = namedtuple('param', 'value bounds fixed error')
+    t = namedtuple("param", "value bounds fixed error")
     _checkTupleEntries(value, bounds, fixed, error)
     return t(value, bounds, fixed, error)
 
 
-def _checkTupleEntries(value=1, bounds=(-np.inf, np.inf),
-                       fixed=False, error=0.):
+def _checkTupleEntries(
+    value=1, bounds=(-np.inf, np.inf), fixed=False, error=0.0
+):
     """Check for entries in the 'pTuple'."""
     # check value attribute
     if isinstance(value, list):
         if not all(isinstance(ele, (int, float)) for ele in value):
             raise ValueError(
-                "Elements in parameter value should be integer or float.")
+                "Elements in parameter value should be integer or float."
+            )
     elif isinstance(value, np.ndarray):
         if not all(isinstance(ele, (int, float)) for ele in value.flatten()):
             raise ValueError(
-                "Elements in parameter value should be integer or float.")
+                "Elements in parameter value should be integer or float."
+            )
     else:
         if not isinstance(value, (int, float)):
             raise ValueError("The parameter value should be integer or float.")
@@ -35,27 +38,30 @@ def _checkTupleEntries(value=1, bounds=(-np.inf, np.inf),
     # check bounds attribute
     if not isinstance(bounds, (list, tuple)):
         raise ValueError(
-            "Parameter bounds should be a 2-tuple or 2-list of min and max.")
+            "Parameter bounds should be a 2-tuple or 2-list of min and max."
+        )
     else:
         for side in bounds:
             if not isinstance(side, (int, float)):
                 raise ValueError(
-                    "Parameter bounds should contain only integers or floats.")
+                    "Parameter bounds should contain only integers or floats."
+                )
 
     # check fixed attribute
     if not isinstance(fixed, bool):
-        raise ValueError(
-            "Parameter 'fixed' should be either True or False.")
+        raise ValueError("Parameter 'fixed' should be either True or False.")
 
     # check error attribute
     if isinstance(error, list):
         if not all(isinstance(ele, (float, int)) for ele in error):
             raise ValueError(
-                "Elements in parameter error should be integer or float.")
+                "Elements in parameter error should be integer or float."
+            )
     elif isinstance(error, np.ndarray):
         if not all(isinstance(ele, (float, int)) for ele in error.flatten()):
             raise ValueError(
-                "Elements in parameter error should be integer or float.")
+                "Elements in parameter error should be integer or float."
+            )
     else:
         if not isinstance(error, (int, float)):
             raise ValueError("The parameter error should be integer or float.")
@@ -76,6 +82,7 @@ class Parameters(OrderedDict):
         Can override params too.
 
     """
+
     def __init__(self, params=None, **kwargs):
         super().__init__()
 
@@ -111,8 +118,11 @@ class Parameters(OrderedDict):
 
         """
         # parse kwargs to keep only attributes from pTuple
-        kwargs = {key: val for key, val in kwargs.items()
-                  if key in ['value', 'bounds', 'fixed', 'error']}
+        kwargs = {
+            key: val
+            for key, val in kwargs.items()
+            if key in ["value", "bounds", "fixed", "error"]
+        }
 
         _checkTupleEntries(**kwargs)
 
@@ -135,7 +145,7 @@ class Parameters(OrderedDict):
             elif isinstance(val, dict):
                 self.set(key, **val)
             else:
-                self.set(key, **{'value': val})
+                self.set(key, **{"value": val})
 
     def _applyBounds(self):
         """Apply bounds on parameter values."""
@@ -185,7 +195,7 @@ class Parameters(OrderedDict):
         return params, bounds
 
     def _listToParams(self, pList, errList=None):
-        """ Use the given list to convert a list of parameters to
+        """Use the given list to convert a list of parameters to
         a dictionary similar to the current one.
 
         """
@@ -221,14 +231,13 @@ class Parameters(OrderedDict):
         """Fancy representation for the class."""
         out = ""
         for key, val in self.items():
-            out += '\n' + 20 * '_' + key + ':\n'
+            out += "\n" + 20 * "_" + key + ":\n"
             for pKey, pVal in val._asdict().items():
                 if isinstance(pVal, np.ndarray):
                     pVal = np.copy(pVal)
                     pVal = np.array2string(
-                        pVal,
-                        prefix='{key}: '.format(key=pKey),
-                        threshold=10)
+                        pVal, prefix="{key}: ".format(key=pKey), threshold=10
+                    )
                 out += "{key}: {val}".format(key=pKey, val=pVal)
                 out += "\n"
 

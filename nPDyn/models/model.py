@@ -22,7 +22,8 @@ from nPDyn.models.presets import (
     conv_lorentzian_gaussian,
     conv_gaussian_gaussian,
     conv_delta,
-    conv_linear)
+    conv_linear,
+)
 
 
 class findParamNames(ast.NodeTransformer):
@@ -37,6 +38,7 @@ class findParamNames(ast.NodeTransformer):
         values.
 
     """
+
     def __init__(self, params):
         super().__init__()
         self.params = params
@@ -46,11 +48,13 @@ class findParamNames(ast.NodeTransformer):
         if node.id in self.params.keys():
             res = ast.Attribute(
                 value=ast.Subscript(
-                    value=ast.Name(id='params', ctx=node.ctx),
+                    value=ast.Name(id="params", ctx=node.ctx),
                     slice=ast.Index(value=ast.Str(s=node.id)),
-                    ctx=node.ctx),
-                attr='value',
-                ctx=node.ctx)
+                    ctx=node.ctx,
+                ),
+                attr="value",
+                ctx=node.ctx,
+            )
             return res
         else:
             return node
@@ -88,39 +92,48 @@ class Model:
         `KeyError` and the option 'numeric' to a numerical convolution.
 
     """
+
     _opMap = {
         "+": operator.add,
         "-": operator.sub,
         "/": operator.truediv,
-        "*": operator.mul}
+        "*": operator.mul,
+    }
 
-    def __init__(self,
-                 params,
-                 name="Model",
-                 convolutions=None,
-                 on_undef_conv='raise'):
+    def __init__(
+        self, params, name="Model", convolutions=None, on_undef_conv="raise"
+    ):
         self.name = name
         self.params = deepcopy(params) if params is not None else {}
         self._components = OrderedDict()
         self._operators = []
 
         self.convolutions = {
-            'lorentzian': {'lorentzian': conv_lorentzian_lorentzian,
-                           'gaussian': conv_lorentzian_gaussian,
-                           'delta': conv_delta,
-                           'linear': conv_linear},
-            'gaussian': {'lorentzian': conv_lorentzian_gaussian,
-                         'gaussian': conv_gaussian_gaussian,
-                         'delta': conv_delta,
-                         'linear': conv_linear},
-            'delta': {'lorentzian': conv_delta,
-                      'gaussian': conv_delta,
-                      'delta': conv_delta,
-                      'linear': conv_linear},
-            'linear': {'lorentzian': conv_linear,
-                       'gaussian': conv_linear,
-                       'delta': conv_linear,
-                       'linear': conv_linear}}
+            "lorentzian": {
+                "lorentzian": conv_lorentzian_lorentzian,
+                "gaussian": conv_lorentzian_gaussian,
+                "delta": conv_delta,
+                "linear": conv_linear,
+            },
+            "gaussian": {
+                "lorentzian": conv_lorentzian_gaussian,
+                "gaussian": conv_gaussian_gaussian,
+                "delta": conv_delta,
+                "linear": conv_linear,
+            },
+            "delta": {
+                "lorentzian": conv_delta,
+                "gaussian": conv_delta,
+                "delta": conv_delta,
+                "linear": conv_linear,
+            },
+            "linear": {
+                "lorentzian": conv_linear,
+                "gaussian": conv_linear,
+                "delta": conv_linear,
+                "linear": conv_linear,
+            },
+        }
 
         if convolutions is not None:
             for key, val in convolutions.items():
@@ -161,9 +174,11 @@ class Model:
     @on_undef_conv.setter
     def on_undef_conv(self, val):
         """Setter for 'on_undef_conv'"""
-        if val not in ['numeric', 'raise']:
-            raise ValueError("The attribute 'on_undef_conv' can only be "
-                             "'numeric' or 'raise'.")
+        if val not in ["numeric", "raise"]:
+            raise ValueError(
+                "The attribute 'on_undef_conv' can only be "
+                "'numeric' or 'raise'."
+            )
         else:
             self._on_undef_conv = val
 
@@ -180,23 +195,33 @@ class Model:
                 "No optimal parameters found for this model "
                 "(Model named '{name}' at {address}).\n"
                 "Please use 'fit' method to optimize the parameters".format(
-                    name=self.name, address=hex(id(self))))
+                    name=self.name, address=hex(id(self))
+                )
+            )
 
     @property
     def userkws(self):
         """Return the keywords used for the fit."""
         return self._userkws
 
-    def fit(self, x, data=None, weights=None, fit_method='curve_fit',
-            fit_kws=None, params=None, **kwargs):
+    def fit(
+        self,
+        x,
+        data=None,
+        weights=None,
+        fit_method="curve_fit",
+        fit_kws=None,
+        params=None,
+        **kwargs
+    ):
         # process 'x' array and match the shape of data
         params, bounds = self.params._paramsToList()
 
         if fit_kws is None:
             fit_kws = {}
 
-        if fit_method == 'curve_fit':
-            func = (lambda x, *p: self.eval(x, p, **kwargs).flatten())
+        if fit_method == "curve_fit":
+            func = lambda x, *p: self.eval(x, p, **kwargs).flatten()
             bounds = ([val[0] for val in bounds], [val[1] for val in bounds])
             fit = curve_fit(
                 func,
@@ -205,44 +230,43 @@ class Model:
                 params,
                 weights.flatten(),
                 bounds=bounds,
-                **fit_kws)
+                **fit_kws
+            )
 
             self._optParams = self.params._listToParams(
-                fit[0], np.sqrt(np.diag(fit[1])))
+                fit[0], np.sqrt(np.diag(fit[1]))
+            )
 
-        if fit_method == 'basinhopping':
-            func = (lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data)**2 / weights**2))
-            if 'minimizer_kwargs' in fit_kws.keys():
-                fit_kws['minimizer_kwargs'].update(bounds=bounds)
+        if fit_method == "basinhopping":
+            func = lambda p: np.sum(
+                (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
+            )
+            if "minimizer_kwargs" in fit_kws.keys():
+                fit_kws["minimizer_kwargs"].update(bounds=bounds)
             else:
-                fit_kws['minimizer_kwargs'] = {'bounds': bounds}
-            fit = basinhopping(
-                func,
-                params,
-                **fit_kws)
+                fit_kws["minimizer_kwargs"] = {"bounds": bounds}
+            fit = basinhopping(func, params, **fit_kws)
 
             weights = fit.lowest_optimization_result.hess_inv
             if isinstance(weights, LinearOperator):
                 weights = weights.todense()
             self._optParams = self.params._listToParams(
-                fit.x, np.sqrt(np.diag(weights)))
+                fit.x, np.sqrt(np.diag(weights))
+            )
 
-        if fit_method == 'minimize':
-            func = (lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data)**2 / weights**2))
-            fit = minimize(
-                func,
-                params,
-                bounds=bounds,
-                **fit_kws)
+        if fit_method == "minimize":
+            func = lambda p: np.sum(
+                (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
+            )
+            fit = minimize(func, params, bounds=bounds, **fit_kws)
 
             weights = fit.hess_inv.todense()
             self._optParams = self.params._listToParams(
-                fit.x, np.sqrt(np.diag(weights)))
+                fit.x, np.sqrt(np.diag(weights))
+            )
 
-        self._userkws['x'] = x
-        self._userkws['params'] = params
+        self._userkws["x"] = x
+        self._userkws["params"] = params
         self._userkws.update(**kwargs)
 
     # --------------------------------------------------
@@ -299,9 +323,9 @@ class Model:
 
     def copy(self):
         """Return a copy of the model."""
-        m = Model(self.params, self.name,
-                  self.convolutions,
-                  self._on_undef_conv)
+        m = Model(
+            self.params, self.name, self.convolutions, self._on_undef_conv
+        )
         for key, val in self._components.items():
             m._components[key] = deepcopy(val)
         m._operators = deepcopy(self._operators)
@@ -331,22 +355,26 @@ class Model:
                 if convolve is None or comp.skip_convolve:
                     comps.append(comp.eval(x, params, **kwargs))
                 else:
-                    comps.append(self._convolve(
-                        x, params, comp, convolve, **kwargs))
+                    comps.append(
+                        self._convolve(x, params, comp, convolve, **kwargs)
+                    )
             if isinstance(comp, Model):
                 model_kws = {}
                 try:
                     compParams = comp.optParams
                     model_kws = comp.userkws
-                    if 'x' in model_kws:
-                        model_kws.pop('x')
-                    if 'params' in model_kws:
-                        model_kws.pop('params')
+                    if "x" in model_kws:
+                        model_kws.pop("x")
+                    if "params" in model_kws:
+                        model_kws.pop("params")
                 except ValueError:
-                    print("No fitted parameters found for the sub-model: "
-                          "{name} at {address}.\n"
-                          "Using initial parameters instead.".format(
-                              name=comp.name, address=hex(id(comp))))
+                    print(
+                        "No fitted parameters found for the sub-model: "
+                        "{name} at {address}.\n"
+                        "Using initial parameters instead.".format(
+                            name=comp.name, address=hex(id(comp))
+                        )
+                    )
                     compParams = comp.params
                 comps.append(comp.eval(x, compParams, convolve, **model_kws))
 
@@ -381,10 +409,13 @@ class Model:
         try:
             convParams = convolve.optParams
         except ValueError:
-            print("No fitted parameters found for the model to convolve: "
-                  "{name} at {address}.\n"
-                  "Using initial parameters instead.".format(
-                      name=comp.name, address=hex(id(comp))))
+            print(
+                "No fitted parameters found for the model to convolve: "
+                "{name} at {address}.\n"
+                "Using initial parameters instead.".format(
+                    name=comp.name, address=hex(id(comp))
+                )
+            )
             convParams = convolve.params
 
         res = []
@@ -393,37 +424,49 @@ class Model:
             for key, val in convolve.components.items():
                 # if no convolution defined, go numerical or raise KeyError
                 if val.func.__name__ not in convDict.keys():
-                    if self._on_undef_conv == 'numeric':
-                        res.append(fftconvolve(
-                            comp.eval(x, params, **kwargs),
-                            val.eval(x, convParams, **kwargs),
-                            mode='same',
-                            axes=-1))
+                    if self._on_undef_conv == "numeric":
+                        res.append(
+                            fftconvolve(
+                                comp.eval(x, params, **kwargs),
+                                val.eval(x, convParams, **kwargs),
+                                mode="same",
+                                axes=-1,
+                            )
+                        )
                     else:
-                        raise KeyError("The convolution function between "
-                                       "{func1} and {func2} is not defined "
-                                       "in the 'convolutions' "
-                                       "attribute.".format(
-                                           func1=comp.func.__name__,
-                                           func2=val.func.__name__))
+                        raise KeyError(
+                            "The convolution function between "
+                            "{func1} and {func2} is not defined "
+                            "in the 'convolutions' "
+                            "attribute.".format(
+                                func1=comp.func.__name__,
+                                func2=val.func.__name__,
+                            )
+                        )
                 else:
                     convFunc = convDict[val.func.__name__]
-                    res.append(convFunc(
-                        x, comp, val, params, convParams, **kwargs))
+                    res.append(
+                        convFunc(x, comp, val, params, convParams, **kwargs)
+                    )
         else:
             for key, val in convolve.components.items():
-                if self._on_undef_conv == 'numeric':
-                    res.append(fftconvolve(
-                        comp.eval(x, params, **kwargs),
-                        val.eval(x, convParams, **kwargs),
-                        mode='same',
-                        axes=-1))
+                if self._on_undef_conv == "numeric":
+                    res.append(
+                        fftconvolve(
+                            comp.eval(x, params, **kwargs),
+                            val.eval(x, convParams, **kwargs),
+                            mode="same",
+                            axes=-1,
+                        )
+                    )
                 else:
-                    raise KeyError("The convolution function between "
-                                   "{func1} and {func2} is not defined in "
-                                   "the 'convolutions' attribute.".format(
-                                       func1=comp.func.__name__,
-                                       func2=val.func.__name__))
+                    raise KeyError(
+                        "The convolution function between "
+                        "{func1} and {func2} is not defined in "
+                        "the 'convolutions' attribute.".format(
+                            func1=comp.func.__name__, func2=val.func.__name__
+                        )
+                    )
 
         # apply the operators from 'model'
         for idx, val in enumerate(res[1:]):
@@ -434,8 +477,10 @@ class Model:
     def __add__(self, other):
         """Addition operator between Model and Component."""
         if not isinstance(other, (Model, Component)):
-            raise TypeError("The Model class currently supports addition "
-                            "with a 'Component' or 'Model' instance only.")
+            raise TypeError(
+                "The Model class currently supports addition "
+                "with a 'Component' or 'Model' instance only."
+            )
         m = self.copy()
         m.addComponent(other, "+")
 
@@ -444,8 +489,10 @@ class Model:
     def __sub__(self, other):
         """Subtraction operator between Model and Component."""
         if not isinstance(other, (Model, Component)):
-            raise TypeError("The Model class currently supports subtraction "
-                            "with a 'Component' or 'Model' instance only.")
+            raise TypeError(
+                "The Model class currently supports subtraction "
+                "with a 'Component' or 'Model' instance only."
+            )
         m = self.copy()
         m.addComponent(other, "-")
 
@@ -454,8 +501,10 @@ class Model:
     def __truediv__(self, other):
         """Division operator between Model and Component."""
         if not isinstance(other, (Model, Component)):
-            raise TypeError("The Model class currently supports division "
-                            "with a 'Component' or 'Model' instance only.")
+            raise TypeError(
+                "The Model class currently supports division "
+                "with a 'Component' or 'Model' instance only."
+            )
         m = self.copy()
         m.addComponent(other, "/")
 
@@ -464,9 +513,11 @@ class Model:
     def __mul__(self, other):
         """Multplication operator between Model and Component."""
         if not isinstance(other, (Model, Component)):
-            raise TypeError("The Model class currently supports "
-                            "mulitplication with a 'Component' or 'Model' "
-                            "instance only.")
+            raise TypeError(
+                "The Model class currently supports "
+                "mulitplication with a 'Component' or 'Model' "
+                "instance only."
+            )
         m = self.copy()
         m.addComponent(other, "*")
 
@@ -512,6 +563,7 @@ class Component:
     >>> myComp = Component('lor', lorentzian, scale='scale', width=5)
 
     """
+
     def __init__(self, name, func, skip_convolve=False, **funcArgs):
         self.name = name
 
@@ -558,7 +610,8 @@ class Component:
                 for pKey in params.keys():
                     arg = ast.parse(arg)
                     ast.fix_missing_locations(
-                        findParamNames(params).visit(arg))
+                        findParamNames(params).visit(arg)
+                    )
                 args[key] = eval(astunparse.unparse(arg))
             else:
                 args[key] = arg
@@ -569,5 +622,5 @@ class Component:
         """Guess arguments from function signature."""
         sig = signature(self.func)
         for key, param in sig.parameters.items():
-            if key != 'x':
+            if key != "x":
                 self.funcArgs[key] = key

@@ -7,11 +7,19 @@ from numpy.testing import assert_array_almost_equal
 
 import pytest
 
-from nPDyn.lmfit.lmfit_presets import (lorentzian, gaussian, pseudo_voigt,
-                                       hline, delta, jump_diff,
-                                       rotations, two_diff_state)
+from nPDyn.lmfit.lmfit_presets import (
+    lorentzian,
+    gaussian,
+    pseudo_voigt,
+    hline,
+    delta,
+    jump_diff,
+    rotations,
+    two_diff_state,
+)
 from nPDyn.lmfit import ConvolvedModel
 from lmfit import CompositeModel
+
 
 def get_models(prefix=None):
     """Set up the models with the associated convolutions."""
@@ -25,17 +33,21 @@ def get_models(prefix=None):
 
     return (gauss, lorentz, delt, pvoigt, jdiff, rot, twodiff)
 
+
 @pytest.mark.parametrize(
-    "modelPair", product(get_models('left_'), get_models('right_')))
+    "modelPair", product(get_models("left_"), get_models("right_"))
+)
 def test_comp_analytic_numeric(modelPair):
     X = np.linspace(-10, 10, 1000)
 
     analytic = ConvolvedModel(modelPair[0], modelPair[1]).eval(x=X, q=[1])[0]
-    numeric = np.convolve(modelPair[0].eval(x=X, q=[1])[0],
-                          modelPair[1].eval(x=X, q=[1])[0],
-                          mode='same')
+    numeric = np.convolve(
+        modelPair[0].eval(x=X, q=[1])[0],
+        modelPair[1].eval(x=X, q=[1])[0],
+        mode="same",
+    )
 
     # normalize both results
-    assert_array_almost_equal(analytic / analytic.sum(),
-                              numeric / numeric.sum(),
-                              decimal=2)
+    assert_array_almost_equal(
+        analytic / analytic.sum(), numeric / numeric.sum(), decimal=2
+    )

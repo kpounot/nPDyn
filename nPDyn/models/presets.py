@@ -29,8 +29,8 @@ def gaussian(x, scale=1, width=1, center=0):
         center from the zero-centered lineshape
 
     """
-    res = scale * np.exp(-(x - center)**2 / (2 * width**2))
-    res /= np.sqrt(2 * np.pi * width**2)
+    res = scale * np.exp(-((x - center) ** 2) / (2 * width ** 2))
+    res /= np.sqrt(2 * np.pi * width ** 2)
     return res
 
 
@@ -49,7 +49,7 @@ def lorentzian(x, scale=1, width=1, center=0):
         center from the zero-centered lineshape
 
     """
-    res = scale * width / (np.pi * ((x - center)**2 + width**2))
+    res = scale * width / (np.pi * ((x - center) ** 2 + width ** 2))
     return res
 
 
@@ -89,19 +89,19 @@ def delta(x, scale=1, center=0):
         position of the Dirac Delta in energy
 
     """
-    center = (x - center)**2
+    center = (x - center) ** 2
     center = np.argwhere(center == center.min())
     out = x * 0
     out[center] = scale / (x[1] - x[0])
     return out
 
 
-def linear(x, a=0., b=1.):
+def linear(x, a=0.0, b=1.0):
     """A linear model of the form :math:`a x + b`"""
     return a * x + b
 
 
-def calibratedD2O(x, q, volFraction, temp, amplitude=1.):
+def calibratedD2O(x, q, volFraction, temp, amplitude=1.0):
     """Lineshape for D2O where the Lorentzian width was obtained
     from a measurement on IN6 at the ILL.
 
@@ -117,8 +117,11 @@ def calibratedD2O(x, q, volFraction, temp, amplitude=1.):
         Amplitude of the D2O signal. The parameter to be fitted.
 
     """
-    out = (amplitude * getD2Odata(volFraction)(temp, q)
-           / (np.pi * (x**2 + getD2Odata(volFraction)(temp, q)**2)))
+    out = (
+        amplitude
+        * getD2Odata(volFraction)(temp, q)
+        / (np.pi * (x ** 2 + getD2Odata(volFraction)(temp, q) ** 2))
+    )
 
     return out
 
@@ -149,9 +152,9 @@ def conv_lorentzian_lorentzian(x, comp1, comp2, params1, params2, **kwargs):
     p1 = comp1.processFuncArgs(params1, **kwargs)
     p2 = comp2.processFuncArgs(params2, **kwargs)
 
-    scale = p1['scale'] * p2['scale']
-    width = p1['width'] + p2['width']
-    center = p1['center'] + p2['center']
+    scale = p1["scale"] * p2["scale"]
+    width = p1["width"] + p2["width"]
+    center = p1["center"] + p2["center"]
 
     return lorentzian(x, scale, width, center)
 
@@ -179,9 +182,9 @@ def conv_gaussian_gaussian(x, comp1, comp2, params1, params2, **kwargs):
     p1 = comp1.processFuncArgs(params1, **kwargs)
     p2 = comp2.processFuncArgs(params2, **kwargs)
 
-    scale = p1['scale'] * p2['scale']
-    width = np.sqrt(p1['width']**2 + p2['width']**2)
-    center = p1['center'] + p2['center']
+    scale = p1["scale"] * p2["scale"]
+    width = np.sqrt(p1["width"] ** 2 + p2["width"] ** 2)
+    center = p1["center"] + p2["center"]
 
     return gaussian(x, scale, width, center)
 
@@ -206,17 +209,18 @@ def conv_lorentzian_gaussian(x, comp1, comp2, params1, params2, **kwargs):
         :meth:`processFuncArgs` for `comp1` and `comp2`.
 
     """
-    if comp1.func.__name__ != 'lorentzian':
+    if comp1.func.__name__ != "lorentzian":
         comp1, comp2, params1, params2 = _switchComps(
-            comp1, comp2, params1, params2)
+            comp1, comp2, params1, params2
+        )
 
     p1 = comp1.processFuncArgs(params1, **kwargs)
     p2 = comp2.processFuncArgs(params2, **kwargs)
 
-    scale = p1['scale'] * p2['scale']
-    gamma = p1['width']
-    sigma = p2['width']
-    center = p1['center'] + p2['center']
+    scale = p1["scale"] * p2["scale"]
+    gamma = p1["width"]
+    sigma = p2["width"]
+    center = p1["center"] + p2["center"]
 
     return voigt(x, scale, sigma, gamma, center)
 
@@ -241,14 +245,15 @@ def conv_delta(x, comp1, comp2, params1, params2, **kwargs):
         :meth:`processFuncArgs` for `comp1` and `comp2`.
 
     """
-    if comp1.func.__name__ != 'delta':
+    if comp1.func.__name__ != "delta":
         comp1, comp2, params1, params2 = _switchComps(
-            comp1, comp2, params1, params2)
+            comp1, comp2, params1, params2
+        )
 
     p1 = comp1.processFuncArgs(params1, **kwargs)
     p2 = comp2.processFuncArgs(params2, **kwargs)
 
-    p2['center'] += p1['center']
+    p2["center"] += p1["center"]
 
     return comp2.func(x, **p2)
 
@@ -278,9 +283,10 @@ def conv_linear(x, comp1, comp2, params1, params2, **kwargs):
         :meth:`processFuncArgs` for `comp1` and `comp2`.
 
     """
-    if comp1.func.__name__ != 'linear':
+    if comp1.func.__name__ != "linear":
         comp1, comp2, params1, params2 = _switchComps(
-            comp1, comp2, params1, params2)
+            comp1, comp2, params1, params2
+        )
 
     p1 = comp1.processFuncArgs(params1, **kwargs)
     p2 = comp2.processFuncArgs(params2, **kwargs)

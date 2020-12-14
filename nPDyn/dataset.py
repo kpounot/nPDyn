@@ -10,7 +10,7 @@ import argparse
 
 from collections import namedtuple
 
-from nPDyn.dataTypes import (fwsType, qensType)
+from nPDyn.dataTypes import fwsType, qensType
 
 from nPDyn.plot import makeWindow, QENSPlot, FWSPlot
 
@@ -63,9 +63,17 @@ class Dataset:
         D2O data to be loaded
 
     """
-    def __init__(self, QENSFiles=None, FWSFiles=None,
-                 ECFile=None, fECFile=None, resFiles=None,
-                 D2OFile=None, fD2OFile=None):
+
+    def __init__(
+        self,
+        QENSFiles=None,
+        FWSFiles=None,
+        ECFile=None,
+        fECFile=None,
+        resFiles=None,
+        D2OFile=None,
+        fD2OFile=None,
+    ):
         # Declaring attributes related to samples dataset
         self.dataList = []
 
@@ -84,18 +92,31 @@ class Dataset:
         # different psf files loading
         self.msdSeriesList = []
 
-        self.importFiles(None, **{'QENSFiles': QENSFiles,
-                                  'FWSFiles': FWSFiles,
-                                  'ECFile': ECFile,
-                                  'fECFile': fECFile,
-                                  'resFiles': resFiles,
-                                  'D2OFile': D2OFile,
-                                  'fD2OFile': fD2OFile})
+        self.importFiles(
+            None,
+            **{
+                "QENSFiles": QENSFiles,
+                "FWSFiles": FWSFiles,
+                "ECFile": ECFile,
+                "fECFile": fECFile,
+                "resFiles": resFiles,
+                "D2OFile": D2OFile,
+                "fD2OFile": fD2OFile,
+            }
+        )
         self.resFuncAssign()
 
-    def importFiles(self, fileFormat=None, QENSFiles=None, FWSFiles=None,
-                    ECFile=None, fECFile=None,
-                    resFiles=None, D2OFile=None, fD2OFile=None):
+    def importFiles(
+        self,
+        fileFormat=None,
+        QENSFiles=None,
+        FWSFiles=None,
+        ECFile=None,
+        fECFile=None,
+        resFiles=None,
+        D2OFile=None,
+        fD2OFile=None,
+    ):
         """Read and import pre-processed data from experimental data file.
 
         If no file format is given, this method tries to identify the
@@ -190,27 +211,27 @@ class Dataset:
 
         self.resFuncAssign()
 
-    def importRawData(self, dataList, instrument, dataType='QENS', kwargs={}):
-        """ This method uses instrument-specific algorithm to import raw data.
+    def importRawData(self, dataList, instrument, dataType="QENS", kwargs={}):
+        """This method uses instrument-specific algorithm to import raw data.
 
-            :arg dataList:      a list of data files to be imported
-            :arg instrument:    the instrument used to record data
-                                (only 'IN16B' possible for now)
-            :arg dataType:      type of data recorded (can be 'QENS', 'FWS',
-                                'res', 'ec', 'D2O', 'fec' or 'fD2O')
-            :arg kwargs:        keyword arguments to be passed to the algorithm
-                                (see algorithm in dataParsers for details)
+        :arg dataList:      a list of data files to be imported
+        :arg instrument:    the instrument used to record data
+                            (only 'IN16B' possible for now)
+        :arg dataType:      type of data recorded (can be 'QENS', 'FWS',
+                            'res', 'ec', 'D2O', 'fec' or 'fD2O')
+        :arg kwargs:        keyword arguments to be passed to the algorithm
+                            (see algorithm in dataParsers for details)
 
         """
 
-        if dataType == 'QENS':
+        if dataType == "QENS":
             data = qensType.QENSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
             data.D2OData = self.D2OData
             data.ECData = self.ECData
             self.dataList.append(data)
 
-        elif dataType == 'FWS':
+        elif dataType == "FWS":
             data = fwsType.FWSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
 
@@ -226,23 +247,23 @@ class Dataset:
 
             self.dataList.append(data)
 
-        elif dataType == 'res':
+        elif dataType == "res":
             data = qensType.QENSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
             data.ECData = self.ECData
             self.resData.append(data)
 
-        elif dataType == 'ec':
+        elif dataType == "ec":
             data = qensType.QENSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
             self.ECData = data
 
-        elif dataType == 'fec':
+        elif dataType == "fec":
             data = fwsType.FWSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
             self.fECData = data
 
-        elif dataType == 'D2O':
+        elif dataType == "D2O":
             data = qensType.QENSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
             data.ECData = self.ECData
@@ -252,7 +273,7 @@ class Dataset:
 
             self.D2OData = data
 
-        elif dataType == 'fD2O':
+        elif dataType == "fD2O":
             data = fwsType.FWSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
 
@@ -297,9 +318,9 @@ class Dataset:
             for idx, data in enumerate(self.dataList):
                 data.resData = self.resData[idx]
 
-# -------------------------------------------------
-# Importation, reset and deletion methods
-# -------------------------------------------------
+    # -------------------------------------------------
+    # Importation, reset and deletion methods
+    # -------------------------------------------------
     def removeDataset(self, fileIdx):
         """Remove a dataset from 'dataList' attribute.
 
@@ -348,9 +369,9 @@ class Dataset:
         if self.fECData:
             self.fECData.resetData()
 
-# -------------------------------------------------
-# Data manipulation methods
-# -------------------------------------------------
+    # -------------------------------------------------
+    # Data manipulation methods
+    # -------------------------------------------------
     def scaleData(self, scale, *fileIdxList):
         """Scale the selected data in `self.dataList`.
 
@@ -433,9 +454,16 @@ class Dataset:
         for i in fileIdxList:
             self.dataList[i].normalize_usingLowTemp(nbrBins)
 
-    def absorptionCorrection(self, *fileIdxList, canType='tube',
-                             canScaling=0.95, neutron_wavelength=6.27,
-                             absco_kwargs={}, D2O=True, res=True):
+    def absorptionCorrection(
+        self,
+        *fileIdxList,
+        canType="tube",
+        canScaling=0.95,
+        neutron_wavelength=6.27,
+        absco_kwargs={},
+        D2O=True,
+        res=True
+    ):
         """Method for quick absorption correction on all selected
         dataset in fileIdxList.
 
@@ -452,64 +480,76 @@ class Dataset:
 
         # Apply corrections for samples data
         for i in fileIdxList:
-            self.dataList[i].absorptionCorrection(canType, canScaling,
-                                                  neutron_wavelength,
-                                                  absco_kwargs)
+            self.dataList[i].absorptionCorrection(
+                canType, canScaling, neutron_wavelength, absco_kwargs
+            )
 
         if res:
             try:
-                absco_kwargs['thickness_S'] = 0.05
-                absco_kwargs['mu_i_S'] = 1.673
-                absco_kwargs['mu_f_S'] = 1.673
+                absco_kwargs["thickness_S"] = 0.05
+                absco_kwargs["mu_i_S"] = 1.673
+                absco_kwargs["mu_f_S"] = 1.673
                 for resData in self.resData:
-                    resData.absorptionCorrection(canType, canScaling,
-                                                 neutron_wavelength,
-                                                 absco_kwargs)
+                    resData.absorptionCorrection(
+                        canType, canScaling, neutron_wavelength, absco_kwargs
+                    )
             except AttributeError:
-                print("No resolution data were loaded, corrections on "
-                      "these cannot be applied\n")
+                print(
+                    "No resolution data were loaded, corrections on "
+                    "these cannot be applied\n"
+                )
                 return
 
         if D2O:
             if self.D2OData is not None:
                 try:
-                    self.D2OData.absorptionCorrection(canType, canScaling,
-                                                      neutron_wavelength,
-                                                      absco_kwargs)
+                    self.D2OData.absorptionCorrection(
+                        canType, canScaling, neutron_wavelength, absco_kwargs
+                    )
                 except AttributeError as e:
-                    print("No D2O data were loaded, corrections on these "
-                          "cannot be applied\n")
+                    print(
+                        "No D2O data were loaded, corrections on these "
+                        "cannot be applied\n"
+                    )
                     print(e)
                     return
 
             if self.fD2OData is not None:
                 try:
-                    self.fD2OData.absorptionCorrection(canType, canScaling,
-                                                       neutron_wavelength,
-                                                       absco_kwargs)
+                    self.fD2OData.absorptionCorrection(
+                        canType, canScaling, neutron_wavelength, absco_kwargs
+                    )
                 except AttributeError as e:
-                    print("No fD2O data were loaded, corrections on these "
-                          "cannot be applied\n")
+                    print(
+                        "No fD2O data were loaded, corrections on these "
+                        "cannot be applied\n"
+                    )
                     print(e)
                     return
 
-    def subtract_EC(self, *fileIdxList, subFactor=0.95, subD2O=True,
-                    subRes=False, useModel=True):
-        """ This method uses the fitted empty cell function to subtract
-            the signal for the selected dataset.
+    def subtract_EC(
+        self,
+        *fileIdxList,
+        subFactor=0.95,
+        subD2O=True,
+        subRes=False,
+        useModel=True
+    ):
+        """This method uses the fitted empty cell function to subtract
+        the signal for the selected dataset.
 
-            :arg subFactor:   pre-multiplying factor for empty cell
-                              data prior to subtraction
-            :arg fileIdxList: can be "all", then every dataset in
-                              self.dataList is normalized
-                              can also be a single integer or a list
-                              of integer (optional, default "all")
-            :arg subD2O:      if True, tries to subtract empty cell
-                              signal from D2O data too
-            :arg subRes:      if True, subtract empty cell signal from
-                              resolutions data too
-            :arg useModel:    if True, will use the fitted model of empty cell
-                              for subtraction.
+        :arg subFactor:   pre-multiplying factor for empty cell
+                          data prior to subtraction
+        :arg fileIdxList: can be "all", then every dataset in
+                          self.dataList is normalized
+                          can also be a single integer or a list
+                          of integer (optional, default "all")
+        :arg subD2O:      if True, tries to subtract empty cell
+                          signal from D2O data too
+        :arg subRes:      if True, subtract empty cell signal from
+                          resolutions data too
+        :arg useModel:    if True, will use the fitted model of empty cell
+                          for subtraction.
 
         """
         # If not file indices were given, assumes that all should be use
@@ -597,18 +637,18 @@ class Dataset:
         for idx in fileIdxList:
             self.resData[idx].fit(**kwargs)
 
-# -------------------------------------------------
-# Binning methods
-# -------------------------------------------------
-    def binDataset(self, binS, *fileIdxList, axis='energies'):
-        """ The method find the index corresponding to the file, perform
-            the binning process, then replace the value in self.dataList
-            by the binned one.
+    # -------------------------------------------------
+    # Binning methods
+    # -------------------------------------------------
+    def binDataset(self, binS, *fileIdxList, axis="energies"):
+        """The method find the index corresponding to the file, perform
+        the binning process, then replace the value in self.dataList
+        by the binned one.
 
-            :arg binS:        bin size
-            :arg fileIdxList: indices of the dataSet to be binned, can be
-                              a single int or a list of int
-                              (optional, default "all")
+        :arg binS:        bin size
+        :arg fileIdxList: indices of the dataSet to be binned, can be
+                          a single int or a list of int
+                          (optional, default "all")
 
         """
         # If not file indices were given, assumes that all should be use
@@ -619,13 +659,13 @@ class Dataset:
         for idx in fileIdxList:
             self.dataList[idx].binData(binS, axis=axis)
 
-    def binResData(self, binS, *fileIdxList, axis='energies'):
-        """ Same as binDataset but for resolution function data.
+    def binResData(self, binS, *fileIdxList, axis="energies"):
+        """Same as binDataset but for resolution function data.
 
-            :arg binS:        bin size
-            :arg fileIdxList: indices of the dataSet to be binned, can be
-                              a single int or a list of int
-                              (optional, default "all")
+        :arg binS:        bin size
+        :arg fileIdxList: indices of the dataSet to be binned, can be
+                          a single int or a list of int
+                          (optional, default "all")
 
         """
         # If not file indices were given, assumes that all should be use
@@ -636,7 +676,7 @@ class Dataset:
         for idx in fileIdxList:
             self.resData[idx].binData(binS, axis=axis)
 
-    def binAll(self, binS, axis='energies'):
+    def binAll(self, binS, axis="energies"):
         """Bin all datasets in dataList as well as resolution,
         empty cell and D2O data if present.
 
@@ -654,9 +694,9 @@ class Dataset:
         if self.D2OData:
             self.D2OData.binData(binS, axis=axis)
 
-# -------------------------------------------------
-# Plotting methods
-# -------------------------------------------------
+    # -------------------------------------------------
+    # Plotting methods
+    # -------------------------------------------------
     def plotResFunc(self):
         """This method plots the resolution function.
 

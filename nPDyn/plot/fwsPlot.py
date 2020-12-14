@@ -4,24 +4,35 @@
 
 import numpy as np
 
-from PyQt5.QtWidgets import (QWidget, QLabel, QLineEdit, QCheckBox,
-                             QPushButton, QVBoxLayout,
-                             QHBoxLayout, QFrame, QSlider,
-                             QGroupBox, QRadioButton)
+from PyQt5.QtWidgets import (
+    QWidget,
+    QLabel,
+    QLineEdit,
+    QCheckBox,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFrame,
+    QSlider,
+    QGroupBox,
+    QRadioButton,
+)
 from PyQt5 import QtCore
 
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg
-                                                as FigureCanvas)
-from matplotlib.backends.backend_qt5agg import (NavigationToolbar2QT
-                                                as NavigationToolbar)
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvasQTAgg as FigureCanvas,
+)
+from matplotlib.backends.backend_qt5agg import (
+    NavigationToolbar2QT as NavigationToolbar,
+)
 from matplotlib.figure import Figure
 import matplotlib
 
 from nPDyn.plot.subPlotsFormat import subplotsFormat
 
 try:
-    matplotlib.use('Qt5Agg')
+    matplotlib.use("Qt5Agg")
 except ImportError:
     pass
 
@@ -69,13 +80,13 @@ class FWSPlot(QWidget):
         self.canvas = FigureCanvas(self.figure)
 
         # Add some interactive elements
-        self.button = QPushButton('Plot')
+        self.button = QPushButton("Plot")
         self.button.clicked.connect(self.plot)
 
-        self.analysisButton = QPushButton('Analysis')
+        self.analysisButton = QPushButton("Analysis")
         self.analysisButton.clicked.connect(self.analysisPlot)
 
-        self.plot3DButton = QPushButton('3D Plot')
+        self.plot3DButton = QPushButton("3D Plot")
         self.plot3DButton.clicked.connect(self.plot3D)
 
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -85,7 +96,7 @@ class FWSPlot(QWidget):
         self.boxLine.setFrameShadow(QFrame.Sunken)
 
         oLayout = QHBoxLayout()
-        self.obsLabel = QLabel('Observable index: ', self)
+        self.obsLabel = QLabel("Observable index: ", self)
         self.obsSlider = QSlider(QtCore.Qt.Horizontal, self)
         self.obsSlider.setRange(0, self.obsRange.size - 1)
         self.obsSlider.valueChanged.connect(self.updatePlot)
@@ -96,23 +107,23 @@ class FWSPlot(QWidget):
         oLayout.addWidget(self.obsVal)
 
         qLayout = QHBoxLayout()
-        self.qLabel = QLabel('Momentum transfer (q) value: ', self)
+        self.qLabel = QLabel("Momentum transfer (q) value: ", self)
         self.qSlider = QSlider(QtCore.Qt.Horizontal, self)
         self.qSlider.setRange(0, self.qRange.size - 1)
         self.qSlider.valueChanged.connect(self.updatePlot)
         self.qSlider.valueChanged.connect(self.updateLabels)
-        self.qVal = QLabel('%.2f' % self.qRange[0], self)
+        self.qVal = QLabel("%.2f" % self.qRange[0], self)
         qLayout.addWidget(self.qLabel)
         qLayout.addWidget(self.qSlider)
         qLayout.addWidget(self.qVal)
 
         eLayout = QHBoxLayout()
-        self.eLabel = QLabel('Energy transfer value: ', self)
+        self.eLabel = QLabel("Energy transfer value: ", self)
         self.eSlider = QSlider(QtCore.Qt.Horizontal, self)
         self.eSlider.setRange(0, self.eRange.size - 1)
         self.eSlider.valueChanged.connect(self.updatePlot)
         self.eSlider.valueChanged.connect(self.updateLabels)
-        self.eVal = QLabel('%.2f' % self.eRange[0], self)
+        self.eVal = QLabel("%.2f" % self.eRange[0], self)
         eLayout.addWidget(self.eLabel)
         eLayout.addWidget(self.eSlider)
         eLayout.addWidget(self.eVal)
@@ -131,14 +142,14 @@ class FWSPlot(QWidget):
         axLayout.addWidget(self.qRadioButton)
         axGroupBox.setLayout(axLayout)
 
-        self.errBox = QCheckBox('Plot errors', self)
+        self.errBox = QCheckBox("Plot errors", self)
         self.errBox.setCheckState(QtCore.Qt.Checked)
         self.errBox.stateChanged.connect(self.updatePlot)
 
         if not self.noFit:
-            self.fitBox = QCheckBox('Plot fit', self)
+            self.fitBox = QCheckBox("Plot fit", self)
             self.fitBox.stateChanged.connect(self.updatePlot)
-            self.compBox = QCheckBox('Plot components', self)
+            self.compBox = QCheckBox("Plot components", self)
             self.compBox.stateChanged.connect(self.updatePlot)
 
         # Set the layout
@@ -191,21 +202,17 @@ class FWSPlot(QWidget):
                 X = self.dataset[idx].data.qVals
                 Y = intensities[obsIdx, :, eIdx]
                 Err = errors[obsIdx, :, eIdx]
-                xLabel = r'Momentum transfer q $[\AA^{-1}$]'
+                xLabel = r"Momentum transfer q $[\AA^{-1}$]"
             elif self.eRadioButton.isChecked():
                 X = energies
                 Y = intensities[obsIdx, qIdx]
                 Err = errors[obsIdx, qIdx]
-                xLabel = r'Energies [$\mu eV$]'
+                xLabel = r"Energies [$\mu eV$]"
 
             # Plot the data for selected q value
             subplot.errorbar(
-                X,
-                Y,
-                Err,
-                fmt='o',
-                label='experimental',
-                zorder=1)
+                X, Y, Err, fmt="o", label="experimental", zorder=1
+            )
 
             if not self.noFit:
                 if self.fitBox.isChecked():
@@ -218,10 +225,8 @@ class FWSPlot(QWidget):
 
                     # Plot the model
                     subplot.plot(
-                        X,
-                        Y,
-                        label=self.dataset[idx].model.name,
-                        zorder=3)
+                        X, Y, label=self.dataset[idx].model.name, zorder=3
+                    )
 
                 if self.compBox.isChecked():
                     components = self.dataset[idx].fit_components()
@@ -234,15 +239,10 @@ class FWSPlot(QWidget):
                         elif self.eRadioButton.isChecked():
                             Y = val[obsIdx, qIdx]
 
-                        subplot.plot(
-                            X,
-                            Y,
-                            label=key,
-                            ls='--',
-                            zorder=2)
+                        subplot.plot(X, Y, label=key, ls="--", zorder=2)
 
             subplot.set_xlabel(xLabel)
-            subplot.set_ylabel(r'$S(q, \omega)$')
+            subplot.set_ylabel(r"$S(q, \omega)$")
             subplot.set_title(self.dataset[idx].fileName)
             subplot.legend()
 
@@ -253,19 +253,22 @@ class FWSPlot(QWidget):
         self.currPlot = self.plot3D
         self.figure.clear()
 
-        ax = self.figure.subplots(subplot_kw={'projection': '3d'})
+        ax = self.figure.subplots(subplot_kw={"projection": "3d"})
 
         eIdx = self.eSlider.value()
 
         # Use a fancy colormap
         normColors = matplotlib.colors.Normalize(
-            vmin=0, vmax=self.dataset[0].data.intensities.shape[0])
-        cmapList = [matplotlib.cm.get_cmap('winter'),
-                    matplotlib.cm.get_cmap('spring'),
-                    matplotlib.cm.get_cmap('summer'),
-                    matplotlib.cm.get_cmap('autumn'),
-                    matplotlib.cm.get_cmap('cool'),
-                    matplotlib.cm.get_cmap('Wistia')]
+            vmin=0, vmax=self.dataset[0].data.intensities.shape[0]
+        )
+        cmapList = [
+            matplotlib.cm.get_cmap("winter"),
+            matplotlib.cm.get_cmap("spring"),
+            matplotlib.cm.get_cmap("summer"),
+            matplotlib.cm.get_cmap("autumn"),
+            matplotlib.cm.get_cmap("cool"),
+            matplotlib.cm.get_cmap("Wistia"),
+        ]
 
         maxScan = self.dataset[0].data.intensities.shape[0]
 
@@ -278,13 +281,16 @@ class FWSPlot(QWidget):
             xx,
             yy,
             self.dataset[0].data.intensities[:, :, eIdx],
-            label=('$\\Delta E$ = %.2f $\\mu eV$'
-                   % self.dataset[0].data.energies[eIdx]),
-            colors=cmapList[eIdx](normColors(np.arange(maxScan))))
+            label=(
+                "$\\Delta E$ = %.2f $\\mu eV$"
+                % self.dataset[0].data.energies[eIdx]
+            ),
+            colors=cmapList[eIdx](normColors(np.arange(maxScan))),
+        )
 
-        ax.set_xlabel(r'$q\ [\AA^{-1}]$')
+        ax.set_xlabel(r"$q\ [\AA^{-1}]$")
         ax.set_ylabel(ylabel)
-        ax.set_zlabel(r'$S(q, \Delta E)$')
+        ax.set_zlabel(r"$S(q, \Delta E)$")
         ax.legend(framealpha=0.5)
         ax.grid()
 
@@ -318,7 +324,7 @@ class FWSPlot(QWidget):
                     X = qList
                     Y = np.array(params[obsIdx][key].value)
                     Err = np.array(params[obsIdx][key].error)
-                    xLabel = r'Momentum transfer q $[\AA^{-1}$]'
+                    xLabel = r"Momentum transfer q $[\AA^{-1}$]"
                 elif self.eRadioButton.isChecked():
                     X = self.eRange
                     Y = np.array(params[obsIdx][key].value).flatten()
@@ -326,7 +332,7 @@ class FWSPlot(QWidget):
                     if Y.size == qList.size:
                         Y = Y[qIdx]
                         Err = Err[qIdx]
-                    xLabel = r'Energies [$\mu eV$]'
+                    xLabel = r"Energies [$\mu eV$]"
 
                 Y = Y.flatten()
                 Err = Err.flatten()
@@ -334,16 +340,13 @@ class FWSPlot(QWidget):
                 if not self.errBox.isChecked():
                     Err = np.zeros_like(Err)
 
-                marker = 'o'
+                marker = "o"
                 if Y.size == 1:
                     Y = np.zeros_like(X) + Y
                     Err = np.zeros_like(X) + Err
                     marker = None
 
-                ax[idx].plot(X,
-                             Y,
-                             marker=marker,
-                             label=dataset.fileName)
+                ax[idx].plot(X, Y, marker=marker, label=dataset.fileName)
 
                 ax[idx].fill_between(X, Y - Err, Y + Err, alpha=0.4)
                 ax[idx].set_ylabel(key)
@@ -373,9 +376,7 @@ class FWSPlot(QWidget):
         return self.dataset[0].data.energies
 
     def get_obsRange(self):
-        """Return the observables used in the dataset(s).
-
-        """
+        """Return the observables used in the dataset(s)."""
         obsRange = []
         for idx, dataset in enumerate(self.dataset):
             for obs in dataset.data.observable:
@@ -393,7 +394,8 @@ class FWSPlot(QWidget):
         ids = []
         for idx, dataset in enumerate(self.dataset):
             idx = np.argmin(
-                (self.obsSlider.value() - dataset.data.observable)**2)
+                (self.obsSlider.value() - dataset.data.observable) ** 2
+            )
             ids.append(idx)
         return ids
 
@@ -403,9 +405,9 @@ class FWSPlot(QWidget):
         qIdx = self.qSlider.value()
         eIdx = self.eSlider.value()
 
-        self.obsVal.setText('%.2f' % self.obsRange.astype(str)[obsIdx])
-        self.qVal.setText('%.2f' % self.qRange[qIdx])
-        self.eVal.setText('%.1f' % self.eRange[eIdx])
+        self.obsVal.setText("%.2f" % self.obsRange.astype(str)[obsIdx])
+        self.qVal.setText("%.2f" % self.qRange[qIdx])
+        self.eVal.setText("%.1f" % self.eRange[eIdx])
 
     def updatePlot(self):
         """Redraw the current plot based on the selected parameters."""
@@ -418,12 +420,16 @@ class FWSPlot(QWidget):
         """
 
         if np.any(np.array(self.dataset) is None):
-            raise ValueError("No data were loaded.\n"
-                             "Please import data before using this method.")
+            raise ValueError(
+                "No data were loaded.\n"
+                "Please import data before using this method."
+            )
 
         for idx, data in enumerate(self.dataset):
             if len(data._fit) == 0:
-                print("No fitted model for resolution function at "
-                      "index %i was found.\n"
-                      "Some plotting methods are not available.\n" % idx)
+                print(
+                    "No fitted model for resolution function at "
+                    "index %i was found.\n"
+                    "Some plotting methods are not available.\n" % idx
+                )
                 self.noFit = True

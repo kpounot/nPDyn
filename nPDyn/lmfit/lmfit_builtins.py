@@ -20,20 +20,35 @@ try:
     from lmfit import Model, CompositeModel
     from lmfit.models import COMMON_GUESS_DOC
 except ImportError:
-    print("The lmfit package cannot be found, please install it to use "
-          "the interface with nPDyn.")
+    print(
+        "The lmfit package cannot be found, please install it to use "
+        "the interface with nPDyn."
+    )
+
     class Model:
         def __init__(self, tmp, **kwargs):
             pass
+
     class CompositeModel:
         def __init__(self, tmp, **kwargs):
             pass
+
     COMMON_GUESS_DOC = ""
 
 from nPDyn.lmfit.lmfit_presets import (
-    linear, delta, gaussian, lorentzian,
-    jump_diff, rotations, voigt, pseudo_voigt,
-    kww, two_diff_state, hline, build_2D_model)
+    linear,
+    delta,
+    gaussian,
+    lorentzian,
+    jump_diff,
+    rotations,
+    voigt,
+    pseudo_voigt,
+    kww,
+    two_diff_state,
+    hline,
+    build_2D_model,
+)
 
 from nPDyn.lmfit.convolutions import getGlobals
 
@@ -52,7 +67,7 @@ def guess_from_qens(pars, pGlobals, data, x, q, prefix=None):
 
     """
     if prefix is None:
-        prefix = ''
+        prefix = ""
 
     # guess starting values
     for qId, qVal in enumerate(q):
@@ -61,19 +76,21 @@ def guess_from_qens(pars, pGlobals, data, x, q, prefix=None):
         b = (np.mean(data[qId, :25]) + np.mean(data[qId, -25:])) / 2
 
         halfMax = (np.max(data[qId]) - np.min(data[qId])) / 2
-        inter = list((data[qId] - halfMax)**2)
+        inter = list((data[qId] - halfMax) ** 2)
         id1 = np.argmin(inter)
         inter.pop(id1)
         id2 = np.argmin(inter)
-        sigma = np.sqrt((x[id1] - x[id2])**2)
-        sigma = sigma if sigma != 0. else 1.  # to avoid division by zero
+        sigma = np.sqrt((x[id1] - x[id2]) ** 2)
+        sigma = sigma if sigma != 0.0 else 1.0  # to avoid division by zero
 
-        for name, par in zip(('amplitude', 'center', 'sigma', 'b'),
-                             (amplitude, center, sigma, b)):
+        for name, par in zip(
+            ("amplitude", "center", "sigma", "b"),
+            (amplitude, center, sigma, b),
+        ):
             if par in pGlobals:
                 name = prefix + name
             else:
-                name = '%s%s_%i' % (prefix, name, qId)
+                name = "%s%s_%i" % (prefix, name, qId)
 
             if name in pars.keys():
                 pars[name].set(value=par)
@@ -105,13 +122,14 @@ class ModelPVoigtBkgd(CompositeModel):
         Additional keyword arguments to pass to :func:`build_2D_model`
 
     """
-    def __init__(self, q, **kwargs):
-        prefix = ''
-        if 'prefix' in kwargs.keys():
-            prefix = kwargs.pop('prefix')
 
-        left = pseudo_voigt(q, prefix='%spv_' % prefix, **kwargs)
-        right = hline(q, prefix='%sbkgd_' % prefix, **kwargs)
+    def __init__(self, q, **kwargs):
+        prefix = ""
+        if "prefix" in kwargs.keys():
+            prefix = kwargs.pop("prefix")
+
+        left = pseudo_voigt(q, prefix="%spv_" % prefix, **kwargs)
+        right = hline(q, prefix="%sbkgd_" % prefix, **kwargs)
 
         super().__init__(left, right, operator.add)
 
@@ -122,8 +140,9 @@ class ModelPVoigtBkgd(CompositeModel):
         # guess parameters
         for comp in self.components:
             pGlobals = getGlobals(comp.make_funcargs(params=pars))
-            pars.update(guess_from_qens(
-                pars, pGlobals, data, x, q, prefix=comp.prefix))
+            pars.update(
+                guess_from_qens(pars, pGlobals, data, x, q, prefix=comp.prefix)
+            )
 
         return update_param_vals(pars, self.prefix, **kwargs)
 
@@ -143,13 +162,14 @@ class ModelGaussBkgd(CompositeModel):
         Additional keyword arguments to pass to :func:`build_2D_model`
 
     """
-    def __init__(self, q, **kwargs):
-        prefix = ''
-        if 'prefix' in kwargs.keys():
-            prefix = kwargs.pop('prefix')
 
-        left = gaussian(q, prefix='%sgauss_' % prefix, **kwargs)
-        right = hline(q, prefix='%sbkgd_' % prefix, **kwargs)
+    def __init__(self, q, **kwargs):
+        prefix = ""
+        if "prefix" in kwargs.keys():
+            prefix = kwargs.pop("prefix")
+
+        left = gaussian(q, prefix="%sgauss_" % prefix, **kwargs)
+        right = hline(q, prefix="%sbkgd_" % prefix, **kwargs)
 
         super().__init__(left, right, operator.add)
 
@@ -160,8 +180,9 @@ class ModelGaussBkgd(CompositeModel):
         # guess parameters
         for comp in self.components:
             pGlobals = getGlobals(comp.make_funcargs(params=pars))
-            pars.update(guess_from_qens(
-                pars, pGlobals, data, x, q, prefix=comp.prefix))
+            pars.update(
+                guess_from_qens(pars, pGlobals, data, x, q, prefix=comp.prefix)
+            )
 
         return update_param_vals(pars, self.prefix, **kwargs)
 
@@ -181,19 +202,21 @@ class ModelDeltaLorentzians(CompositeModel):
         Additional keyword arguments to pass to :func:`build_2D_model`
 
     """
+
     def __init__(self, q, nLor=2, **kwargs):
-        prefix = ''
-        if 'prefix' in kwargs.keys():
-            prefix = kwargs.pop('prefix')
+        prefix = ""
+        if "prefix" in kwargs.keys():
+            prefix = kwargs.pop("prefix")
 
-        left = delta(q, prefix='%sdelta_' % prefix, **kwargs)
+        left = delta(q, prefix="%sdelta_" % prefix, **kwargs)
 
-        right = lorentzian(q, prefix='%sl0_' % prefix, **kwargs)
+        right = lorentzian(q, prefix="%sl0_" % prefix, **kwargs)
         for i in range(1, nLor):
             right = CompositeModel(
                 right,
-                lorentzian(q, prefix='%sl%i_' % (prefix, i), **kwargs),
-                operator.add)
+                lorentzian(q, prefix="%sl%i_" % (prefix, i), **kwargs),
+                operator.add,
+            )
 
         super().__init__(left, right, operator.add)
 
@@ -204,8 +227,9 @@ class ModelDeltaLorentzians(CompositeModel):
         # guess parameters
         for comp in self.components:
             pGlobals = getGlobals(comp.make_funcargs(params=pars))
-            pars.update(guess_from_qens(
-                pars, pGlobals, data, x, q, prefix=comp.prefix))
+            pars.update(
+                guess_from_qens(pars, pGlobals, data, x, q, prefix=comp.prefix)
+            )
 
         return update_param_vals(pars, self.prefix, **kwargs)
 

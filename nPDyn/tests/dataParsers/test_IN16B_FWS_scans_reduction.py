@@ -15,6 +15,7 @@ def test_dirImport():
     result.process()
     assert len(result.qList) == 32
 
+
 def test_listImport():
     dataPath = path + "/sample_data/lys_part_01"
     dataFiles = glob.glob(dataPath)
