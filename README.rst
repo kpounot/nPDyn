@@ -26,11 +26,11 @@ An important feature of nPDyn is the modelling interface, which is designed
 to be highly versatile and intuitive for multidimensional dataset with global
 and non-global parameters.
 The modelling in nPDyn is provided by builtin classes,
-:py:class:`params.Parameters`, :py:class:`model.Model` and
-:py:class:`model.Component`.
+``params.Parameters``, ``model.Model`` and
+``model.Component``.
 nPDyn provides also some helper functions to use
 `lmfit <https://lmfit.github.io/lmfit-py/>`_ as modelling backend.
-See :doc:`dataFitting` for details.
+See *Fit data* section in documentation for details.
 
 Eventually, some plotting methods are available to examine processed data,
 model fitting and optimized parameters.
@@ -67,15 +67,15 @@ See https://npdyn.readthedocs.io/en/latest/
 
 Getting started
 ---------------
-The nPDyn API is organized around a :py:class:`dataset.Dataset` class.
+The nPDyn API is organized around a ``dataset.Dataset`` class.
 This class has a ``Dataset.dataList`` attribute used to store the experimental
 data. Each measurement in ``Dataset.dataList`` consists in a class that
-inherits from :py:class:`baseType.BaseType`.
+inherits from ``baseType.BaseType``.
 
 In a neutron backscattering experiment, there is not only the measurement of
 samples but also some calibration measurements like vanadium, empty cell
 and solvent signal (often :math:`\rm D_2O`).
-The :py:class:`dataset.Dataset` can handle these in the special attributes
+The ``dataset.Dataset`` can handle these in the special attributes
 ``Dataset.resData``, ``Dataset.ECData`` and ``Dataset.D2OData``, respectively.
 Each data in ``Dataset.dataList`` can have some calibration data associated
 with it in the ``BaseType.resData``, ``BaseType.ECData``
@@ -98,17 +98,17 @@ of empty cell and one of :math:`\rm D_2O` background:
 .. image:: docs/fig/sketch_structure_02.png
     :width: 600
 
-Details regarding importation of data are available in the :doc:`dataImport`
+Details regarding importation of data are available in the documentation
 section of the documentation.
 
-The :py:class:`baseType.BaseType` base class and its derivatives
-:py:class:`qensType.QENSType` and :py:class:`fwsType.FWSType` contain
-several methods for data processing (see :doc:`dataProcessing`) and
-fitting (see :doc:`dataFitting`).
-In addition the class :py:class:`dataset.Dataset` contains some shortcut
+The ``baseType.BaseType`` base class and its derivatives
+``qensType.QENSType`` and ``fwsType.FWSType`` contain
+several methods for data processing (see *Process data* in documentation) and
+fitting (see *Fit data* section in documentation).
+In addition the class ``dataset.Dataset`` contains some shortcut
 methods to apply data processing and fitting algorithm quickly on the
 sample and calibration data. It also contains plotting methods to examine
 data and the fitted model and its optimized parameters.
 
 Importantly, nPDyn provides versatile tools for model building and fitting
-to the data. See the section :doc:`dataFitting` for details.
+to the data. See the section *Fit data* in documentation for details.
