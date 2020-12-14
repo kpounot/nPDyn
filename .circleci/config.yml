@@ -19,16 +19,16 @@ jobs:
             sudo add-apt-repository universe
             sudo apt-get update
             sudo apt-get install libgsl-dev
-            python3 -m venv venv
+            mantidpython -m venv venv
             . venv/bin/activate
-            python3 -m pip install -r requirements-dev.txt
+            mantidpython -m pip install -r requirements-dev.txt
 
       # Step 3: install nPDyn
       - run:
           name: install nPDyn
           command: |
             . venv/bin/activate
-            python3 setup.py install
+            mantidpython setup.py install
             cp build/lib*/nPDyn/lib/*.so nPDyn/lib/
 
       # Step 4: run linter and tests
