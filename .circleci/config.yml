@@ -15,6 +15,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
+            sudo service docker start
             docker pull mantidproject/mantid
             sudo apt-get install libgsl-dev
             python3 -m venv venv
