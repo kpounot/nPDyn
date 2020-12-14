@@ -16,8 +16,11 @@ jobs:
           name: install dependencies
           command: |
             sudo apt-get install libgsl-dev
-            sudo dockerd
-            sudo docker pull mantidproject/mantid
+            wget -O - http://apt.isis.rl.ac.uk/2E10C193726B7213.asc | sudo apt-key add -
+            sudo apt-add-repository "deb [arch=amd64] http://apt.isis.rl.ac.uk $(lsb_release -c | cut -f 2) main"
+            sudo apt-add-repository ppa:mantid/mantid
+            sudo apt-get update
+            sudo apt-get install mantid
             python3 -m venv venv
             . venv/bin/activate
 
