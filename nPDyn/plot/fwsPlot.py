@@ -20,7 +20,10 @@ import matplotlib
 
 from nPDyn.plot.subPlotsFormat import subplotsFormat
 
-matplotlib.use('Qt5Agg')
+try:
+    matplotlib.use('Qt5Agg')
+except ImportError:
+    pass
 
 
 class FWSPlot(QWidget):
