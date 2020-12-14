@@ -4,11 +4,13 @@ jobs:
   build:
     docker:
         - image: circleci/python:3.7
-        - image: mantidproject/mantid
 
     working_directory: ~/repo
 
     steps:
+
+      - docker/pull:
+          images: mantidproject/mantid
       # Step 1: obtain repo from GitHub
       - checkout
 
