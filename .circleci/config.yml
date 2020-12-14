@@ -33,7 +33,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            flake8 nPDyn --exclude=venv* --config .flake8 --statistics
+            flake8 nPDyn --statistics
             pytest nPDyn
 
       # Step 5: run codecov
