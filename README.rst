@@ -108,7 +108,7 @@ measured at temperatures t1 and t2 each,
 with a measurement for the resolution function at 10K for each sample,
 one measurement of empty cell and one of D2O background:
 
-.. image:: ../fig/sketch_structure_01.png
+.. image:: docs/fig/sketch_structure_01.png
     :width: 600
 
 Details regarding importation of data are available in the documentation
