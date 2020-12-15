@@ -450,7 +450,7 @@ class BaseType:
             ECFunc = self.ECData.fit_best(x=self.data.energies)
         else:
             ECData = self.ECData.data.intensities
-            if ECData.shape == self.data.intensities:
+            if ECData.shape == self.data.intensities.shape:
                 ECFunc = self.ECData.data.intensities
             else:
                 ids = np.argmin(
