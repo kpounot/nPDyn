@@ -105,10 +105,10 @@ in ``Dataset.resData``.
 
 The aforementioned structure of the API is sketched below for two samples,
 measured at temperatures t1 and t2 each,
-with one vanadium measurement for the resolution function, one measurement
-of empty cell and one of  D2O background:
+with a measurement for the resolution function at 10K for each sample,
+one measurement of empty cell and one of D2O background:
 
-.. image:: docs/fig/sketch_structure_02.png
+.. image:: ../fig/sketch_structure_01.png
     :width: 600
 
 Details regarding importation of data are available in the documentation

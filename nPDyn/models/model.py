@@ -2,11 +2,11 @@
 that can be used to fit the data.
 
 """
+import sys
 
 from copy import deepcopy
 from inspect import signature
 import ast
-import astunparse
 import operator
 
 from collections import OrderedDict
@@ -24,6 +24,9 @@ from nPDyn.models.presets import (
     conv_delta,
     conv_linear,
 )
+
+_PY_VERSION = sys.version_info
+_PY_VERSION = float("%d.%d" % (_PY_VERSION.major, _PY_VERSION.minor))
 
 
 class findParamNames(ast.NodeTransformer):
@@ -46,15 +49,26 @@ class findParamNames(ast.NodeTransformer):
     def visit_Name(self, node):
         """Name visitor."""
         if node.id in self.params.keys():
-            res = ast.Attribute(
-                value=ast.Subscript(
-                    value=ast.Name(id="params", ctx=node.ctx),
-                    slice=ast.Index(value=ast.Str(s=node.id)),
+            if _PY_VERSION <= 3.6:
+                res = ast.Attribute(
+                    value=ast.Subscript(
+                        value=ast.Name(id="params", ctx=node.ctx),
+                        slice=ast.Index(value=ast.Str(s=node.id)),
+                        ctx=node.ctx,
+                    ),
+                    attr="value",
                     ctx=node.ctx,
-                ),
-                attr="value",
-                ctx=node.ctx,
-            )
+                )
+            else:
+                res = ast.Attribute(
+                    value=ast.Subscript(
+                        value=ast.Name(id="params", ctx=node.ctx),
+                        slice=ast.Index(ast.Constant(s=node.id)),
+                        ctx=node.ctx,
+                    ),
+                    attr="value",
+                    ctx=node.ctx,
+                )
             return res
         else:
             return node
@@ -608,11 +622,12 @@ class Component:
         for key, arg in self.funcArgs.items():
             if isinstance(arg, str):
                 for pKey in params.keys():
-                    arg = ast.parse(arg)
-                    ast.fix_missing_locations(
+                    arg = ast.parse(arg, mode="eval")
+                    arg = ast.fix_missing_locations(
                         findParamNames(params).visit(arg)
                     )
-                args[key] = eval(astunparse.unparse(arg))
+                c = compile(arg, "<string>", "eval")
+                args[key] = eval(c)
             else:
                 args[key] = arg
 

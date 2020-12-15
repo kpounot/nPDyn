@@ -80,7 +80,6 @@ setup(
         "numpy",
         "matplotlib",
         "PyQt5==5.14",
-        "astunparse",
         "h5py",
         "lmfit",
     ],
