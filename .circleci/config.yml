@@ -2,8 +2,8 @@
 version: 2
 jobs:
   build:
-    machine:
-        image: ubuntu-2004:202010-01
+    docker:
+        image: circleci/python:3.8
 
     working_directory: ~/repo
 
@@ -15,9 +15,6 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            docker pull circleci/python:3.7
-            sudo add-apt-repository universe
-            sudo apt update
             sudo apt-get install libgsl-dev
             python3 -m venv venv
             . venv/bin/activate
