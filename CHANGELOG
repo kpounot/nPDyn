@@ -1,0 +1,22 @@
+v2.0
+----
+    The version introduces the builtin Model interface feature as well
+    as the interface with the lmfit package as backend for data fitting.
+
+    In addition, data structure was changed as compared to v1.0 and
+    simplified. There is only a 'QENSType' and 'FWSType' now, for which
+    the 'data' attribute contains new entries.
+
+    For both 'QENSType' and 'FWSType', the intensities and errors are 3D
+    numpy arrays where the first axis correspond to the observable, the
+    second to the momentum transfer q-values and the last to the energies.
+
+    For the package structure itself, most of the files were moved to the root
+    and the actual nPDyn code is in the 'nPDyn' directory in root.
+
+    It includes new tests and more extensive documentation.
+
+v1.0
+----
+    Initial version of nPDyn.
+    We keep track of it as it has been used for some publications.
