@@ -62,7 +62,7 @@ or
 
 Full documentation
 ------------------
-See https://npdyn.readthedocs.io/en/stable/
+See https://npdyn.readthedocs.io/en/latest/
 
 
 Support
