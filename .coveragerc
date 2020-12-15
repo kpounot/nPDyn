@@ -1,0 +1,9 @@
+[run]
+omit =
+    nPDyn/tests/*
+    nPDyn/plot/*
+    nPDyn/_version.py
+    *__init__*
+    nPDyn/models/builtins.py
+    nPDyn/lmfit/lmfit_builtins.py
+    nPDyn/mdparser.py

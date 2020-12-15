@@ -1,5 +1,0 @@
-MDParser
-========
-
-.. automodule:: MDParser
-   :members:

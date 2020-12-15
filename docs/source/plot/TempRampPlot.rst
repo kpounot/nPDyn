@@ -1,5 +1,0 @@
-TempRampPlot
-============
-
-.. automodule:: TempRampPlot
-   :members:

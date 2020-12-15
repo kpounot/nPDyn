@@ -1,0 +1,5 @@
+Presets
+=======
+
+.. automodule:: presets
+    :members:

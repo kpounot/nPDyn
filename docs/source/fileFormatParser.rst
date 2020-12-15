@@ -1,6 +1,0 @@
-fileFormatParser
-================
-
-.. automodule:: fileFormatParser
-   :members:
-

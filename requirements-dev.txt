@@ -1,0 +1,14 @@
+codecov
+cython
+CythonGSL
+flake8
+h5py
+matplotlib
+numpy
+pre-commit
+PyQt5==5.14
+pytest
+pytest-cov
+rstcheck
+scipy
+Sphinx

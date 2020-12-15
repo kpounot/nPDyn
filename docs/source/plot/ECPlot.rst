@@ -1,5 +1,0 @@
-ECPlot
-======
-
-.. automodule:: ECPlot
-   :members:

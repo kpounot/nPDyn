@@ -1,0 +1,5 @@
+ConvolvedModel
+==============
+
+.. automodule:: convolvedModel
+    :members:

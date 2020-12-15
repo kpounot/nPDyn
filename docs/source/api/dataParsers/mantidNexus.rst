@@ -1,0 +1,5 @@
+mantidNexus
+===========
+
+.. automodule:: mantidNexus
+   :members:

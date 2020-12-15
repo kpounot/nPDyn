@@ -12,15 +12,16 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../package'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataManipulation'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataParsers'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataTypes'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/dataTypes/models'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/fit'))
-sys.path.insert(0, os.path.abspath('../../package/nPDyn/plot'))
+sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath('../../nPDyn'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/dataManipulation'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/dataParsers'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/dataTypes'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/models'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/lmfit'))
+sys.path.insert(0, os.path.abspath('../../nPDyn/plot'))
 
+import nPDyn
 
 # -- Project information -----------------------------------------------------
 
@@ -29,18 +30,18 @@ copyright = '2019, Kevin Pounot'
 author = 'Kevin Pounot'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0'
-
+version = release = nPDyn.__version__
 
 # -- General configuration ---------------------------------------------------
- 
+
+import sphinxcontrib.napoleon
 import sphinx_rtd_theme
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = [ 'sphinx.ext.autodoc',
-               'sphinx_rtd_theme' ]
+extensions = ['sphinxcontrib.napoleon',
+              'sphinx_rtd_theme']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -65,3 +66,6 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+def setup(app):
+    app.add_css_file('custom.css')
