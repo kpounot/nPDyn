@@ -70,7 +70,7 @@ setup(
     long_description_content_type="text/x-rst",
     author="Kevin Pounot",
     author_email="kpounot@hotmail.fr",
-    url="github.com/kpounot/nPDyn",
+    url="https://github.com/kpounot/nPDyn",
     packages=packagesList,
     package_dir={"nPDyn": dirPath + "/nPDyn"},
     package_data={"nPDyn": [dirPath + "/nPDyn/models/d2O_calibration/*.dat"]},
