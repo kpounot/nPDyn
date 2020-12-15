@@ -65,6 +65,19 @@ Full documentation
 See https://npdyn.readthedocs.io/en/latest/
 
 
+Support
+-------
+A `google group <https://groups.google.com/g/npdyn>`_ is available for any
+question, discussion on features or comment.
+
+In case of bugs or obvious change to be done in the code use GitHub Issues.
+
+
+Contributions
+-------------
+See `contributing <https://github.com/kpounot/nPDyn/blob/master/contributing.rst>`_.
+
+
 Getting started
 ---------------
 The nPDyn API is organized around a ``dataset.Dataset`` class.

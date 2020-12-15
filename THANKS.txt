@@ -1,0 +1,9 @@
+The nPDyn package has been continuously improved over time thanks to
+multiple contributions, comments and advise.
+
+The initial version was written by Kevin Pounot.
+Various improvements for the fitting procedures and data plotting were
+implemented after fruitful discussions with Tilo Seydel and Giorgio Schiro.
+
+Data importation algorithms have benefited from inupt of Tilo Seydel.
+The whole interface with the lmfit package is based on Python code from Christian Beck.

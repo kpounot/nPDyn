@@ -16,6 +16,8 @@ jobs:
           name: install dependencies
           command: |
             docker pull circleci/python:3.7
+            sudo add-apt-repository universe
+            sudo apt update
             sudo apt-get install libgsl-dev
             python3 -m venv venv
             . venv/bin/activate
