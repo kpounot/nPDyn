@@ -405,7 +405,7 @@ class FWSPlot(QWidget):
         qIdx = self.qSlider.value()
         eIdx = self.eSlider.value()
 
-        self.obsVal.setText("%.2f" % self.obsRange.astype(str)[obsIdx])
+        self.obsVal.setText("%.2f" % self.obsRange[obsIdx])
         self.qVal.setText("%.2f" % self.qRange[qIdx])
         self.eVal.setText("%.1f" % self.eRange[eIdx])
 

@@ -598,7 +598,7 @@ class BaseType:
     def fit(
         self,
         model=None,
-        cleanData=None,
+        cleanData="replace",
         convolveRes=False,
         addEC=False,
         addD2O=False,
@@ -660,6 +660,7 @@ class BaseType:
         self._fit = []
 
         q = self.data.qVals
+
         if "data" not in kwargs.keys():
             data = np.copy(self.data.intensities)
         else:
@@ -668,13 +669,10 @@ class BaseType:
             errors = np.copy(self.data.errors)
         else:
             errors = kwargs["errors"]
-        x = np.copy(self.data.energies)
+        if isinstance(self.model, lmModel):
+            errors = 1 / errors
 
-        if cleanData is None:
-            if isinstance(self.model, Model):
-                cleanData = "replace"
-            else:
-                cleanData = "omit"
+        x = np.copy(self.data.energies)
 
         if cleanData in ["replace", "omit"]:
             data, errors, x = self._cleanData(data, errors, x, cleanData)
@@ -740,6 +738,7 @@ class BaseType:
             # get the right observable index for data and errors
             fit_kwargs["data"] = data[idx]
             fit_kwargs["weights"] = errors[idx]
+
             print(
                 "\tFit of observable %i of %i (%s=%s)"
                 % (
@@ -850,9 +849,10 @@ class BaseType:
 
         """
         if processType == "omit":
-            mask = ~(data <= 0.0) & ~(data == np.inf)
-            for idx, val in enumerate(mask):
-                mask[0] = mask[0] & val
+            mask = ~(data <= 0.0) & ~(data == np.inf) & ~(errors == np.inf)
+            for obsIdx, obs in enumerate(mask):
+                for qIdx, q in enumerate(obs):
+                    mask[0, 0] = mask[0, 0] & q
 
             data = data[:, :, mask[0, 0]]
             errors = errors[:, :, mask[0, 0]]
