@@ -357,7 +357,7 @@ class QENSPlot(QWidget):
         obsIdx = self.obsSlider.value()
         qIdx = self.qSlider.value()
 
-        self.obsVal.setText("%.2f" % self.obsRange.astype(str)[obsIdx])
+        self.obsVal.setText("%.2f" % self.obsRange[obsIdx])
         self.qVal.setText("%.2f" % self.qRange[qIdx])
 
     def updatePlot(self):
