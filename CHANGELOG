@@ -1,3 +1,8 @@
+v2.0.1
+------
+    Fixing an issue with lmfit backend, which makes use of the inverse errors
+    and not the errors as previously passed by nPDyn.
+
 v2.0
 ----
     The version introduces the builtin Model interface feature as well
