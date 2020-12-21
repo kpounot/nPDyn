@@ -1,5 +1,7 @@
 import os, sys
 
+import subprocess
+
 from setuptools import setup, Extension
 from distutils.dist import Distribution
 
@@ -40,7 +42,11 @@ if "win32" in sys.platform:
     else:
         gsl_lib = []
 else:
-    gsl_lib = ["gsl", "gslcblas"]
+    _gsl_path = subprocess.run(["locate libgsl.so"], stdout=subprocess.PIPE)
+    if len(_gsl_path.stdout) > 0:
+        gsl_lib = ["gsl", "gslcblas"]
+    else:
+        gsl_lib = []
 
 packagesList = [
     "nPDyn",
@@ -68,10 +74,22 @@ setup(
     description="Python package for analysis of neutron backscattering data",
     long_description=description,
     long_description_content_type="text/x-rst",
-    platforms="any",
+    platforms=["Windows", "Linux", "Mac OS X"],
     author="Kevin Pounot",
     author_email="kpounot@hotmail.fr",
     url="https://github.com/kpounot/nPDyn",
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "License :: OSI Approved :: GNU General Public "
+        "License v3 or later (GPLv3+)",
+        "Intended Audience :: Science/Research",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Topic :: Scientific/Engineering",
+    ],
     packages=packagesList,
     package_dir={"nPDyn": dirPath + "/nPDyn"},
     package_data={"nPDyn": [dirPath + "/nPDyn/models/d2O_calibration/*.dat"]},
