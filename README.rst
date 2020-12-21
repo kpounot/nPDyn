@@ -125,3 +125,8 @@ data and the fitted model and its optimized parameters.
 
 Importantly, nPDyn provides versatile tools for model building and fitting
 to the data. See the section *Fit data* in documentation for details.
+
+
+.. image:: https://api.codacy.com/project/badge/Grade/336501a602bf4ea7ba2388fea2479ab3
+   :alt: Codacy Badge
+   :target: https://app.codacy.com/gh/kpounot/nPDyn?utm_source=github.com&utm_medium=referral&utm_content=kpounot/nPDyn&utm_campaign=Badge_Grade_Settings
