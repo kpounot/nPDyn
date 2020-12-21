@@ -42,7 +42,7 @@ if "win32" in sys.platform:
     else:
         gsl_lib = []
 else:
-    _gsl_path = subprocess.run(["locate libgsl.so"], stdout=subprocess.PIPE)
+    _gsl_path = subprocess.run(["locate", "libgsl.so"], stdout=subprocess.PIPE)
     if len(_gsl_path.stdout) > 0:
         gsl_lib = ["gsl", "gslcblas"]
     else:
