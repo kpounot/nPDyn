@@ -68,6 +68,7 @@ setup(
     description="Python package for analysis of neutron backscattering data",
     long_description=description,
     long_description_content_type="text/x-rst",
+    platforms="any",
     author="Kevin Pounot",
     author_email="kpounot@hotmail.fr",
     url="https://github.com/kpounot/nPDyn",
