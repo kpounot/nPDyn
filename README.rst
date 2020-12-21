@@ -6,7 +6,10 @@
     :target: https://circleci.com/gh/kpounot/nPDyn
 
 .. image:: https://codecov.io/gh/kpounot/nPDyn/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/kpounot/nPDyn
+    :target: https://codecov.io/gh/kpounot/nPDyn
+
+.. image:: https://app.codacy.com/project/badge/Grade/c7300a6a87b54eebb887c6acadb4672e
+    :target: https://www.codacy.com/gh/kpounot/nPDyn/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kpounot/nPDyn&amp;utm_campaign=Badge_Grade
 
 
 
