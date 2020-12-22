@@ -60,11 +60,13 @@ For installation within your python framework:
 - with pip:
 
 .. code:: bash
+
     python3 -m pip install nPDyn
 
 - with source code:
 
 .. code:: bash
+
     git clone https://github.com/kpounot/nPDyn npdyn
     cd npdyn
     python3 setup.py install
