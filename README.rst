@@ -11,6 +11,11 @@
 .. image:: https://app.codacy.com/project/badge/Grade/c7300a6a87b54eebb887c6acadb4672e
     :target: https://www.codacy.com/gh/kpounot/nPDyn/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kpounot/nPDyn&amp;utm_campaign=Badge_Grade
 
+|
+
+.. image:: https://img.shields.io/pypi/v/nPDyn.svg
+   :target: https://pypi.org/project/nPDyn
+
 
 
 nPDyn
@@ -50,16 +55,18 @@ work.
 
 Unix and Windows
 ^^^^^^^^^^^^^^^^
-For installation within your python framework, use:
+For installation within your python framework:
+
+- with pip:
 
 .. code:: bash
+    python3 -m pip install nPDyn
 
-    make install
-
-or
+- with source code:
 
 .. code:: bash
-
+    git clone https://github.com/kpounot/nPDyn npdyn
+    cd npdyn
     python3 setup.py install
 
 
