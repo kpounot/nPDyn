@@ -48,6 +48,7 @@ else:
     else:
         gsl_lib = []
 
+
 packagesList = [
     "nPDyn",
     "nPDyn.dataManipulation",
@@ -70,7 +71,7 @@ pyabsco_ext = Extension(
 setup(
     name="nPDyn",
     version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    cmdclass={**versioneer.get_cmdclass()},
     description="Python package for analysis of neutron backscattering data",
     long_description=description,
     long_description_content_type="text/x-rst",
