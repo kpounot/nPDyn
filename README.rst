@@ -16,6 +16,9 @@
 .. image:: https://img.shields.io/pypi/v/nPDyn.svg
    :target: https://pypi.org/project/nPDyn
 
+.. image:: https://zenodo.org/badge/97102616.svg
+   :target: https://zenodo.org/badge/latestdoi/97102616
+
 
 
 nPDyn
