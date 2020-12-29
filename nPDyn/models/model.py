@@ -250,7 +250,7 @@ class Model:
 
         """
         # process 'x' array and match the shape of data
-        params, bounds = self.params.paramList()
+        params, bounds = self.params.paramList
 
         if fit_kws is None:
             fit_kws = {}
