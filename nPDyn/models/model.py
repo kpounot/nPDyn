@@ -17,6 +17,7 @@ from scipy.optimize import curve_fit, minimize, basinhopping
 from scipy.sparse.linalg import LinearOperator
 from scipy.signal import fftconvolve
 
+from nPDyn.models import Parameters
 from nPDyn.models.presets import (
     conv_lorentzian_lorentzian,
     conv_lorentzian_gaussian,
@@ -29,7 +30,7 @@ _PY_VERSION = sys.version_info
 _PY_VERSION = float("%d.%d" % (_PY_VERSION.major, _PY_VERSION.minor))
 
 
-class findParamNames(ast.NodeTransformer):
+class FindParamNames(ast.NodeTransformer):
     """Helper class to parse strings to evaluation for function
     arguments in :class:`Component`.
 
@@ -70,8 +71,7 @@ class findParamNames(ast.NodeTransformer):
                     ctx=node.ctx,
                 )
             return res
-        else:
-            return node
+        return node
 
 
 class Model:
@@ -163,21 +163,21 @@ class Model:
         """Return the model components."""
         return self._components
 
-    def addComponent(self, comp, operator="+"):
+    def addComponent(self, comp, op="+"):
         """Add a component to the model.
 
         Parameters
         ----------
         comp : :class:`Component`
             An instance of `Component` to be added to the model.
-        operator : {"+", "-", "*", "/"}, optional
+        op : {"+", "-", "*", "/"}, optional
             Operator to be used to combine the new component with the others.
             If this is the first component, the operator is ignored.
             (default "+")
 
         """
         if len(self._components.keys()) > 0:
-            self._operators.append(self._opMap[operator])
+            self._operators.append(self._opMap[op])
         self._components[comp.name] = comp
 
     @property
@@ -193,8 +193,7 @@ class Model:
                 "The attribute 'on_undef_conv' can only be "
                 "'numeric' or 'raise'."
             )
-        else:
-            self._on_undef_conv = val
+        self._on_undef_conv = val
 
     # --------------------------------------------------
     # fitting
@@ -204,14 +203,23 @@ class Model:
         """Return the result of the fit."""
         if self._optParams is not None:
             return self._optParams
-        else:
-            raise ValueError(
-                "No optimal parameters found for this model "
-                "(Model named '{name}' at {address}).\n"
-                "Please use 'fit' method to optimize the parameters".format(
-                    name=self.name, address=hex(id(self))
-                )
+        raise ValueError(
+            "No optimal parameters found for this model "
+            "(Model named '{name}' at {address}).\n"
+            "Please use 'fit' method to optimize the parameters".format(
+                name=self.name, address=hex(id(self))
             )
+        )
+
+    @optParams.setter
+    def optParams(self, params):
+        """Setter for the optimized parameters."""
+        if not isinstance(params, Parameters):
+            raise ValueError(
+                "The 'optParams' attribute should contain an instance "
+                "of a 'Parameters' object."
+            )
+        self._optParams = params
 
     @property
     def userkws(self):
@@ -228,8 +236,21 @@ class Model:
         params=None,
         **kwargs
     ):
+        """Fit the experimental data using the provided arguments.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Values for the indenpendent variable.
+        data : np.ndarray
+            Experimental data to be fitted.
+        weights : np.ndarray
+            Weights associated with the experimental data (the
+            experimental errors).
+
+        """
         # process 'x' array and match the shape of data
-        params, bounds = self.params._paramsToList()
+        params, bounds = self.params.paramList()
 
         if fit_kws is None:
             fit_kws = {}
@@ -247,7 +268,7 @@ class Model:
                 **fit_kws
             )
 
-            self._optParams = self.params._listToParams(
+            self.optParams = self.params.listToParams(
                 fit[0], np.sqrt(np.diag(fit[1]))
             )
 
@@ -264,7 +285,7 @@ class Model:
             weights = fit.lowest_optimization_result.hess_inv
             if isinstance(weights, LinearOperator):
                 weights = weights.todense()
-            self._optParams = self.params._listToParams(
+            self.optParams = self.params.listToParams(
                 fit.x, np.sqrt(np.diag(weights))
             )
 
@@ -275,7 +296,7 @@ class Model:
             fit = minimize(func, params, bounds=bounds, **fit_kws)
 
             weights = fit.hess_inv.todense()
-            self._optParams = self.params._listToParams(
+            self.optParams = self.params.listToParams(
                 fit.x, np.sqrt(np.diag(weights))
             )
 
@@ -360,7 +381,7 @@ class Model:
             if isinstance(params, dict):
                 params.update(**params)
             else:  # assumes a list or numpy array
-                params = self.params._listToParams(params)
+                params = self.params.listToParams(params)
 
         # gets the output arrays for each component and sum
         for key, comp in self.components.items():
@@ -624,7 +645,7 @@ class Component:
                 for pKey in params.keys():
                     arg = ast.parse(arg, mode="eval")
                     arg = ast.fix_missing_locations(
-                        findParamNames(params).visit(arg)
+                        FindParamNames(params).visit(arg)
                     )
                 c = compile(arg, "<string>", "eval")
                 args[key] = eval(c)

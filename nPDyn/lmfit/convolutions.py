@@ -83,9 +83,7 @@ def conv_gaussian_lorentzian(left, right, params, **kwargs):
     """
     # set left to Gaussian component if not so
     if left.func.__name__ == "lorentzian":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
@@ -134,9 +132,7 @@ def conv_gaussian_jumpdiff(left, right, params, **kwargs):
     """
     # set left to Gaussian component if not so
     if left.func.__name__ == "lorentzian":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
@@ -181,9 +177,7 @@ def conv_gaussian_rotations(left, right, params, **kwargs):
     """Convolution of a Gaussian and a liquid rotations model."""
     # set left to Gaussian component if not so
     if left.func.__name__ == "rotations":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
@@ -311,9 +305,7 @@ def conv_lorentzian_pvoigt(left, right, params, **kwargs):
     """
     # set left to lorentzian component if not so
     if left.func.__name__ == "pvoigt":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
@@ -377,9 +369,7 @@ def conv_gaussian_pvoigt(left, right, params, **kwargs):
     """
     # set left to gaussian component if not so
     if left.func.__name__ == "pvoigt":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
@@ -435,9 +425,7 @@ def conv_jumpdiff_pvoigt(left, right, params, **kwargs):
     """
     # set left to jump_diff component if not so
     if left.func.__name__ == "pvoigt":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
@@ -483,9 +471,7 @@ def conv_rotations_pvoigt(left, right, params, **kwargs):
     """Convolution between the rotation model and a pseudo-Voigt profile."""
     # set left to rotations component if not so
     if left.func.__name__ == "pvoigt":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
@@ -546,9 +532,7 @@ def conv_delta(left, right, params, **kwargs):
     """Convolution with a Dirac delta."""
     # set left to delta component if not so
     if left.func.__name__ != "delta":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
@@ -589,8 +573,6 @@ def conv_linear(left, right, params, **kwargs):
 
     """
     if left.func.__name__ != "linear":
-        tmp = right
-        right = left
-        left = tmp
+        left, right = (right, left)
 
     return left.eval(params=params, **kwargs)

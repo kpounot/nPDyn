@@ -147,6 +147,11 @@ class Parameters(OrderedDict):
             else:
                 self.set(key, **{"value": val})
 
+    @property
+    def paramList(self):
+        """Accessor for parameter list."""
+        return self._paramsToList()
+
     def _applyBounds(self):
         """Apply bounds on parameter values."""
         for key, entry in self.items():
@@ -194,7 +199,7 @@ class Parameters(OrderedDict):
 
         return params, bounds
 
-    def _listToParams(self, pList, errList=None):
+    def listToParams(self, pList, errList=None):
         """Use the given list to convert a list of parameters to
         a dictionary similar to the current one.
 

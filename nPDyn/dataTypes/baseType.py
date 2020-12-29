@@ -16,8 +16,6 @@ from collections import OrderedDict
 
 import numpy as np
 
-from scipy.interpolate import interp1d
-
 try:
     from lmfit import Model as lmModel
 except ImportError:
@@ -44,13 +42,14 @@ except ImportError:
         "and the path was correctly \n"
         "set in the setup.cfg file during package installation.\n"
     )
-    pass
 
 
 # -------------------------------------------------------
 # Useful decorators for BaseType class
 # -------------------------------------------------------
 def ensure_attr(attr):
+    """Ensures the attribute 'attr' is not None is the class."""
+
     def dec(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -59,8 +58,7 @@ def ensure_attr(attr):
                     "Attribute '%s' is None, please set it "
                     "before using this method." % attr
                 )
-            else:
-                return func(*args, **kwargs)
+            return func(*args, **kwargs)
 
         return wrapper
 
@@ -68,6 +66,8 @@ def ensure_attr(attr):
 
 
 def ensure_fit(func):
+    """Ensures the class has a fitted model."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         if args[0]._fit is []:
@@ -75,8 +75,7 @@ def ensure_fit(func):
                 "Dataset (%s) has no fitted model associated with "
                 "it, please fit a model before using it." % args[0].__repr__()
             )
-        else:
-            return func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return wrapper
 
@@ -553,8 +552,7 @@ class BaseType:
                     "'lmfit.Model' class or a class instance "
                     "that inherits from it."
                 )
-            else:
-                self._model = model
+            self._model = model
         else:
             self._model = None
 
@@ -652,8 +650,7 @@ class BaseType:
                     "Please assign one before using this method "
                     "without specifying a model."
                 )
-            else:
-                model = self.model
+            model = self.model
         self.model = model
 
         # reset the state of '_fit'
@@ -745,7 +742,7 @@ class BaseType:
                     idx + 1,
                     self.data.intensities.shape[0],
                     self.data.observable_name,
-                    self.data.observable[idx],
+                    obs,
                 ),
                 end="\r",
             )
@@ -767,7 +764,7 @@ class BaseType:
     def params(self):
         """Return the best values and errors from the fit result."""
         out = []
-        for obsIdx, val in enumerate(self._fit):
+        for val in self._fit:
             if isinstance(self.model, Model):
                 out.append(val.optParams)
             else:
@@ -790,7 +787,7 @@ class BaseType:
         kws.update(**kwargs)
 
         out = []
-        for idx, fit in enumerate(self._fit):
+        for fit in self._fit:
             if isinstance(self.model, Model):
                 kws["params"] = fit.optParams
             else:
@@ -815,7 +812,7 @@ class BaseType:
         kws.update(**kwargs)
 
         comps = {}
-        for idx, fit in enumerate(self._fit):
+        for fit in self._fit:
             if isinstance(self.model, Model):
                 kws["params"] = fit.optParams
             else:
@@ -850,8 +847,8 @@ class BaseType:
         """
         if processType == "omit":
             mask = ~(data <= 0.0) & ~(data == np.inf) & ~(errors == np.inf)
-            for obsIdx, obs in enumerate(mask):
-                for qIdx, q in enumerate(obs):
+            for obs in mask:
+                for q in obs:
                     mask[0, 0] = mask[0, 0] & q
 
             data = data[:, :, mask[0, 0]]
