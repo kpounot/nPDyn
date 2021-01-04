@@ -104,5 +104,6 @@ setup(
         "PyQt5==5.14",
         "h5py",
         "lmfit",
+        "defusedxml",
     ],
 )

@@ -7,7 +7,7 @@ Classes
 
 import numpy as np
 
-import xml.etree.cElementTree as ET
+from defusedxml import cElementTree as ET
 
 
 class IN16B_XML:
@@ -46,7 +46,7 @@ class IN16B_XML:
 
         """
 
-        # Computes the siez of the detector tube.
+        # Computes the size of the detector tube.
         size = int(self.valList[self.nameList == "tube1"][0]) - 1
         size /= self.numTubes
 

@@ -320,7 +320,7 @@ class IN16B_FWS:
 
         halfBin = int(self.peakFindWindow / 2)
 
-        for idx, qData in enumerate(data):
+        for qData in data:
             qDataPeaks = []
             for peak in peaks:
                 qDataPeaks.append(
@@ -430,7 +430,7 @@ class IN16B_FWS:
         # Finds the maximum sampling in the list of dataset
         maxSize = 0
         maxX = None
-        for k, time in enumerate(deltaTime):
+        for time in deltaTime:
             if time.shape[0] >= maxSize:
                 maxSize = time.shape[0]
                 maxX = time

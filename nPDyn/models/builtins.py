@@ -4,9 +4,6 @@ neutron scattering data fitting.
 These functions generate a :class:`Model` class instance.
 
 """
-
-import operator
-
 import numpy as np
 
 from nPDyn.models.presets import (

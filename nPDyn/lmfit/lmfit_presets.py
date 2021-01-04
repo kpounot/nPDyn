@@ -22,7 +22,7 @@ from scipy.fft import fft, fftshift
 from scipy.special import wofz, spherical_jn
 
 try:
-    from lmfit import Model, CompositeModel
+    from lmfit import Model
 except ImportError:
     print(
         "The lmfit package cannot be found, please install it to use "
@@ -138,7 +138,7 @@ def build_2D_model(
 
     # set the parameter dictionary for `lmfit.Model` function
     params = {}
-    for pId, pName in enumerate(paramNames):
+    for pName in paramNames:
         if pName in paramGlobals:
             params[pName] = (
                 paramDefVals[pName],

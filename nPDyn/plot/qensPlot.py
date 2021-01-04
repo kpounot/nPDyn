@@ -222,7 +222,7 @@ class QENSPlot(QWidget):
         obsIdx = self.obsSlider.value()
         qIdx = self.qSlider.value()
 
-        for idx, dataset in enumerate(self.dataset):
+        for dataset in self.dataset:
             errors = dataset.data.errors[obsIdx][qIdx]
             if not self.errBox.isChecked():
                 errors = np.zeros_like(errors)

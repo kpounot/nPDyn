@@ -7,6 +7,7 @@ import sys
 from copy import deepcopy
 from inspect import signature
 import ast
+
 import operator
 
 from collections import OrderedDict
@@ -43,8 +44,9 @@ class FindParamNames(ast.NodeTransformer):
 
     """
 
-    def __init__(self, params):
+    def __init__(self, key, params):
         super().__init__()
+        self.key = key
         self.params = params
 
     def visit_Name(self, node):
@@ -72,6 +74,17 @@ class FindParamNames(ast.NodeTransformer):
                 )
             return res
         return node
+
+    def visit_Call(self, node):
+        """Call visitor
+
+        Remove all function calls for safer eval.
+
+        """
+        raise ValueError(
+            "Error with the expression for function argument: %s\n"
+            "No function call allowed for parameter expressions." % self.key
+        )
 
 
 class Model:
@@ -645,7 +658,7 @@ class Component:
                 for pKey in params.keys():
                     arg = ast.parse(arg, mode="eval")
                     arg = ast.fix_missing_locations(
-                        FindParamNames(params).visit(arg)
+                        FindParamNames(key, params).visit(arg)
                     )
                 c = compile(arg, "<string>", "eval")
                 args[key] = eval(c)

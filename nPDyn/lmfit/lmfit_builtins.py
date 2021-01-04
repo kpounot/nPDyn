@@ -17,7 +17,7 @@ import operator
 import numpy as np
 
 try:
-    from lmfit import Model, CompositeModel
+    from lmfit import CompositeModel
     from lmfit.models import COMMON_GUESS_DOC
 except ImportError:
     print(
@@ -36,7 +36,6 @@ except ImportError:
     COMMON_GUESS_DOC = ""
 
 from nPDyn.lmfit.lmfit_presets import (
-    linear,
     delta,
     gaussian,
     lorentzian,
@@ -70,7 +69,7 @@ def guess_from_qens(pars, pGlobals, data, x, q, prefix=None):
         prefix = ""
 
     # guess starting values
-    for qId, qVal in enumerate(q):
+    for qId in range(q.size):
         center = x[np.argmax(data[qId])]
         amplitude = np.max(data[qId]) * np.pi
         b = (np.mean(data[qId, :25]) + np.mean(data[qId, -25:])) / 2

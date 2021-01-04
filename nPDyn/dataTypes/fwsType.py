@@ -4,21 +4,9 @@
 
 import numpy as np
 
-from nPDyn.dataTypes.baseType import BaseType, ensure_attr
+from nPDyn.dataTypes.baseType import BaseType
 from nPDyn.fileFormatParser import guessFileFormat, readFile
 from nPDyn.dataManipulation.binData import binData
-
-try:
-    from ..lib.pyabsco import py_absco_slab, py_absco_tube
-except ImportError:
-    print(
-        "\nAbsorption correction libraries are not available. "
-        "Paalman_Pings correction cannot be used.\n "
-        "Verify that GSL libraries are available on this computer, "
-        "and the path was correctly \n "
-        "set in the setup.cfg file during package installation."
-    )
-    pass
 
 
 class FWSType(BaseType):

@@ -6,9 +6,6 @@ methods to quickly perform processing and fitting operations in the
 experimental data.
 
 """
-import argparse
-
-from collections import namedtuple
 
 from nPDyn.dataTypes import fwsType, qensType
 
@@ -211,7 +208,9 @@ class Dataset:
 
         self.resFuncAssign()
 
-    def importRawData(self, dataList, instrument, dataType="QENS", kwargs={}):
+    def importRawData(
+        self, dataList, instrument, dataType="QENS", kwargs=None
+    ):
         """This method uses instrument-specific algorithm to import raw data.
 
         :arg dataList:      a list of data files to be imported
@@ -223,6 +222,8 @@ class Dataset:
                             (see algorithm in dataParsers for details)
 
         """
+        if kwargs is None:
+            kwargs = {}
 
         if dataType == "QENS":
             data = qensType.QENSType(dataList)
@@ -561,7 +562,7 @@ class Dataset:
             self.dataList[i].subtractEC(subFactor, useModel)
 
         if subRes:
-            for idx, resData in enumerate(self.resData):
+            for resData in self.resData:
                 resData.subtractEC(subFactor, useModel)
                 resData.fit()
 

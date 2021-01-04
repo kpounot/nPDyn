@@ -361,9 +361,9 @@ class ConvolvedModel(Model):
 
         models = []
         compPrefix = []
-        for lidx, lcomp in enumerate(lcomponents):
+        for lcomp in lcomponents:
             tmpRes = []
-            for ridx, rcomp in enumerate(rcomponents):
+            for rcomp in rcomponents:
                 if lcomp.func.__name__ in self.convMap.keys():
                     funcName = rcomp.func.__name__
                     leftConvMap = self.convMap[lcomp.func.__name__]

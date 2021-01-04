@@ -75,7 +75,7 @@ def processNexus(dataFile, FWS=False, averageTemp=True):
         listErr = []
         deltaE = []
         listT = []
-        for j, workspace in enumerate(h5File):
+        for workspace in h5File:
             listObs.append(h5File[workspace + "/workspace/axis1"][()])
             listI.append(h5File[workspace + "/workspace/values"][()])
             listErr.append(h5File[workspace + "/workspace/errors"][()])

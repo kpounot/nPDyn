@@ -1,6 +1,7 @@
 codecov
 cython
 CythonGSL
+defusedxml
 flake8
 h5py
 matplotlib

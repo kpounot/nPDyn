@@ -11,8 +11,8 @@ import numpy as np
 
 from collections import namedtuple
 
-from scipy.signal import find_peaks, savgol_filter
-from scipy.optimize import curve_fit, basinhopping
+from scipy.signal import savgol_filter
+from scipy.optimize import curve_fit
 
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
 
@@ -362,7 +362,7 @@ class IN16B_QENS:
         try:
             leftPeaks = []
             rightPeaks = []
-            for qIdx, qData in enumerate(maskedData):
+            for qData in maskedData:
                 errors = np.sqrt(qData)
                 np.place(errors, errors == 0, np.inf)
 

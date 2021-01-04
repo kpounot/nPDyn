@@ -7,7 +7,6 @@ import numpy as np
 from PyQt5.QtWidgets import (
     QWidget,
     QLabel,
-    QLineEdit,
     QCheckBox,
     QPushButton,
     QVBoxLayout,
@@ -378,7 +377,7 @@ class FWSPlot(QWidget):
     def get_obsRange(self):
         """Return the observables used in the dataset(s)."""
         obsRange = []
-        for idx, dataset in enumerate(self.dataset):
+        for dataset in self.dataset:
             for obs in dataset.data.observable:
                 if obs not in obsRange:
                     obsRange.append(obs)
