@@ -1,5 +1,4 @@
 """Basic analytical convolutions between preset functions."""
-
 import re
 
 import numpy as np
@@ -17,13 +16,28 @@ except ImportError:
 
 def getGlobals(params):
     """Helper function to get the global parameters."""
-
     pGlob = []
     for key in params.keys():
         if not re.match(r"(\w*_*)\w+_\d+", key):
             pGlob.append(key)
 
     return pGlob
+
+
+def _getVariables(left, right, params, **kwargs):
+    """Helper function to avoid code duplication."""
+    lp = left.make_funcargs(params, kwargs)
+    rp = right.make_funcargs(params, kwargs)
+
+    x = lp["x"]
+    q = lp["q"]
+
+    out = []
+
+    lglob = getGlobals(lp)
+    rglob = getGlobals(rp)
+
+    return lp, rp, x, q, out, lglob, rglob
 
 
 def conv_lorentzian_lorentzian(left, right, params, **kwargs):
@@ -36,16 +50,9 @@ def conv_lorentzian_lorentzian(left, right, params, **kwargs):
             a_1 a_2 . \mathcal{L}_{\sigma_1 + \sigma_2, center_1 + center_2}
 
     """
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -85,16 +92,9 @@ def conv_gaussian_lorentzian(left, right, params, **kwargs):
     if left.func.__name__ == "lorentzian":
         left, right = (right, left)
 
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -134,16 +134,9 @@ def conv_gaussian_jumpdiff(left, right, params, **kwargs):
     if left.func.__name__ == "lorentzian":
         left, right = (right, left)
 
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -179,16 +172,9 @@ def conv_gaussian_rotations(left, right, params, **kwargs):
     if left.func.__name__ == "rotations":
         left, right = (right, left)
 
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -236,16 +222,9 @@ def conv_gaussian_gaussian(left, right, params, **kwargs):
             a_1 a_2 . G_{\sigma_1 + \sigma2, center_1 + center_2}
 
     """
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -307,16 +286,9 @@ def conv_lorentzian_pvoigt(left, right, params, **kwargs):
     if left.func.__name__ == "pvoigt":
         left, right = (right, left)
 
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -371,16 +343,9 @@ def conv_gaussian_pvoigt(left, right, params, **kwargs):
     if left.func.__name__ == "pvoigt":
         left, right = (right, left)
 
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -427,16 +392,9 @@ def conv_jumpdiff_pvoigt(left, right, params, **kwargs):
     if left.func.__name__ == "pvoigt":
         left, right = (right, left)
 
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -473,16 +431,9 @@ def conv_rotations_pvoigt(left, right, params, **kwargs):
     if left.func.__name__ == "pvoigt":
         left, right = (right, left)
 
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
-
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
     for qId, qVal in enumerate(q):
         amplitude = (
@@ -534,18 +485,11 @@ def conv_delta(left, right, params, **kwargs):
     if left.func.__name__ != "delta":
         left, right = (right, left)
 
-    lp = left.make_funcargs(params, kwargs)
-    rp = right.make_funcargs(params, kwargs)
+    lp, rp, x, q, out, lglob, rglob = _getVariables(
+        left, right, params, **kwargs
+    )
 
-    x = lp["x"]
-    q = lp["q"]
-
-    out = []
-
-    lglob = getGlobals(lp)
-    rglob = getGlobals(rp)
-
-    for qId, qVal in enumerate(q):
+    for qId in range(q.size):
         amplitude = (
             lp["amplitude"]
             if "amplitude" in lglob

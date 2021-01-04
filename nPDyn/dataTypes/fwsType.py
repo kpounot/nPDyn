@@ -1,6 +1,4 @@
-"""Specialized type for fixed-window scans (FWS).
-
-"""
+"""Specialized type for fixed-window scans (FWS)."""
 
 import numpy as np
 
@@ -10,12 +8,6 @@ from nPDyn.dataManipulation.binData import binData
 
 
 class FWSType(BaseType):
-    """Specialized class for fixed-window scans (FWS).
-
-    This class inherits from :class:`baseType` class.
-
-    """
-
     def __init__(
         self,
         fileName,
@@ -26,13 +18,19 @@ class FWSType(BaseType):
         ECData=None,
         model=None,
     ):
+        """Specialized class for fixed-window scans (FWS).
+
+        This class inherits from :class:`baseType` class.
+
+        """
         super().__init__(
             fileName, data, rawData, resData, D2OData, ECData, model
         )
 
     def importData(self, fileFormat=None):
-        """Extract data from file and store them in *data* and *rawData*
-        attributes.
+        """Extract data from file.
+
+        Data are stored in *data* and *rawData* attributes.
 
         If no fileFormat is given, tries to guess it, try hdf5 format
         if format cannot be guessed.
