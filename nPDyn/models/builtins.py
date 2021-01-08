@@ -53,7 +53,7 @@ def modelPVoigt(q, name="PVoigt", **kwargs):
             "gaussian",
             gaussian,
             scale="scale * frac",
-            width="width / np.sqrt(2 * np.log(2))",
+            width="width / sqrt(2 * log(2))",
         )
     )
 
@@ -94,7 +94,7 @@ def modelPVoigtBkgd(q, name="PVoigtBkgd", **kwargs):
             "gaussian",
             gaussian,
             scale="scale * frac",
-            width="width / np.sqrt(2 * np.log(2))",
+            width="width / sqrt(2 * log(2))",
         )
     )
     m.addComponent(Component("background", linear, True, a=0.0, b="bkgd"))
@@ -171,7 +171,7 @@ def modelLorentzianSum(q, name="LorentzianSum", nLor=2, **kwargs):
             Component(
                 r"$\mathcal{L}_{%i}$" % (idx + 1),
                 lorentzian,
-                scale="np.exp(-q**2 - msd) * a%i" % (idx + 1),
+                scale="exp(-q**2 - msd) * a%i" % (idx + 1),
                 width="w%i * q**2" % (idx + 1),
             )
         )

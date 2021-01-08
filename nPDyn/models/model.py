@@ -17,6 +17,7 @@ import numpy as np
 from scipy.optimize import curve_fit, minimize, basinhopping
 from scipy.sparse.linalg import LinearOperator
 from scipy.signal import fftconvolve
+from scipy.special import wofz, spherical_jn, erf, erfc, gamma
 
 from nPDyn.models import Parameters
 from nPDyn.models.presets import (
@@ -44,47 +45,73 @@ class FindParamNames(ast.NodeTransformer):
 
     """
 
-    def __init__(self, key, params):
+    def __init__(self, key, params, allowedFuncs):
         super().__init__()
         self.key = key
         self.params = params
+        self.allowedFuncs = allowedFuncs
 
     def visit_Name(self, node):
         """Name visitor."""
         if node.id in self.params.keys():
             if _PY_VERSION <= 3.6:
-                res = ast.Attribute(
-                    value=ast.Subscript(
-                        value=ast.Name(id="params", ctx=node.ctx),
-                        slice=ast.Index(value=ast.Str(s=node.id)),
-                        ctx=node.ctx,
-                    ),
-                    attr="value",
-                    ctx=node.ctx,
-                )
+                sliceVal = ast.Index(value=ast.Str(s=node.id))
             else:
-                res = ast.Attribute(
-                    value=ast.Subscript(
-                        value=ast.Name(id="params", ctx=node.ctx),
-                        slice=ast.Index(ast.Constant(s=node.id)),
-                        ctx=node.ctx,
-                    ),
-                    attr="value",
+                sliceVal = ast.Index(ast.Constant(s=node.id))
+
+            res = ast.Attribute(
+                value=ast.Subscript(
+                    value=ast.Name(id="params", ctx=node.ctx),
+                    slice=sliceVal,
                     ctx=node.ctx,
-                )
+                ),
+                attr="value",
+                ctx=node.ctx,
+            )
             return res
         return node
 
     def visit_Call(self, node):
         """Call visitor
 
-        Remove all function calls for safer eval.
+        For safer eval, allow only some calls of specific functions
+        whose name are associated to a fixed dictionary in the
+        :py:class:`Component` class.
 
         """
-        raise ValueError(
-            "Error with the expression for function argument: %s\n"
-            "No function call allowed for parameter expressions." % self.key
-        )
+        for iterNode in ast.walk(node):
+            if isinstance(iterNode, ast.Call):
+                if not isinstance(iterNode.func, ast.Name):
+                    raise ValueError(
+                        "Error with the expression for function argument: %s\n"
+                        "Only direct function call are allowed, no "
+                        "methods from imported libraries or subscript "
+                        "of some list or dict." % self.key
+                    )
+                funcName = iterNode.func.id
+                if funcName in self.allowedFuncs:
+                    if _PY_VERSION <= 3.6:
+                        sliceVal = ast.Index(value=ast.Str(s=funcName))
+                    else:
+                        sliceVal = ast.Index(ast.Constant(s=funcName))
+
+                    iterNode.func = ast.Subscript(
+                        value=ast.Name(
+                            id="allowedFuncs", ctx=iterNode.func.ctx
+                        ),
+                        slice=sliceVal,
+                        ctx=iterNode.func.ctx,
+                    )
+
+                else:
+                    raise ValueError(
+                        "Error with the expression for function argument: %s\n"
+                        "Only a few functions are allowed for evaluation of "
+                        "parameter expressions (see documentation "
+                        "'model.Component' for details." % self.key
+                    )
+
+        return node
 
 
 class Model:
@@ -593,6 +620,17 @@ class Component:
             - **str**, the values are evaluated first. If any word in
               the string is present in the `Model.params` dictionary keys,
               the corresponding parameter value is substituted.
+              Some math functions can be called too as in the example
+              provided below.
+              These are, 'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan',
+              'sinh', cosh', 'tanh', 'arcsinh', 'arccosh', 'arctanh',
+              'floor', 'ceil', 'exp', 'log', 'sqrt', 'wofz',
+              'spherical_jn', 'gamma', 'erf', 'erfc'.
+              The function names in the string are automatically replaced
+              be the functions defined in *numpy* and *scipy* with the same
+              arguments.
+              Only these functions are allowed for safer eval.
+              Anything else will result in an error.
 
     Examples
     --------
@@ -610,6 +648,10 @@ class Component:
 
     >>> myComp = Component('lor', lorentzian, scale='scale', width=5)
 
+    Some math functions can be used as well (below the exponential):
+
+    >>> myComp = Component('lor', lorentzian, scale='exp(-q**2 * msd)')
+
     """
 
     def __init__(self, name, func, skip_convolve=False, **funcArgs):
@@ -623,6 +665,33 @@ class Component:
         self.funcArgs = {}
         self._guessArgs()
         self.funcArgs.update(funcArgs)
+
+    @property
+    def _allowedFuncs(self):
+        return {
+            "sin": np.sin,
+            "cos": np.cos,
+            "tan": np.tan,
+            "arcsin": np.arcsin,
+            "arccos": np.arccos,
+            "arctan": np.arctan,
+            "sinh": np.sinh,
+            "cosh": np.cosh,
+            "tanh": np.tanh,
+            "arcsinh": np.arcsinh,
+            "arccosh": np.arccosh,
+            "arctanh": np.arctanh,
+            "floor": np.floor,
+            "ceil": np.ceil,
+            "exp": np.exp,
+            "log": np.log,
+            "sqrt": np.sqrt,
+            "wofz": wofz,
+            "spherical_jn": spherical_jn,
+            "gamma": gamma,
+            "erf": erf,
+            "erfc": erfc,
+        }
 
     def eval(self, x, params, **kwargs):
         """Evaluate the components using the given parameters.
@@ -645,6 +714,7 @@ class Component:
 
         """
         params = deepcopy(params)
+        allowedFuncs = self._allowedFuncs
 
         for key, val in kwargs.items():
             if isinstance(val, (int, float, list, np.ndarray)):
@@ -655,11 +725,10 @@ class Component:
         args = {}
         for key, arg in self.funcArgs.items():
             if isinstance(arg, str):
-                for pKey in params.keys():
-                    arg = ast.parse(arg, mode="eval")
-                    arg = ast.fix_missing_locations(
-                        FindParamNames(key, params).visit(arg)
-                    )
+                arg = ast.parse(arg, mode="eval")
+                arg = ast.fix_missing_locations(
+                    FindParamNames(key, params, allowedFuncs.keys()).visit(arg)
+                )
                 c = compile(arg, "<string>", "eval")
                 args[key] = eval(c)
             else:

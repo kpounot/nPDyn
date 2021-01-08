@@ -29,8 +29,8 @@ def _getVariables(left, right, params, **kwargs):
     lp = left.make_funcargs(params, kwargs)
     rp = right.make_funcargs(params, kwargs)
 
-    x = lp["x"]
-    q = lp["q"]
+    x = np.array(lp["x"])
+    q = np.array(lp["q"])
 
     out = []
 
