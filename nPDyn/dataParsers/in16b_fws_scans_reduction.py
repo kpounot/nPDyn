@@ -111,6 +111,7 @@ class IN16B_FWS:
         self.monitor = []
         self.energyList = []
         self.qList = []
+        self.qzList = []
         self.tempList = []
         self.startTimeList = []
 
@@ -127,6 +128,7 @@ class IN16B_FWS:
         self.monitor = []
         self.energyList = []
         self.qList = []
+        self.qzList = []
         self.tempList = []
         self.startTimeList = []
 
@@ -153,8 +155,21 @@ class IN16B_FWS:
             )
             self.monitor.append(np.copy(monitor))
 
+            wavelength = dataset["entry0/wavelength"][()]
+
             if self.detGroup == "no":
                 self.observable = "$q_z$"
+                nbrDet = data.shape[0]
+                nbrYPixels = int(data.shape[1])
+                sampleToDec = (
+                    dataset["entry0/instrument/PSD/distance_to_sample"][()]
+                    * 10
+                )
+                tubeHeight = dataset["entry0/instrument/PSD/tubes_size"][()]
+                qZ = np.arange(nbrYPixels) - nbrYPixels / 2
+                qZ *= tubeHeight / nbrYPixels
+                qZ *= 4 * np.pi / (sampleToDec * wavelength)
+                self.qzList = qZ
             else:
                 # Sum along the selected region of the tubes
                 data = self._detGrouping(data)
@@ -162,8 +177,6 @@ class IN16B_FWS:
             nbrDet = data.shape[0]
 
             self.energyList.append(maxDeltaE)
-
-            wavelength = dataset["entry0/wavelength"][()]
 
             angles = [
                 dataset["entry0/instrument/PSD/PSD angle %s" % int(val + 1)][
@@ -278,7 +291,13 @@ class IN16B_FWS:
         elif self.observable == "temperature":
             Y = temps.squeeze()
         elif self.observable == "$q_z$":
-            Y = np.arange(0, 1.5, 0.1)
+            data = data.transpose(3, 1, 2, 0).squeeze()
+            errors = errors.transpose(3, 1, 2, 0).squeeze()
+            Y = self.qzList
+            midPos = int(data.shape[0] / 2)
+            data = (data[:midPos][::-1] + data[midPos:]) / 2
+            errors = (errors[:midPos][::-1] + errors[midPos:]) / 2
+            Y = (-Y[:midPos][::-1] + Y[midPos:]) / 2
 
         self.outTuple = self.data(
             data,

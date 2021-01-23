@@ -834,6 +834,13 @@ class BaseType:
         """Return the model with the fitted parameters."""
         return self._fit
 
+    @property
+    @ensure_fit
+    def fit_result(self):
+        """Return the full result of the fit, if available."""
+        res = [fit.fitResult for fit in self._fit]
+        return res
+
     def _cleanData(self, data, errors, x, processType="replace"):
         """Remove inf and null values from the input arrays.
 

@@ -52,6 +52,9 @@ class IN16B_QENS:
                       are ignored at each extremity of the spectrum.
     :arg observable:  the observable that might be changing over scans.
                       It can be `time` or `temperature`
+    :arg roll:        Amount of shift on the energy axis to be given to
+                      the measured data in case they are not properly aligned
+                      with the monitor.
 
     """
 
@@ -66,6 +69,7 @@ class IN16B_QENS:
         normalize=True,
         strip=10,
         observable="time",
+        roll=0,
     ):
 
         self.data = namedtuple(
@@ -106,11 +110,13 @@ class IN16B_QENS:
         self.normalize = normalize
         self.observable = observable
         self.strip = strip
+        self.roll = roll
         self.dataList = []
         self.errList = []
         self.energyList = []
         self.qList = []
         self.tempList = []
+        self.qzList = []
 
         self.outTuple = None
 
@@ -122,6 +128,7 @@ class IN16B_QENS:
         self.dataList = []
         self.energyList = []
         self.qList = []
+        self.qzList = []
         self.tempList = []
         self.startTimeList = []
         self.monitor = []
@@ -130,6 +137,7 @@ class IN16B_QENS:
             dataset = h5py.File(dataFile, mode="r")
 
             data = dataset["entry0/data/PSD_data"][()]
+            data = np.roll(data, self.roll, axis=2)
 
             self.name = dataset["entry0/subtitle"][(0)].astype(str)
 
@@ -139,10 +147,22 @@ class IN16B_QENS:
 
             self.monitor.append(monitor)
 
+            wavelength = dataset["entry0/wavelength"][()]
+
             if self.detGroup == "no":
                 self.observable = "$q_z$"
                 nbrDet = data.shape[0]
                 nbrChn = int(data.shape[2] / 2)
+                nbrYPixels = int(data.shape[1])
+                sampleToDec = (
+                    dataset["entry0/instrument/PSD/distance_to_sample"][()]
+                    * 10
+                )
+                tubeHeight = dataset["entry0/instrument/PSD/tubes_size"][()]
+                qZ = np.arange(nbrYPixels) - nbrYPixels / 2
+                qZ *= tubeHeight / nbrYPixels
+                qZ *= 4 * np.pi / (sampleToDec * wavelength)
+                self.qzList = qZ
             else:
                 # Sum along the selected region of the tubes
                 data = self._detGrouping(data)
@@ -154,8 +174,6 @@ class IN16B_QENS:
             ][()]
             energies = 2 * np.arange(nbrChn)
             energies = energies * (maxDeltaE / nbrChn) - maxDeltaE
-
-            wavelength = dataset["entry0/wavelength"][()]
 
             angles = np.array(
                 [
@@ -301,7 +319,11 @@ class IN16B_QENS:
         elif self.observable == "$q_z$":
             data = data.transpose(3, 1, 2, 0).squeeze()
             errors = errors.transpose(3, 1, 2, 0).squeeze()
-            Y = np.arange(data.shape[0])
+            Y = self.qzList
+            midPos = int(data.shape[0] / 2)
+            data = (data[:midPos][::-1] + data[midPos:]) / 2
+            errors = (errors[:midPos][::-1] + errors[midPos:]) / 2
+            Y = (-Y[:midPos][::-1] + Y[midPos:]) / 2
 
         self.outTuple = self.data(
             data,

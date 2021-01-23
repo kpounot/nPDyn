@@ -14,7 +14,12 @@ from collections import OrderedDict
 
 import numpy as np
 
-from scipy.optimize import curve_fit, minimize, basinhopping
+from scipy.optimize import (
+    curve_fit,
+    minimize,
+    basinhopping,
+    differential_evolution,
+)
 from scipy.sparse.linalg import LinearOperator
 from scipy.signal import fftconvolve
 from scipy.special import wofz, spherical_jn, erf, erfc, gamma
@@ -194,6 +199,7 @@ class Model:
                 self.convolutions[key].update(val)
 
         self._optParams = None
+        self._fitResult = None
         self._userkws = {}
 
         self._on_undef_conv = on_undef_conv
@@ -266,6 +272,11 @@ class Model:
         """Return the keywords used for the fit."""
         return self._userkws
 
+    @property
+    def fitResult(self):
+        """Return the full result of the fit."""
+        return self._fitResult
+
     def fit(
         self,
         x,
@@ -284,9 +295,23 @@ class Model:
             Values for the indenpendent variable.
         data : np.ndarray
             Experimental data to be fitted.
-        weights : np.ndarray
+        weights : np.ndarray, optional
             Weights associated with the experimental data (the
             experimental errors).
+        fit_method : str, optional
+            The method to be used for fitting.
+            Currently available methods are (from Scipy):
+            - "curve_fit"
+            - "basinhopping"
+            - "minimize"
+        fit_kws : dict, optional
+            Additional keywords to be passed to the fit method.
+        params : :class:`Parameters` class instance, optional
+            Parameters to be used (default None, will use the parameters
+            associated with the model).
+        kwargs : dict, optional
+            Additional keywords arguments to give for the evaluation
+            of the model. Can override parameters too.
 
         """
         # process 'x' array and match the shape of data
@@ -340,9 +365,21 @@ class Model:
                 fit.x, np.sqrt(np.diag(weights))
             )
 
+        if fit_method == "differential_evolution":
+            func = lambda p: np.sum(
+                (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
+            )
+            fit = differential_evolution(func, bounds=bounds, **fit_kws)
+
+            weights = fit.hess_inv.todense()
+            self.optParams = self.params.listToParams(
+                fit.x, np.sqrt(np.diag(weights))
+            )
+
         self._userkws["x"] = x
         self._userkws["params"] = params
         self._userkws.update(**kwargs)
+        self._fitResult = fit
 
     # --------------------------------------------------
     # accessors

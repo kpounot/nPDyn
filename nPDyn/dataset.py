@@ -7,6 +7,8 @@ experimental data.
 
 """
 
+import os
+
 from nPDyn.dataTypes import fwsType, qensType
 
 from nPDyn.plot import makeWindow, QENSPlot, FWSPlot
