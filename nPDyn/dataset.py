@@ -234,6 +234,13 @@ class Dataset:
             data.ECData = self.ECData
             self.dataList.append(data)
 
+        if dataType == "BATS":
+            data = qensType.QENSType(dataList)
+            data.importRawData(dataList, instrument, dataType, kwargs)
+            data.D2OData = self.D2OData
+            data.ECData = self.ECData
+            self.dataList.append(data)
+
         elif dataType == "FWS":
             data = fwsType.FWSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)

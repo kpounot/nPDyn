@@ -11,6 +11,7 @@ from nPDyn.models.presets import (
     delta,
     gaussian,
     lorentzian,
+    rotations,
     calibratedD2O,
 )
 from nPDyn.models.params import Parameters
@@ -165,7 +166,7 @@ def modelLorentzianSum(q, name="LorentzianSum", nLor=2, **kwargs):
 
     m = Model(p, name)
 
-    m.addComponent(Component("EISF", delta, scale="np.exp(-q**2 * msd) * a0"))
+    m.addComponent(Component("EISF", delta, scale="exp(-q**2 * msd) * a0"))
     for idx in range(nLor):
         m.addComponent(
             Component(
@@ -176,6 +177,124 @@ def modelLorentzianSum(q, name="LorentzianSum", nLor=2, **kwargs):
             )
         )
     m.addComponent(Component("background", linear, True, a=0.0, b="bkgd"))
+
+    return m
+
+
+def modelWater(q, name="waterDynamics", **kwargs):
+    """A model containing a delta, a Lorentzian for translational
+    motions, a Lorentzian for rotational motions, and a
+    background term.
+
+    Parameters
+    ----------
+    q : np.ndarray
+        Array of values for momentum transfer q.
+    name : str
+        Name for the model
+    kwargs : dict
+        Additional arguments to pass to Parameters.
+        Can override default parameter attributes.
+
+    """
+    p = Parameters(
+        a0={"value": 0.33, "bounds": (0.0, np.inf)},
+        at={"value": 0.33, "bounds": (0.0, np.inf)},
+        ar={"value": 0.33, "bounds": (0.0, np.inf)},
+        wt={"value": 5, "bounds": (0.0, np.inf)},
+        wr={"value": 15, "bounds": (0.0, np.inf)},
+        center={"value": 0.0, "fixed": True},
+        msd={"value": 1.0, "bounds": (0.0, np.inf)},
+        bkgd={"value": np.zeros_like(q) + 0.001, "bounds": (0.0, np.inf)},
+    )
+
+    p.update(**kwargs)
+
+    m = Model(p, name)
+
+    m.addComponent(
+        Component(
+            "EISF",
+            delta,
+            scale="exp(-q**2 * msd) * "
+            "(a0 + ar * spherical_jn(0, 0.96 * q)**2)",
+        )
+    )
+    m.addComponent(
+        Component(
+            r"$\mathcal{L}_r$",
+            rotations,
+            scale="exp(-q**2 * msd) * ar",
+            width="wr",
+        )
+    )
+    m.addComponent(
+        Component(
+            r"$\mathcal{L}_t$",
+            lorentzian,
+            scale="exp(-q**2 * msd) * at",
+            width="wt * q**2",
+        )
+    )
+    m.addComponent(Component("background", linear, True, a=0.0, b="bkgd"))
+
+    return m
+
+
+def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
+    """A model for protein in liquid state.
+
+    The model contains a delta accounting for the EISF,
+    a Lorentzian of Fickian-type diffusion accounting for
+    center-of-mass motions, a Lorentzian of width that
+    obeys the jump diffusion model [#]_ accounting for
+    internal dynamics, and a background term for :math:`D_2O`.
+
+    Parameters
+    ----------
+    q : np.ndarray
+        Array of values for momentum transfer q.
+    name : str
+        Name for the model
+    kwargs : dict
+        Additional arguments to pass to Parameters.
+        Can override default parameter attributes.
+
+    References
+    ----------
+    .. [#] https://doi.org/10.1103/PhysRev.119.863
+
+    """
+    p = Parameters(
+        ag={"value": 0.5, "bounds": (0.0, np.inf)},
+        ai={"value": 0.5, "bounds": (0.0, np.inf)},
+        wg={"value": 5, "bounds": (0.0, np.inf)},
+        wi={"value": 15, "bounds": (0.0, np.inf)},
+        tau={"value": 10, "bounds": (0.0, np.inf)},
+        center={"value": 0.0, "fixed": True},
+        msd={"value": 1.0, "bounds": (0.0, np.inf)},
+    )
+
+    p.update(**kwargs)
+
+    m = Model(p, name)
+
+    m.addComponent(
+        Component(
+            r"$\mathcal{L}_g$",
+            lorentzian,
+            scale="exp(-q**2 * msd) * ag",
+            width="wg * q**2",
+        )
+    )
+    m.addComponent(
+        Component(
+            r"$\mathcal{L}_i$",
+            lorentzian,
+            scale="exp(-q**2 * msd) * ai",
+            width="wg * q**2 + wi * q**2 / (1 + wi * q**2 * tau)",
+        )
+    )
 
     return m
 

@@ -28,6 +28,8 @@ from nPDyn.models import Parameters
 from nPDyn.models.presets import (
     conv_lorentzian_lorentzian,
     conv_lorentzian_gaussian,
+    conv_rotations_gaussian,
+    conv_lorentzian_rotations,
     conv_gaussian_gaussian,
     conv_delta,
     conv_linear,
@@ -50,11 +52,10 @@ class FindParamNames(ast.NodeTransformer):
 
     """
 
-    def __init__(self, key, params, allowedFuncs):
+    def __init__(self, key, params):
         super().__init__()
         self.key = key
         self.params = params
-        self.allowedFuncs = allowedFuncs
 
     def visit_Name(self, node):
         """Name visitor."""
@@ -75,6 +76,23 @@ class FindParamNames(ast.NodeTransformer):
             )
             return res
         return node
+
+
+class ParseFuncCalls(ast.NodeTransformer):
+    """Helper class to parse strings to evaluation for function
+    arguments in :class:`Component`.
+
+    Parameters
+    ----------
+    allowedFuncs : dict
+        A dictionary of function names and their associated definitions.
+
+    """
+
+    def __init__(self, key, allowedFuncs):
+        super().__init__()
+        self.key = key
+        self.allowedFuncs = allowedFuncs
 
     def visit_Call(self, node):
         """Call visitor
@@ -171,6 +189,12 @@ class Model:
             "lorentzian": {
                 "lorentzian": conv_lorentzian_lorentzian,
                 "gaussian": conv_lorentzian_gaussian,
+                "delta": conv_delta,
+                "linear": conv_linear,
+            },
+            "rotations": {
+                "lorentzian": conv_lorentzian_rotations,
+                "gaussian": conv_rotations_gaussian,
                 "delta": conv_delta,
                 "linear": conv_linear,
             },
@@ -320,6 +344,10 @@ class Model:
         if fit_kws is None:
             fit_kws = {}
 
+        func = lambda p: np.sum(
+            (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
+        )
+
         if fit_method == "curve_fit":
             func = lambda x, *p: self.eval(x, p, **kwargs).flatten()
             bounds = ([val[0] for val in bounds], [val[1] for val in bounds])
@@ -338,9 +366,6 @@ class Model:
             )
 
         if fit_method == "basinhopping":
-            func = lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
-            )
             if "minimizer_kwargs" in fit_kws.keys():
                 fit_kws["minimizer_kwargs"].update(bounds=bounds)
             else:
@@ -355,9 +380,6 @@ class Model:
             )
 
         if fit_method == "minimize":
-            func = lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
-            )
             fit = minimize(func, params, bounds=bounds, **fit_kws)
 
             weights = fit.hess_inv.todense()
@@ -366,12 +388,21 @@ class Model:
             )
 
         if fit_method == "differential_evolution":
-            func = lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
-            )
+            maxFloat = np.finfo("float64").max
+            minFloat = np.finfo("float64").min
+            for boundsIdx, boundsTuple in enumerate(bounds):
+                pMin, pMax = boundsTuple
+                if pMin == -np.inf:
+                    pMin = minFloat
+                if pMax == np.inf:
+                    pMax == maxFloat
+                bounds[boundsIdx] = (pMin, pMax)
+
             fit = differential_evolution(func, bounds=bounds, **fit_kws)
 
-            weights = fit.hess_inv.todense()
+            weights = fit.lowest_optimization_result.hess_inv
+            if isinstance(weights, LinearOperator):
+                weights = weights.todense()
             self.optParams = self.params.listToParams(
                 fit.x, np.sqrt(np.diag(weights))
             )
@@ -754,17 +785,20 @@ class Component:
         allowedFuncs = self._allowedFuncs
 
         for key, val in kwargs.items():
-            if isinstance(val, (int, float, list, np.ndarray)):
-                params.set(key, value=val)
-            else:
+            if key in params.keys():
                 params.update(**{key: val})
+            else:
+                params.set(key, value=val, fixed=True)
 
         args = {}
         for key, arg in self.funcArgs.items():
             if isinstance(arg, str):
                 arg = ast.parse(arg, mode="eval")
                 arg = ast.fix_missing_locations(
-                    FindParamNames(key, params, allowedFuncs.keys()).visit(arg)
+                    FindParamNames(key, params).visit(arg)
+                )
+                arg = ast.fix_missing_locations(
+                    ParseFuncCalls(key, allowedFuncs.keys()).visit(arg)
                 )
                 c = compile(arg, "<string>", "eval")
                 args[key] = eval(c)

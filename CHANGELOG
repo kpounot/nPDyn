@@ -1,3 +1,9 @@
+v2.1.0
+------
+    Adding the possibility to use the z-direction on the position-sensitive
+    detectors as an observable.
+    Some bug corrections and code quality improvements.
+
 v2.0.1
 ------
     Fixing an issue with lmfit backend, which makes use of the inverse errors

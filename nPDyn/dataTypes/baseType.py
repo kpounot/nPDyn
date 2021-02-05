@@ -26,11 +26,12 @@ except ImportError:
 
 from nPDyn.dataManipulation.binData import binData
 from nPDyn.fileFormatParser import guessFileFormat, readFile
-from nPDyn.dataParsers import IN16B_FWS, IN16B_QENS
+from nPDyn.dataParsers import IN16B_FWS, IN16B_QENS, IN16B_BATS
 
 from nPDyn.models import Model, Component, Parameters
 from nPDyn.models.presets import linear
 from nPDyn.lmfit.convolvedModel import ConvolvedModel
+from nPDyn.lmfit.lmfit_presets import hline
 
 try:
     from nPDyn.lib.pyabsco import py_absco_slab, py_absco_tube
@@ -133,6 +134,7 @@ class BaseType:
 
         self._QENS_redAlgo = {"IN16B": IN16B_QENS}
         self._FWS_redAlgo = {"IN16B": IN16B_FWS}
+        self._BATS_redAlgo = {"IN16B": IN16B_BATS}
 
         self.model = model
         self._fit = []
@@ -187,6 +189,11 @@ class BaseType:
 
         elif dataType in ["FWS", "fec", "fD2O"]:
             data = self._FWS_redAlgo[instrument](dataList, **kwargs)
+            data.process()
+            self.data = data.outTuple
+
+        elif dataType in ["BATS"]:
+            data = self._BATS_redAlgo[instrument](dataList, **kwargs)
             data.process()
             self.data = data.outTuple
 
@@ -524,7 +531,7 @@ class BaseType:
         """Return the normalization factors from `resData`."""
         if len(self.resData._fit) > 0:
             res = self.resData.fit_best()
-            x = self.resData.model.fitkws["x"]
+            x = self.resData.model.userkws["x"]
         else:
             x = self.resData.data.energies
             res = self.resData.data.intensities
@@ -656,7 +663,7 @@ class BaseType:
         # reset the state of '_fit'
         self._fit = []
 
-        q = self.data.qVals
+        q = self.data.qVals[:, np.newaxis]
 
         if "data" not in kwargs.keys():
             data = np.copy(self.data.intensities)
@@ -718,18 +725,29 @@ class BaseType:
 
         if addD2O:
             if isinstance(self.model, Model):
-                D2OModel = self.D2OData.model.copy()
+                self.model.params.set(
+                    "bD2O", value=np.zeros_like(q) + 0.1, bounds=(0.0, np.inf)
+                )
+                normD2O = 1
                 if self.data.norm and not self.D2OData.data.norm:
-                    D2OModel /= Component(
-                        "norm", linear, a=0.0, b=self._getNormRes()[0]
+                    normD2O *= self._getNormRes()[0]
+                self.model.addComponent(
+                    Component(
+                        "$D_2O$",
+                        lambda x, bD2O: bD2O
+                        / normD2O
+                        * self.D2OData.fit_best(x=x)[0],
+                        skip_convolve=True,
                     )
-                model = model + D2OModel
+                )
             else:
                 D2OModel = self.D2OData.model
                 if self.data.norm and not self.D2OData.data.norm:
                     D2OModel /= lmModel(lambda x: self._getNormRes()[0])
+                scale = hline(q, prefix="bD2O_")
+                D2OModel = scale * D2OModel
+                D2OModel.param_hints.update(self.D2OData.getFixedOptParams(0))
                 model += D2OModel
-                model.param_hints.update(self.D2OData.getFixedOptParams(0))
 
         for idx, obs in enumerate(self.data.observable):
             # get the right observable index for data and errors

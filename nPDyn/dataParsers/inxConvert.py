@@ -116,11 +116,13 @@ def convert(datafile, FWS=None):
         temps = X
         obs = temps
         obs_name = "temperature"
+        intensities = intensities.T
+        errors = errors.T
 
     # Creating the named tuple (no temp with .inx)
     dataSet = dataTuple(
-        intensities.T,
-        errors.T,
+        intensities,
+        errors,
         energies,
         temps,
         times,

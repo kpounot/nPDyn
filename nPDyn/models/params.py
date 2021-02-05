@@ -9,6 +9,9 @@ from collections import OrderedDict, namedtuple
 import numpy as np
 
 
+_INT_FLOAT_32_64 = (int, float, np.int32, np.int64, np.float32, np.float64)
+
+
 def pTuple(value=1, bounds=(-np.inf, np.inf), fixed=False, error=0.0):
     """Helper function to create a namedtuple with default values."""
     t = namedtuple("param", "value bounds fixed error")
@@ -22,17 +25,19 @@ def _checkTupleEntries(
     """Check for entries in the 'pTuple'."""
     # check value attribute
     if isinstance(value, list):
-        if not all(isinstance(ele, (int, float)) for ele in value):
+        if not all(isinstance(ele, _INT_FLOAT_32_64) for ele in value):
             raise ValueError(
                 "Elements in parameter value should be integer or float."
             )
     elif isinstance(value, np.ndarray):
-        if not all(isinstance(ele, (int, float)) for ele in value.flatten()):
+        if not all(
+            isinstance(ele, _INT_FLOAT_32_64) for ele in value.flatten()
+        ):
             raise ValueError(
                 "Elements in parameter value should be integer or float."
             )
     else:
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, _INT_FLOAT_32_64):
             raise ValueError("The parameter value should be integer or float.")
 
     # check bounds attribute
@@ -42,9 +47,10 @@ def _checkTupleEntries(
         )
     else:
         for side in bounds:
-            if not isinstance(side, (int, float)):
+            if not isinstance(side, _INT_FLOAT_32_64 + (np.float,)):
                 raise ValueError(
-                    "Parameter bounds should contain only integers or floats."
+                    "Parameter bounds should contain only integers, floats "
+                    "or inf."
                 )
 
     # check fixed attribute
@@ -53,17 +59,19 @@ def _checkTupleEntries(
 
     # check error attribute
     if isinstance(error, list):
-        if not all(isinstance(ele, (float, int)) for ele in error):
+        if not all(isinstance(ele, _INT_FLOAT_32_64) for ele in error):
             raise ValueError(
                 "Elements in parameter error should be integer or float."
             )
     elif isinstance(error, np.ndarray):
-        if not all(isinstance(ele, (float, int)) for ele in error.flatten()):
+        if not all(
+            isinstance(ele, _INT_FLOAT_32_64) for ele in error.flatten()
+        ):
             raise ValueError(
                 "Elements in parameter error should be integer or float."
             )
     else:
-        if not isinstance(error, (int, float)):
+        if not isinstance(error, _INT_FLOAT_32_64):
             raise ValueError("The parameter error should be integer or float.")
 
 

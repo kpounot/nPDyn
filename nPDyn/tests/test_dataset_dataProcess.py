@@ -1,7 +1,5 @@
 import os
 
-path = os.path.dirname(os.path.abspath(__file__))
-
 import unittest
 
 import pytest
@@ -14,6 +12,8 @@ try:
     _HAS_ABSCO = True
 except ImportError:
     _HAS_ABSCO = False
+
+path = os.path.dirname(os.path.abspath(__file__))
 
 
 def test_remove_dataset(fullQENSDataset):
@@ -61,18 +61,6 @@ def test_resetAll(mixFWSDataset):
     assert mixFWSDataset.dataList[0].data.intensities[0, 0].sum() < 0.3
 
 
-def test_resetAll(mixFWSDataset):
-    mixFWSDataset.binAll(5)
-    mixFWSDataset.normalize_usingResFunc()
-    mixFWSDataset.resetDataset()
-    assert mixFWSDataset.dataList[0].data.intensities[0, 0].sum() < 0.3
-
-
-def test_resetAll(mixFWSDataset):
-    mixFWSDataset.scaleData(2)
-    assert mixFWSDataset.dataList[0].data.intensities[0, 0].sum() > 0.06
-
-
 def test_resetDataset(fullQENSDataset):
     fullQENSDataset.binAll(5)
     fullQENSDataset.resetAll()
@@ -96,7 +84,7 @@ def test_normalize_FWS_fromQENSres(mixFWSDataset):
 
 def test_normalize_ENS_fromLowTemp(msdDataset):
     msdDataset.normalize_usingLowTemp()
-    assert msdDataset.dataList[0].data.intensities.sum() < 35561
+    assert msdDataset.dataList[0].data.intensities.sum() < 40321
 
 
 def test_subtractEC_fromQENS_withModel(fullQENSDataset):
