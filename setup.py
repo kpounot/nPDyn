@@ -7,9 +7,12 @@ from distutils.dist import Distribution
 
 try:
     from Cython.Build import cythonize
+    import cython_gsl
 except ImportError:
     os.system("python3 -m pip install Cython")
+    os.system("python3 -m pip install CythonGSL")
     from Cython.Build import cythonize
+    import cython_gsl
 
 try:
     import versioneer
@@ -24,31 +27,6 @@ dirPath = os.path.dirname(filePath)
 with open(dirPath + "/README.rst") as f:
     description = f.read()
 
-gsl_lib = ["gsl", "gslcblas"]
-
-if "win32" in sys.platform:
-    # _Check for GSL on windows
-    dist = Distribution()
-    dist.parse_config_files()
-    dist.parse_command_line()
-
-    gsl_lib = dist.get_option_dict("build_ext")["library_dirs"][1]
-
-    if "gsl.lib" in os.listdir(gsl_lib) and "gslcblas.lib" in os.listdir(
-        gsl_lib
-    ):
-        gsl_lib = ["gsl", "gslcblas"]
-
-    else:
-        gsl_lib = []
-else:
-    _gsl_path = subprocess.run(["locate", "libgsl.so"], stdout=subprocess.PIPE)
-    if len(_gsl_path.stdout) > 0:
-        gsl_lib = ["gsl", "gslcblas"]
-    else:
-        gsl_lib = []
-
-
 packagesList = [
     "nPDyn",
     "nPDyn.dataManipulation",
@@ -61,19 +39,16 @@ packagesList = [
     "nPDyn.lib",
 ]
 
-if len(gsl_lib) > 0:
-    pyabsco_ext = Extension(
-        "nPDyn.lib.pyabsco",
-        [
-            dirPath + "/nPDyn/lib/src/absco.c",
-            dirPath + "/nPDyn/lib/pyabsco.pyx",
-        ],
-        include_dirs=[dirPath + "/nPDyn/lib/src"],
-        libraries=gsl_lib,
-    )
-    ext_modules = cythonize([pyabsco_ext])
-else:
-    ext_modules = None
+pyabsco_ext = Extension(
+    "nPDyn.lib.pyabsco",
+    [dirPath + "/nPDyn/lib/src/absco.c", dirPath + "/nPDyn/lib/pyabsco.pyx"],
+    libraries=cython_gsl.get_libraries(),
+    library_dirs=[cython_gsl.get_library_dir()],
+    include_dirs=[
+        cython_gsl.get_cython_include_dir(),
+        dirPath + "/nPDyn/lib/src",
+    ],
+)
 
 setup(
     name="nPDyn",
@@ -101,7 +76,7 @@ setup(
     packages=packagesList,
     package_dir={"nPDyn": dirPath + "/nPDyn"},
     package_data={"nPDyn": [dirPath + "/nPDyn/models/d2O_calibration/*.dat"]},
-    ext_modules=ext_modules,
+    ext_modules=cythonize([pyabsco_ext]),
     install_requires=[
         "CythonGSL",
         "cython",
