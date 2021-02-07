@@ -39,16 +39,24 @@ packagesList = [
     "nPDyn.lib",
 ]
 
-pyabsco_ext = Extension(
-    "nPDyn.lib.pyabsco",
-    [dirPath + "/nPDyn/lib/src/absco.c", dirPath + "/nPDyn/lib/pyabsco.pyx"],
-    libraries=cython_gsl.get_libraries(),
-    library_dirs=[cython_gsl.get_library_dir()],
-    include_dirs=[
-        cython_gsl.get_cython_include_dir(),
-        dirPath + "/nPDyn/lib/src",
-    ],
-)
+try:
+    pyabsco_ext = Extension(
+        "nPDyn.lib.pyabsco",
+        [
+            dirPath + "/nPDyn/lib/src/absco.c",
+            dirPath + "/nPDyn/lib/pyabsco.pyx",
+        ],
+        libraries=cython_gsl.get_libraries(),
+        library_dirs=[cython_gsl.get_library_dir()],
+        include_dirs=[
+            cython_gsl.get_cython_include_dir(),
+            dirPath + "/nPDyn/lib/src",
+        ],
+    )
+    extMod = cythonize([pyabsco_ext])
+except IndexError:
+    extMod = None
+
 
 setup(
     name="nPDyn",
@@ -76,7 +84,7 @@ setup(
     packages=packagesList,
     package_dir={"nPDyn": dirPath + "/nPDyn"},
     package_data={"nPDyn": [dirPath + "/nPDyn/models/d2O_calibration/*.dat"]},
-    ext_modules=cythonize([pyabsco_ext]),
+    ext_modules=extMod,
     install_requires=[
         "CythonGSL",
         "cython",
