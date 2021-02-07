@@ -40,9 +40,7 @@ except ImportError:
     print(
         "\nAbsorption correction libraries are not available. "
         "Paalman_Pings correction cannot be used.\n"
-        "Verify that GSL libraries are available on this computer, "
-        "and the path was correctly \n"
-        "set in the setup.cfg file during package installation.\n"
+        "Verify that GSL libraries are available on this computer.\n"
     )
 
 
