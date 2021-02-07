@@ -29,9 +29,10 @@ from nPDyn.fileFormatParser import guessFileFormat, readFile
 from nPDyn.dataParsers import IN16B_FWS, IN16B_QENS, IN16B_BATS
 
 from nPDyn.models import Model, Component, Parameters
-from nPDyn.models.presets import linear
+from nPDyn.models.presets import linear, calibratedD2O
 from nPDyn.lmfit.convolvedModel import ConvolvedModel
 from nPDyn.lmfit.lmfit_presets import hline
+from nPDyn.lmfit.lmfit_presets import calibratedD2O as lmCalibratedD2O
 
 try:
     from nPDyn.lib.pyabsco import py_absco_slab, py_absco_tube
@@ -132,9 +133,9 @@ class BaseType:
         self.D2OData = D2OData
         self.ECData = ECData
 
-        self._QENS_redAlgo = {"IN16B": IN16B_QENS}
+        self._QENS_redAlgo = {"IN16B": IN16B_QENS, "BATS": IN16B_BATS}
         self._FWS_redAlgo = {"IN16B": IN16B_FWS}
-        self._BATS_redAlgo = {"IN16B": IN16B_BATS}
+        self._BATS_redAlgo = {"BATS": IN16B_BATS}
 
         self.model = model
         self._fit = []
@@ -189,11 +190,6 @@ class BaseType:
 
         elif dataType in ["FWS", "fec", "fD2O"]:
             data = self._FWS_redAlgo[instrument](dataList, **kwargs)
-            data.process()
-            self.data = data.outTuple
-
-        elif dataType in ["BATS"]:
-            data = self._BATS_redAlgo[instrument](dataList, **kwargs)
             data.process()
             self.data = data.outTuple
 
@@ -728,25 +724,16 @@ class BaseType:
                 self.model.params.set(
                     "bD2O", value=np.zeros_like(q) + 0.1, bounds=(0.0, np.inf)
                 )
-                normD2O = 1
-                if self.data.norm and not self.D2OData.data.norm:
-                    normD2O *= self._getNormRes()[0]
                 self.model.addComponent(
                     Component(
                         "$D_2O$",
-                        lambda x, bD2O: bD2O
-                        / normD2O
-                        * self.D2OData.fit_best(x=x)[0],
-                        skip_convolve=True,
+                        calibratedD2O,
+                        amplitude="bD2O",
                     )
                 )
             else:
-                D2OModel = self.D2OData.model
-                if self.data.norm and not self.D2OData.data.norm:
-                    D2OModel /= lmModel(lambda x: self._getNormRes()[0])
                 scale = hline(q, prefix="bD2O_")
-                D2OModel = scale * D2OModel
-                D2OModel.param_hints.update(self.D2OData.getFixedOptParams(0))
+                D2OModel = scale * lmCalibratedD2O(q, **kwargs)
                 model += D2OModel
 
         for idx, obs in enumerate(self.data.observable):

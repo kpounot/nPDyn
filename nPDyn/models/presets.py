@@ -168,6 +168,7 @@ def calibratedD2O(x, q, volFraction, temp, amplitude=1.0):
         Amplitude of the D2O signal. The parameter to be fitted.
 
     """
+    q = q.flatten()
     out = (
         amplitude
         * getD2Odata(volFraction)(temp, q)

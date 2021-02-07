@@ -15,6 +15,7 @@ from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
 
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
+from nPDyn.dataParsers.stringParser import parseString
 
 
 class IN16B_QENS:
@@ -80,16 +81,7 @@ class IN16B_QENS:
             "observable_name norm",
         )
 
-        # Process the scanList argument in case a single string is given
-        self.scanList = scanList
-        if isinstance(scanList, str):
-            if os.path.isdir(scanList):
-                if scanList[-1] != "/":
-                    scanList = scanList + "/"
-                fList = os.listdir(scanList)
-                self.scanList = [scanList + val for val in fList]
-            else:
-                self.scanList = [scanList]
+        self.scanList = parseString(scanList)
 
         self.sumScans = sumScans
 

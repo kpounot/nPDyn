@@ -486,7 +486,7 @@ def delta(q, **kwargs):
     return model
 
 
-def calibratedD2O(q, volFraction, temp, **kwargs):
+def calibratedD2O(q, volFraction=0.95, temp=300, **kwargs):
     """Lineshape for D2O where the Lorentzian width was obtained
     from a measurement on IN6 at the ILL.
 

@@ -244,8 +244,8 @@ def modelWater(q, name="waterDynamics", **kwargs):
 def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
     """A model for protein in liquid state.
 
-    The model contains a delta accounting for the EISF,
-    a Lorentzian of Fickian-type diffusion accounting for
+    The model contains a Lorentzian of Fickian-type
+    diffusion accounting for
     center-of-mass motions, a Lorentzian of width that
     obeys the jump diffusion model [#]_ accounting for
     internal dynamics, and a background term for :math:`D_2O`.
@@ -266,13 +266,13 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
 
     """
     p = Parameters(
-        ag={"value": 0.5, "bounds": (0.0, np.inf)},
-        ai={"value": 0.5, "bounds": (0.0, np.inf)},
+        beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
+        ag={"value": 0.5, "bounds": (0.0, 1)},
+        ai={"value": 0.5, "bounds": (0.0, 1)},
         wg={"value": 5, "bounds": (0.0, np.inf)},
         wi={"value": 15, "bounds": (0.0, np.inf)},
         tau={"value": 10, "bounds": (0.0, np.inf)},
         center={"value": 0.0, "fixed": True},
-        msd={"value": 1.0, "bounds": (0.0, np.inf)},
     )
 
     p.update(**kwargs)
@@ -283,7 +283,7 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
         Component(
             r"$\mathcal{L}_g$",
             lorentzian,
-            scale="exp(-q**2 * msd) * ag",
+            scale="beta * ag",
             width="wg * q**2",
         )
     )
@@ -291,7 +291,7 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
         Component(
             r"$\mathcal{L}_i$",
             lorentzian,
-            scale="exp(-q**2 * msd) * ai",
+            scale="beta * ai",
             width="wg * q**2 + wi * q**2 / (1 + wi * q**2 * tau)",
         )
     )

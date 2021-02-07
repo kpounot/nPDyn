@@ -14,9 +14,10 @@ from collections import namedtuple
 from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
 
-from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
-
 import matplotlib.pyplot as plt
+
+from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
+from nPDyn.dataParsers.stringParser import parseString
 
 
 class IN16B_BATS:
@@ -80,7 +81,7 @@ class IN16B_BATS:
         observable="time",
         tElastic=None,
         monitorOffset=None,
-        monitorCutoff=0.55,
+        monitorCutoff=0.50,
         pulseChopper="C34",
     ):
 
@@ -93,16 +94,7 @@ class IN16B_BATS:
             "tof",
         )
 
-        # Process the scanList argument in case a single string is given
-        self.scanList = scanList
-        if isinstance(scanList, str):
-            if os.path.isdir(scanList):
-                if scanList[-1] != "/":
-                    scanList = scanList + "/"
-                fList = os.listdir(scanList)
-                self.scanList = [scanList + val for val in fList]
-            else:
-                self.scanList = [scanList]
+        self.scanList = parseString(scanList)
 
         self.sumScans = sumScans
 
@@ -220,25 +212,33 @@ class IN16B_BATS:
             refPeak = int(peaks[nbrSingleD:].mean())
             for qIdx, qData in enumerate(data):
                 if self.tElastic is not None:
-                    data[qIdx] = np.roll(
-                        qData, int(self.tElastic - peaks[qIdx])
-                    )
-                    tElastic = self.tElastic * 1e-6
+                    refPos = np.argmin((self.tElastic - tof) ** 2)
+                    tElastic = self.tElastic
                 else:
-                    data[qIdx] = np.roll(qData, int(refPeak - peaks[qIdx]))
-                    tElastic = tof[refPeak] * 1e-6
+                    tElastic = tof[refPeak]
+                    refPos = refPeak
+                data[qIdx] = np.roll(qData, int(refPos - peaks[qIdx]))
 
             if self.normalize:
-                monPeaks = self._findPeaks(self.monitor)
+                monCenter = self._findPeaks(self.monitor)
                 if self.monitorOffset is not None:
+                    refPos = np.argmin((self.monitorOffset - monTof) ** 2)
                     self.monitor[idx] = np.roll(
                         self.monitor[idx],
-                        int(self.monitorOffset - monPeaks[idx]),
+                        int(refPos - monCenter[idx]),
                     )
                 else:
                     self.monitor[idx] = np.roll(
-                        self.monitor[idx], int(refPeak - monPeaks[idx])
+                        self.monitor[idx], int(refPeak - monCenter[idx])
                     )
+
+                maxMon = np.max(self.monitor[idx])
+                self.monSignalIds = np.where(
+                    self.monitor[idx] > maxMon * self.monitorCutoff
+                )[0]
+                monMask = np.zeros_like(self.monitor[idx])
+                monMask[self.monSignalIds] += 1
+                self.monitor[idx] *= monMask
 
                 if self.detGroup == "no":
                     monitor = np.copy(self.monitor[idx][:, :, np.newaxis])
@@ -246,19 +246,25 @@ class IN16B_BATS:
                     monitor = np.copy(self.monitor[idx])
 
                 np.place(monitor, monitor == 0, np.inf)
-                data = data / monitor
                 errData = np.sqrt(data)
+                data = data / monitor
                 errData = errData / monitor
 
             self.dataList[idx] = data
             self.errList.append(errData)
 
             refDist = self._refDist[self.pulseChopper]
-            dt = tof * 1e-6 * tElastic
-            velocities = refDist / (tof * 1e-6 + dt)
-            energies = 1.67492749804e-27 * velocities ** 2 / 2 - refEnergy
-            energies *= 6.241509e18 * 1e3
-            self.energyList.append(np.copy(energies[::-1]))
+            refVel = np.sqrt(2 * refEnergy / 1.67493e-27)
+            refTime = refDist / refVel
+            dt = tof - tElastic
+            velocities = refDist / (refTime + dt * 1e-6)
+            energies = 1.67493e-27 * velocities ** 2 / 2
+            energies -= refEnergy
+            energies *= 6.241509e18 * 1e6
+            energies = np.roll(
+                energies[::-1], refPos - np.argmin(energies[::-1] ** 2)
+            )
+            self.energyList.append(np.copy(energies))
 
         self._convertDataset()
 
@@ -309,14 +315,10 @@ class IN16B_BATS:
 
         """
         if self.strip is None:
-            maxMon = np.argmax(self.monitor[0])
-            monSignalIds = np.where(
-                self.monitor[0] > maxMon * self.monitorCutoff
-            )[0]
-            data = np.array(self.dataList)[:, :, monSignalIds]
-            errors = np.array(self.errList)[:, :, monSignalIds]
-            energies = self.energyList[0][monSignalIds]
-            tof = self.tofList[0][monSignalIds]
+            data = np.array(self.dataList)[:, :, self.monSignalIds]
+            errors = np.array(self.errList)[:, :, self.monSignalIds]
+            energies = self.energyList[0][self.monSignalIds]
+            tof = self.tofList[0][self.monSignalIds]
         elif self.strip > 0:
             data = np.array(self.dataList)[:, :, self.strip : -self.strip]
             errors = np.array(self.errList)[:, :, self.strip : -self.strip]
