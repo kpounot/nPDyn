@@ -274,8 +274,8 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
             beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
             a0={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
             wg={"value": np.zeros_like(q) + 5, "bounds": (0.0, np.inf)},
-            wi={"value": np.zeros_like(q) + 15, "bounds": (0.0, np.inf)},
-            tau={"value": np.zeros_like(q) + 1e-3, "bounds": (0.0, np.inf)},
+            wi={"value": np.zeros_like(q) + 30, "bounds": (0.0, np.inf)},
+            tau={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
             center={"value": 0.0, "fixed": True},
         )
         widthG = "wg"
@@ -285,8 +285,8 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
             beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
             a0={"value": 0.5, "bounds": (0.0, 1)},
             wg={"value": 5, "bounds": (0.0, np.inf)},
-            wi={"value": 15, "bounds": (0.0, np.inf)},
-            tau={"value": 1e-3, "bounds": (0.0, np.inf)},
+            wi={"value": 30, "bounds": (0.0, np.inf)},
+            tau={"value": 1, "bounds": (0.0, np.inf)},
             center={"value": 0.0, "fixed": True},
         )
         widthG = "wg * q**2"
