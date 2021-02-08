@@ -719,36 +719,16 @@ class BaseType:
 
         if addD2O:
             if isinstance(self.model, Model):
-                if self.D2OData is not None:
-                    self.model.addComponent(
-                        Component(
-                            "$D_2O$",
-                            lambda x: self.D2OData.fit_best(x=x, q=q)[0],
-                            skip_convolve=True,
-                        )
+                self.model.addComponent(
+                    Component(
+                        "$D_2O$",
+                        lambda x: self.D2OData.fit_best(x=x, q=q)[0],
+                        skip_convolve=True,
                     )
-                else:
-                    self.model.params.set(
-                        "bD2O",
-                        value=np.zeros_like(q) + 0.1,
-                        bounds=(0.0, np.inf),
-                    )
-
-                    self.model.addComponent(
-                        Component(
-                            "$D_2O$",
-                            calibratedD2O,
-                            amplitude="bD2O",
-                        )
-                    )
+                )
             else:
-                if self.D2OData is not None:
-                    model += self.D2OData.model
-                    model.param_hints.update(self.D2OData.getFixedOptParams(0))
-                else:
-                    scale = hline(q, prefix="bD2O_")
-                    D2OModel = scale * lmCalibratedD2O(q, **kwargs)
-                    model += D2OModel
+                model += self.D2OData.model
+                model.param_hints.update(self.D2OData.getFixedOptParams(0))
 
         for idx, obs in enumerate(self.data.observable):
             # get the right observable index for data and errors

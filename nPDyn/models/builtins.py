@@ -14,9 +14,9 @@ from nPDyn.models.presets import (
     rotations,
     calibratedD2O,
 )
+
 from nPDyn.models.params import Parameters
 from nPDyn.models.model import Model, Component
-from nPDyn.models.d2O_calibration.interpD2O import getD2Odata
 
 
 # -------------------------------------------------------
@@ -275,7 +275,6 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
             a0={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
             wg={"value": np.zeros_like(q) + 5, "bounds": (0.0, np.inf)},
             wi={"value": np.zeros_like(q) + 30, "bounds": (0.0, np.inf)},
-            tau={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
             center={"value": 0.0, "fixed": True},
         )
         widthG = "wg"
@@ -286,7 +285,7 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
             a0={"value": 0.5, "bounds": (0.0, 1)},
             wg={"value": 5, "bounds": (0.0, np.inf)},
             wi={"value": 30, "bounds": (0.0, np.inf)},
-            tau={"value": 1, "bounds": (0.0, np.inf)},
+            tau={"value": 1e-3, "bounds": (0.0, np.inf)},
             center={"value": 0.0, "fixed": True},
         )
         widthG = "wg * q**2"
@@ -339,6 +338,41 @@ def modelD2OBackground(q, name="$D_2O$", **kwargs):
 
     m.addComponent(
         Component("$D_2O$ background", lorentzian, skip_convolve=True)
+    )
+
+    return m
+
+
+def modelCalibratedD2O(q, name="$D_2O$", volFraction=0.95, temp=300, **kwargs):
+    """A model for D2O background containing a single Lorentzian.
+
+    Parameters
+    ----------
+    q : np.ndarray
+        Array of values for momentum transfer q.
+    name : str
+        Name for the model
+    kwargs : dict
+        Additional arguments to pass to Parameters.
+        Can override default parameter attributes.
+
+    """
+    p = Parameters(
+        amplitude={"value": np.ones_like(q), "bounds": (0.0, np.inf)},
+    )
+
+    p.update(**kwargs)
+
+    m = Model(p, name)
+
+    m.addComponent(
+        Component(
+            "$D_2O$ background",
+            calibratedD2O,
+            volFraction=volFraction,
+            temp=temp,
+            skip_convolve=True,
+        )
     )
 
     return m
