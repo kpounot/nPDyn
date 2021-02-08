@@ -16,6 +16,7 @@ from nPDyn.models.presets import (
 )
 from nPDyn.models.params import Parameters
 from nPDyn.models.model import Model, Component
+from nPDyn.models.d2O_calibration.interpD2O import getD2Odata
 
 
 # -------------------------------------------------------
@@ -241,7 +242,7 @@ def modelWater(q, name="waterDynamics", **kwargs):
     return m
 
 
-def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
+def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
     """A model for protein in liquid state.
 
     The model contains a Lorentzian of Fickian-type
@@ -256,6 +257,9 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
         Array of values for momentum transfer q.
     name : str
         Name for the model
+    qWise : bool
+        If True, no q dependence is imposed on the parameters and
+        the each spectrum is fitted independently.
     kwargs : dict
         Additional arguments to pass to Parameters.
         Can override default parameter attributes.
@@ -265,15 +269,28 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
     .. [#] https://doi.org/10.1103/PhysRev.119.863
 
     """
-    p = Parameters(
-        beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
-        ag={"value": 0.5, "bounds": (0.0, 1)},
-        ai={"value": 0.5, "bounds": (0.0, 1)},
-        wg={"value": 5, "bounds": (0.0, np.inf)},
-        wi={"value": 15, "bounds": (0.0, np.inf)},
-        tau={"value": 10, "bounds": (0.0, np.inf)},
-        center={"value": 0.0, "fixed": True},
-    )
+    if qWise:
+        p = Parameters(
+            beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
+            a0={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
+            wg={"value": np.zeros_like(q) + 5, "bounds": (0.0, np.inf)},
+            wi={"value": np.zeros_like(q) + 15, "bounds": (0.0, np.inf)},
+            tau={"value": np.zeros_like(q) + 1e-3, "bounds": (0.0, np.inf)},
+            center={"value": 0.0, "fixed": True},
+        )
+        widthG = "wg"
+        widthI = "wg + wi"
+    else:
+        p = Parameters(
+            beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
+            a0={"value": 0.5, "bounds": (0.0, 1)},
+            wg={"value": 5, "bounds": (0.0, np.inf)},
+            wi={"value": 15, "bounds": (0.0, np.inf)},
+            tau={"value": 1e-3, "bounds": (0.0, np.inf)},
+            center={"value": 0.0, "fixed": True},
+        )
+        widthG = "wg * q**2"
+        widthI = "wg * q**2 + wi * q**2 / (1 + wi * q**2 * tau)"
 
     p.update(**kwargs)
 
@@ -281,37 +298,28 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", **kwargs):
 
     m.addComponent(
         Component(
-            r"$\mathcal{L}_g$",
-            lorentzian,
-            scale="beta * ag",
-            width="wg * q**2",
+            r"$\mathcal{L}_g$", lorentzian, scale="beta * a0", width=widthG
         )
     )
     m.addComponent(
         Component(
             r"$\mathcal{L}_i$",
             lorentzian,
-            scale="beta * ai",
-            width="wg * q**2 + wi * q**2 / (1 + wi * q**2 * tau)",
+            scale="beta * (1 - a0)",
+            width=widthI,
         )
     )
 
     return m
 
 
-def modelD2OBackground(
-    q, volFraction=0.95, temperature=300, name="$D_2O$", **kwargs
-):
-    """A model for D2O background with calibrated linewidth.
+def modelD2OBackground(q, name="$D_2O$", **kwargs):
+    """A model for D2O background containing a single Lorentzian.
 
     Parameters
     ----------
     q : np.ndarray
         Array of values for momentum transfer q.
-    volFraction : float
-        Volume fraction of the D2O in the sample.
-    temperature : float
-        Temperature of the sample
     name : str
         Name for the model
     kwargs : dict
@@ -320,7 +328,9 @@ def modelD2OBackground(
 
     """
     p = Parameters(
-        amplitude={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)}
+        scale={"value": np.ones_like(q), "bounds": (0.0, np.inf)},
+        width={"value": np.ones_like(q), "bounds": (0.0, np.inf)},
+        center={"value": 0.0},
     )
 
     p.update(**kwargs)
@@ -328,14 +338,7 @@ def modelD2OBackground(
     m = Model(p, name)
 
     m.addComponent(
-        Component(
-            "$D_2O$ background",
-            calibratedD2O,
-            q=q.flatten(),
-            volFraction=volFraction,
-            temp=temperature,
-            skip_convolve=True,
-        )
+        Component("$D_2O$ background", lorentzian, skip_convolve=True)
     )
 
     return m

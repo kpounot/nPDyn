@@ -178,7 +178,7 @@ class Model:
     }
 
     def __init__(
-        self, params, name="Model", convolutions=None, on_undef_conv="raise"
+        self, params, name="Model", convolutions=None, on_undef_conv="numeric"
     ):
         self.name = name
         self.params = deepcopy(params) if params is not None else {}

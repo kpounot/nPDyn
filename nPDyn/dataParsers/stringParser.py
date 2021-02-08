@@ -49,7 +49,7 @@ def arrayToString(arr):
 
     for val in scans:
         if len(val) > 1:
-            out += "%d:%d" % (val[0], val[-1])
+            out += ",%d:%d" % (val[0], val[-1])
         else:
             out += ",%d" % val[0]
     return out.strip(",")
