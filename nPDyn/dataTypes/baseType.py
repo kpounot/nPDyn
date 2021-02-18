@@ -601,6 +601,7 @@ class BaseType:
         convolveRes=False,
         addEC=False,
         addD2O=False,
+        volFractionD2O=0.95,
         **kwargs
     ):
         """Fit the dataset using the `model` attribute.
@@ -635,6 +636,9 @@ class BaseType:
             ``D2OModel = self.D2OData.fixedModel``
             and generate a new model by calling:
             ``model = self.model + D2OModel``
+        volFractionD2O : float [0, 1]
+            Volume fraction for the D2O in the sample.
+            (default 0.95)
         kwargs : dict, optional
             Additional keyword arguments to pass to `Model.fit` method.
             It can override any parameters obtained from the dataset, which are
@@ -718,16 +722,23 @@ class BaseType:
                 model.param_hints.update(self.ECData.getFixedOptParams(0))
 
         if addD2O:
+            if self.data.norm and not self.D2OData.data.norm:
+                norm = 1 / self._getNormRes()[0]
+            else:
+                norm = 1
             if isinstance(self.model, Model):
                 self.model.addComponent(
                     Component(
                         "$D_2O$",
-                        lambda x: self.D2OData.fit_best(x=x, q=q)[0],
+                        lambda x: norm
+                        * volFractionD2O
+                        * self.D2OData.fit_best(x=x, q=q)[0],
                         skip_convolve=True,
                     )
                 )
             else:
                 model += self.D2OData.model
+                model /= lmModel(lambda x: norm)
                 model.param_hints.update(self.D2OData.getFixedOptParams(0))
 
         for idx, obs in enumerate(self.data.observable):

@@ -103,7 +103,7 @@ class Dataset:
                 "fD2OFile": fD2OFile,
             }
         )
-        self.resFuncAssign()
+        self.datasetAssign()
 
     def importFiles(
         self,
@@ -149,66 +149,37 @@ class Dataset:
         if fECFile:
             data = fwsType.FWSType(fECFile)
             data.importData(fileFormat=fileFormat)
-            self.fECData = data
+            self.ECData = data
 
         if resFiles:
             for f in resFiles:
                 data = qensType.QENSType(f)
                 data.importData(fileFormat=fileFormat)
-                data.ECData = self.ECData
-
                 self.resData.append(data)
 
         if D2OFile:
             data = qensType.QENSType(D2OFile)
             data.importData(fileFormat=fileFormat)
-            data.ECData = self.ECData
-
-            if self.resData != []:
-                data.resData = self.resData[0]
-
             self.D2OData = data
 
         if fD2OFile:
             data = fwsType.FWSType(fD2OFile)
             data.importData(fileFormat=fileFormat)
-
-            if self.fECData is not None:
-                data.ECData = self.fECData
-            else:
-                data.ECData = self.ECData
-
-            if self.resData != []:
-                data.resData = self.resData[0]
-
             self.fD2OData = data
 
         if QENSFiles:
             for f in QENSFiles:
                 data = qensType.QENSType(f)
                 data.importData(fileFormat=fileFormat)
-                data.D2OData = self.D2OData
-                data.ECData = self.ECData
                 self.dataList.append(data)
 
         if FWSFiles:
             for f in FWSFiles:
                 data = fwsType.FWSType(f)
                 data.importData(fileFormat=fileFormat)
-
-                if self.fECData is not None:
-                    data.ECData = self.fECData
-                else:
-                    data.ECData = self.ECData
-
-                if self.fD2OData is not None:
-                    data.D2OData = self.fD2OData
-                else:
-                    data.D2OData = self.D2OData
-
                 self.dataList.append(data)
 
-        self.resFuncAssign()
+        self.datasetAssign()
 
     def importRawData(
         self, dataList, instrument, dataType="QENS", kwargs=None
@@ -230,30 +201,16 @@ class Dataset:
         if dataType == "QENS":
             data = qensType.QENSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
-            data.D2OData = self.D2OData
-            data.ECData = self.ECData
             self.dataList.append(data)
 
         elif dataType == "FWS":
             data = fwsType.FWSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
-
-            if self.fECData is not None:
-                data.ECData = self.fECData
-            else:
-                data.ECData = self.ECData
-
-            if self.fD2OData is not None:
-                data.D2OData = self.fD2OData
-            else:
-                data.D2OData = self.D2OData
-
             self.dataList.append(data)
 
         elif dataType == "res":
             data = qensType.QENSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
-            data.ECData = self.ECData
             self.resData.append(data)
 
         elif dataType == "ec":
@@ -269,35 +226,21 @@ class Dataset:
         elif dataType == "D2O":
             data = qensType.QENSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
-            data.ECData = self.ECData
-
-            if self.resData != []:
-                data.resData = self.resData[0]
-
             self.D2OData = data
 
         elif dataType == "fD2O":
             data = fwsType.FWSType(dataList)
             data.importRawData(dataList, instrument, dataType, kwargs)
-
-            if self.fECData is not None:
-                data.ECData = self.fECData
-            else:
-                data.ECData = self.ECData
-
-            if self.resData != []:
-                data.resData = self.resData[0]
-
             self.fD2OData = data
 
-        self.resFuncAssign()
+        self.datasetAssign()
 
-    def resFuncAssign(self):
-        """Assign data for resolution function to each dataset.
+    def datasetAssign(self):
+        """Assign data for empty cell, D2O, and resolution function
+        to each dataset.
 
         This method is used during initialization, and can be used
-        each time resolution functions need to be re-assigned to data
-        (after a model change for instance).
+        each time calibration data need to be re-assigned to datasets.
         If only one resolution function was provided, it will assume
         that the same one has to be used for all QENS and FWS data loaded.
         Therefore, the same resolution function data will be assigned
@@ -313,13 +256,44 @@ class Dataset:
         """
         lenResData = len(self.resData)
 
-        if lenResData == 1:
-            for data in self.dataList:
-                data.resData = self.resData[0]
+        # process resolution function data
+        if lenResData > 0:
+            if lenResData == 1:
+                for data in self.dataList:
+                    data.resData = self.resData[0]
 
-        if lenResData == len(self.dataList):
-            for idx, data in enumerate(self.dataList):
-                data.resData = self.resData[idx]
+            if lenResData == len(self.dataList):
+                for idx, data in enumerate(self.dataList):
+                    data.resData = self.resData[idx]
+
+        # process empty cell and D2O data
+        for idx, data in enumerate(self.dataList):
+            if self.fECData is not None:
+                data.ECData = self.fECData
+            else:
+                data.ECData = self.ECData
+            if self.fD2OData is not None:
+                data.D2OData = self.fD2OData
+            else:
+                data.D2OData = self.D2OData
+
+        for idx, data in enumerate(self.resData):
+            if self.fECData is not None:
+                data.ECData = self.fECData
+            else:
+                data.ECData = self.ECData
+            if self.fD2OData is not None:
+                data.D2OData = self.fD2OData
+            else:
+                data.D2OData = self.D2OData
+
+        if self.D2OData is not None:
+            if lenResData > 0:
+                self.D2OData.resData = self.resData[0]
+            if self.fECData is not None:
+                self.D2OData.ECData = self.fECData
+            else:
+                self.D2OData.ECData = self.ECData
 
     # -------------------------------------------------
     # Importation, reset and deletion methods
@@ -536,7 +510,7 @@ class Dataset:
         subFactor=0.95,
         subD2O=True,
         subRes=False,
-        useModel=True
+        useModel=False
     ):
         """This method uses the fitted empty cell function to subtract
         the signal for the selected dataset.
@@ -566,7 +540,6 @@ class Dataset:
         if subRes:
             for resData in self.resData:
                 resData.subtractEC(subFactor, useModel)
-                resData.fit()
 
         if subD2O:
             try:

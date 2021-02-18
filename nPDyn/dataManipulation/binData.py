@@ -54,8 +54,13 @@ def binData(data, binS, axis):
                         errSlice[row, col][errSlice[row, col] != np.inf].size
                         != 0
                     ):
-                        tmpErrors[row, col, i] = np.mean(
-                            errSlice[row, col][errSlice[row, col] != np.inf]
+                        tmpErrors[row, col, i] = np.sqrt(
+                            np.sum(
+                                errSlice[row, col][
+                                    errSlice[row, col] != np.inf
+                                ]
+                                ** 2
+                            )
                         )
                     else:
                         tmpErrors[row, col, i] = np.inf

@@ -249,7 +249,7 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
     diffusion accounting for
     center-of-mass motions, a Lorentzian of width that
     obeys the jump diffusion model [#]_ accounting for
-    internal dynamics, and a background term for :math:`D_2O`.
+    internal dynamics.
 
     Parameters
     ----------
@@ -312,6 +312,80 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
     return m
 
 
+def modelTwoStatesSwitchDiff(q, name="TwoStatesSwitch", **kwargs):
+    """A model for protein in liquid state.
+
+    This model implements the two states switching diffusion model for
+    nPDyn [#]_.
+
+    Parameters
+    ----------
+    q : np.ndarray
+        Array of values for momentum transfer q.
+    name : str
+        Name for the model
+    kwargs : dict
+        Additional arguments to pass to Parameters.
+        Can override default parameter attributes.
+
+    References
+    ----------
+    .. [#] https://doi.org/10.1103/PhysRev.119.863
+
+    """
+    p = Parameters(
+        beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
+        a0={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
+        tau1={"value": 1, "bounds": (0.0, np.inf)},
+        tau2={"value": 1, "bounds": (0.0, np.inf)},
+        g0={"value": 5, "bounds": (0.0, np.inf)},
+        g1={"value": 10, "bounds": (0.0, np.inf)},
+        g2={"value": 100, "bounds": (0.0, np.inf)},
+        center={"value": 0, "fixed": True},
+    )
+    w0 = "g0 * q**2"
+    w1 = (
+        "(g1 * q**2 + g2 * q**2 + tau1 + tau2 + "
+        "sqrt(((g1 - g2) * q**2 + tau1 - tau2)**2 + 4 * "
+        "tau1 * tau2)) / 2"
+    )
+    w2 = (
+        "(g1 * q**2 + g2 * q**2 + tau1 + tau2 - "
+        "sqrt(((g1 - g2) * q**2 + tau1 - tau2)**2 + 4 * "
+        "tau1 * tau2)) / 2"
+    )
+    s1 = (
+        "beta * (1 - a0) * (tau1 / (tau1 + tau2) * g2 * q**2 + "
+        "tau2 / (tau1 + tau2) * g1 * q**2 + "
+        "tau1 + tau2 - %s) / (%s - %s)" % (w1, w2, w1)
+    )
+    s2 = (
+        "beta * (1 - a0) * (tau1 / (tau1 + tau2) * g2 * q**2 + "
+        "tau2 / (tau1 + tau2) * g1 * q**2 + "
+        "tau1 + tau2 - %s) / (%s - %s)" % (w2, w1, w2)
+    )
+
+    p.update(**kwargs)
+
+    m = Model(p, name)
+
+    m.addComponent(
+        Component(r"$\mathcal{L}_g$", lorentzian, scale="beta * a0", width=w0)
+    )
+    m.addComponent(
+        Component(
+            r"$\mathcal{L}_1$", lorentzian, scale=s1, width=w0 + " + " + w1
+        )
+    )
+    m.addComponent(
+        Component(
+            r"$\mathcal{L}_2$", lorentzian, scale=s2, width=w0 + " + " + w2
+        )
+    )
+
+    return m
+
+
 def modelD2OBackground(q, name="$D_2O$", **kwargs):
     """A model for D2O background containing a single Lorentzian.
 
@@ -343,7 +417,7 @@ def modelD2OBackground(q, name="$D_2O$", **kwargs):
     return m
 
 
-def modelCalibratedD2O(q, name="$D_2O$", volFraction=0.95, temp=300, **kwargs):
+def modelCalibratedD2O(q, name="$D_2O$", volFraction=1, temp=300, **kwargs):
     """A model for D2O background containing a single Lorentzian.
 
     Parameters

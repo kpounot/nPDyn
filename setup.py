@@ -8,7 +8,7 @@ from distutils.dist import Distribution
 try:
     from Cython.Build import cythonize
     import cython_gsl
-except ImportError:
+except ImportError or ModuleNotFoundError:
     os.system("python3 -m pip install Cython")
     os.system("python3 -m pip install CythonGSL")
     from Cython.Build import cythonize
@@ -91,7 +91,7 @@ setup(
         "scipy",
         "numpy",
         "matplotlib",
-        "PyQt5==5.14",
+        "PyQt5",
         "h5py",
         "lmfit",
         "defusedxml",

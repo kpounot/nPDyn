@@ -81,7 +81,7 @@ class IN16B_BATS:
         observable="time",
         tElastic=None,
         monitorOffset=None,
-        monitorCutoff=0.50,
+        monitorCutoff=0.60,
         pulseChopper="C34",
     ):
 
@@ -147,10 +147,20 @@ class IN16B_BATS:
             monitor = (
                 dataset["entry0/monitor/data"][()].squeeze().astype("float")
             )
-            self.monitor.append(monitor)
 
+            # compute the time-of-flight for the monitor
             monTof = dataset["entry0/monitor/time_of_flight"][()]
             monTof = (np.arange(monTof[1]) + 0.5) * monTof[0] + monTof[2]
+
+            # apply a mask on the monitor based on monitorCutoff
+            maxMon = np.max(monitor)
+            self.monSignalIds = np.where(
+                monitor > maxMon * self.monitorCutoff
+            )[0]
+            monMask = np.zeros_like(monitor)
+            monMask[self.monSignalIds] += 1
+            monitor *= monMask
+            self.monitor.append(monitor)
 
             wavelength = dataset["entry0/wavelength"][()]
             refEnergy = 1.3106479439885732e-40 / (wavelength * 1e-10) ** 2
@@ -219,6 +229,7 @@ class IN16B_BATS:
                     refPos = refPeak
                 data[qIdx] = np.roll(qData, int(refPos - peaks[qIdx]))
 
+            errData = np.sqrt(data)
             if self.normalize:
                 monCenter = self._findPeaks(self.monitor)
                 if self.monitorOffset is not None:
@@ -232,14 +243,6 @@ class IN16B_BATS:
                         self.monitor[idx], int(refPeak - monCenter[idx])
                     )
 
-                maxMon = np.max(self.monitor[idx])
-                self.monSignalIds = np.where(
-                    self.monitor[idx] > maxMon * self.monitorCutoff
-                )[0]
-                monMask = np.zeros_like(self.monitor[idx])
-                monMask[self.monSignalIds] += 1
-                self.monitor[idx] *= monMask
-
                 if self.detGroup == "no":
                     monitor = np.copy(self.monitor[idx][:, :, np.newaxis])
                 else:
@@ -249,9 +252,6 @@ class IN16B_BATS:
                 errData = np.sqrt(data)
                 data = data / monitor
                 errData = errData / monitor
-
-            self.dataList[idx] = data
-            self.errList.append(errData)
 
             refDist = self._refDist[self.pulseChopper]
             refVel = np.sqrt(2 * refEnergy / 1.67493e-27)

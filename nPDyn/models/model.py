@@ -327,6 +327,7 @@ class Model:
             Currently available methods are (from Scipy):
             - "curve_fit"
             - "basinhopping"
+            - "differential_evolution"
             - "minimize"
         fit_kws : dict, optional
             Additional keywords to be passed to the fit method.

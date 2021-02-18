@@ -7,7 +7,7 @@ h5py
 matplotlib
 numpy
 pre-commit
-PyQt5==5.14
+PyQt5
 pytest
 pytest-cov
 rstcheck
