@@ -54,13 +54,16 @@ def binData(data, binS, axis):
                         errSlice[row, col][errSlice[row, col] != np.inf].size
                         != 0
                     ):
-                        tmpErrors[row, col, i] = np.sqrt(
-                            np.sum(
-                                errSlice[row, col][
-                                    errSlice[row, col] != np.inf
-                                ]
-                                ** 2
+                        tmpErrors[row, col, i] = (
+                            np.sqrt(
+                                np.sum(
+                                    errSlice[row, col][
+                                        errSlice[row, col] != np.inf
+                                    ]
+                                    ** 2
+                                )
                             )
+                            / binS
                         )
                     else:
                         tmpErrors[row, col, i] = np.inf
@@ -70,7 +73,7 @@ def binData(data, binS, axis):
             errSlice = tmpErrors[i * binS : i * binS + binS]
 
             tmpIntensities[i] = np.mean(intSlice, 0)
-            tmpErrors[i] = np.mean(errSlice, 0)
+            tmpErrors[i] = np.sqrt(np.sum(errSlice ** 2, 0)) / binS
 
     # Remove unnecessary data after binning
     if axis == "energies":

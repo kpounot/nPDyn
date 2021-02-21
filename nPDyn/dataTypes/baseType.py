@@ -25,6 +25,7 @@ except ImportError:
 
 
 from nPDyn.dataManipulation.binData import binData
+from nPDyn.dataManipulation.slidingAverage import slidingAverage
 from nPDyn.fileFormatParser import guessFileFormat, readFile
 from nPDyn.dataParsers import IN16B_FWS, IN16B_QENS, IN16B_BATS
 
@@ -222,6 +223,53 @@ class BaseType:
             observable_name=np.copy(self._rawData.observable_name),
         )
 
+    # accessors for the data attributes
+    @property
+    def intensities(self):
+        """Return the intensities"""
+        return self.data.intensities
+
+    @property
+    def errors(self):
+        """Return the errors"""
+        return self.data.errors
+
+    @property
+    def qVals(self):
+        """Return the qVals"""
+        return self.data.qVals
+
+    @property
+    def energies(self):
+        """Return the energies"""
+        return self.data.energies
+
+    @property
+    def observable(self):
+        """Return the observable"""
+        return self.data.observable
+
+    @property
+    def observable_name(self):
+        """Return the observable_name"""
+        return self.data.observable_name
+
+    @property
+    def times(self):
+        """Return the times"""
+        return self.data.times
+
+    @property
+    def temps(self):
+        """Return the temps"""
+        return self.data.temps
+
+    @property
+    def name(self):
+        """Return the name"""
+        return self.data.name
+
+    # accessors for associated datasets
     @property
     def resData(self):
         """Return the data for resolution function."""
@@ -279,6 +327,10 @@ class BaseType:
     def binData(self, binSize, axis):
         """Bin *data* attribute using the given *binSize*."""
         self.data = binData(self.data, binSize, axis)
+
+    def slidingAverage(self, windowLength):
+        """Sliding average of the data along the observables"""
+        self.data = slidingAverage(self.data, windowLength)
 
     def scaleData(self, scale):
         """Scale intensities and errors using the provided `scale`."""

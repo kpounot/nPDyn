@@ -670,6 +670,22 @@ class Dataset:
         if self.D2OData:
             self.D2OData.binData(binS, axis=axis)
 
+    def slidingAverage(self, windowLength, *fileIdxList):
+        """Sliding average of the selected datasets along obervables.
+
+        :arg windowLength:  size of the averaging window
+        :arg fileIdxList:   indices of the dataset(s) to be averaged, can be
+                            a single int or a list of int
+                            (optional, default "all")
+
+        """
+        # If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.dataList))
+
+        for idx in fileIdxList:
+            self.dataList[idx].slidingAverage(windowLength)
+
     # -------------------------------------------------
     # Plotting methods
     # -------------------------------------------------

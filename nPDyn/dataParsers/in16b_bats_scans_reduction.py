@@ -13,6 +13,7 @@ from collections import namedtuple
 
 from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
+from scipy.interpolate import interp1d
 
 import matplotlib.pyplot as plt
 
@@ -125,6 +126,7 @@ class IN16B_BATS:
 
         """
         self.dataList = []
+        self.errList = []
         self.energyList = []
         self.qList = []
         self.qzList = []
@@ -219,17 +221,29 @@ class IN16B_BATS:
 
         for idx, data in enumerate(self.dataList):
             peaks = self._findPeaks(data)
-            refPeak = int(peaks[nbrSingleD:].mean())
+            if self.tElastic is not None:
+                tElastic = self.tElastic
+                refPeak = np.argmin((tElastic - tof) ** 2)
+            else:
+                refPeak = int(np.mean(peaks[nbrSingleD + 1 :], 0))
+                tElastic = tof[refPeak]
+
+            refDist = self._refDist[self.pulseChopper]
+            refVel = np.sqrt(2 * refEnergy / 1.67493e-27)
+            refTime = refDist / refVel
+            dt = tof - tElastic
+            velocities = refDist / (refTime + dt * 1e-6)
+            energies = 1.67493e-27 * velocities ** 2 / 2
+            energies -= refEnergy
+            energies *= 6.241509e18 * 1e6
+            self.energyList.append(np.copy(energies[::-1]))
+
+            refPos = np.argmin(energies ** 2)
+
             for qIdx, qData in enumerate(data):
-                if self.tElastic is not None:
-                    refPos = np.argmin((self.tElastic - tof) ** 2)
-                    tElastic = self.tElastic
-                else:
-                    tElastic = tof[refPeak]
-                    refPos = refPeak
                 data[qIdx] = np.roll(qData, int(refPos - peaks[qIdx]))
 
-            errData = np.sqrt(data)
+            errList = np.sqrt(data)
             if self.normalize:
                 monCenter = self._findPeaks(self.monitor)
                 if self.monitorOffset is not None:
@@ -240,8 +254,11 @@ class IN16B_BATS:
                     )
                 else:
                     self.monitor[idx] = np.roll(
-                        self.monitor[idx], int(refPeak - monCenter[idx])
+                        self.monitor[idx], int(refPos - monCenter[idx])
                     )
+
+                # correct for energy density
+                self.monitor[idx] /= ((refTime + dt * 1e-6) / refTime) ** 3
 
                 if self.detGroup == "no":
                     monitor = np.copy(self.monitor[idx][:, :, np.newaxis])
@@ -249,22 +266,11 @@ class IN16B_BATS:
                     monitor = np.copy(self.monitor[idx])
 
                 np.place(monitor, monitor == 0, np.inf)
-                errData = np.sqrt(data)
                 data = data / monitor
-                errData = errData / monitor
+                errList = errList / monitor
 
-            refDist = self._refDist[self.pulseChopper]
-            refVel = np.sqrt(2 * refEnergy / 1.67493e-27)
-            refTime = refDist / refVel
-            dt = tof - tElastic
-            velocities = refDist / (refTime + dt * 1e-6)
-            energies = 1.67493e-27 * velocities ** 2 / 2
-            energies -= refEnergy
-            energies *= 6.241509e18 * 1e6
-            energies = np.roll(
-                energies[::-1], refPos - np.argmin(energies[::-1] ** 2)
-            )
-            self.energyList.append(np.copy(energies))
+            self.dataList[idx] = data
+            self.errList.append(errList)
 
         self._convertDataset()
 
@@ -384,7 +390,7 @@ class IN16B_BATS:
 
         if self.peakFindingMask is None:
             mask = np.zeros_like(data)
-            mask[:, int(nbrChannels / 4) : -int(nbrChannels / 4)] = 1
+            mask[:, self.monSignalIds] = 1
 
         maskedData = data * mask
 
@@ -395,10 +401,8 @@ class IN16B_BATS:
                 savgol_filter(maskedData, 5, 4),
                 savgol_filter(maskedData, 11, 4),
                 savgol_filter(maskedData, 19, 3),
-                savgol_filter(maskedData, 25, 3),
             ]
         )
-
         savGolPeaks = np.mean(np.argmax(filters, 2), 0)
 
         # Finds the peaks by using a Gaussian function to fit the data
@@ -426,7 +430,7 @@ class IN16B_BATS:
 
             gaussPeaks = np.array(gaussPeaks)
 
-            peaks = (0.85 * gaussPeaks + 0.15 * savGolPeaks).astype(int)
+            peaks = (0.8 * gaussPeaks + 0.2 * savGolPeaks).astype(int)
 
         except RuntimeError:
             peaks = savGolPeaks.astype(int)

@@ -7,7 +7,7 @@ from dateutil.parser import parse
 from scipy.interpolate import interp1d
 
 
-def processNexus(dataFile, FWS=False, averageTemp=True):
+def processNexus(dataFile, FWS=False):
     """This script is meant to be used with IN16B data
     pre-processed (reduction, (EC correction)
     and vanadium centering) with Mantid.
@@ -49,142 +49,87 @@ def processNexus(dataFile, FWS=False, averageTemp=True):
 
     h5File = h5.File(dataFile, "r")
 
-    # Fixed window scan processing
-    if FWS is True:
-        interp = False
-        name = h5File["mantid_workspace_1/logs/subtitle/value"][()].astype(str)
-        times = h5File["mantid_workspace_1/logs/start_time/value"][
-            (0)
-        ].decode()
-        wavelength = h5File["mantid_workspace_1/logs/wavelength/value"][()]
-        listQ = h5File["mantid_workspace_1/workspace/axis2"][()]
-        observable_name, spectrum_axis = _processAlgoInfo(h5File)
-        if spectrum_axis in ["SpectrumNumber", "2Theta"]:  # converts to q
-            listQ = np.array(
-                4 * np.pi / wavelength * np.sin(np.pi * listQ / 360)
-            )
-        if spectrum_axis == "Q2":  # converts to q
-            listQ = np.sqrt(np.array(listQ))
+    interpObs = False
+    interpEnergies = False
+    name = h5File["mantid_workspace_1/logs/subtitle/value"][()].astype(str)
+    wavelength = h5File["mantid_workspace_1/logs/wavelength/value"][()]
+    listQ = h5File["mantid_workspace_1/workspace/axis2"][()]
+    observable_name, spectrum_axis = _processAlgoInfo(h5File)
+    if spectrum_axis in ["SpectrumNumber", "2Theta"]:  # converts to q
+        listQ = np.array(4 * np.pi / wavelength * np.sin(np.pi * listQ / 360))
+    if spectrum_axis == "Q2":  # converts to q
+        listQ = np.sqrt(np.array(listQ))
+    if spectrum_axis == "decNbr":  # IndirectILLEnergyTransfer, no axis2...
+        listQ = _getMomentumTransfers(h5File, listQ, wavelength)
 
-        dataList = []  # Stores the full dataset for a given data file
+    dataList = []  # Stores the full dataset for a given data file
 
-        # Initialize some lists and store energies,
-        # intensities and errors in them
-        listObs = []
-        listI = []
-        listErr = []
-        deltaE = []
-        listT = []
-        for workspace in h5File:
-            listObs.append(h5File[workspace + "/workspace/axis1"][()])
-            listI.append(h5File[workspace + "/workspace/values"][()])
-            listErr.append(h5File[workspace + "/workspace/errors"][()])
-            deltaE.append(
+    # Initialize some lists and store energies,
+    # intensities and errors in them
+    listI = []
+    listErr = []
+    energies = []
+    temps = []
+    times = []
+    for workspace in h5File:
+        temps.append(h5File[workspace + "/logs/sample.temperature/value"][()])
+        times.append(
+            h5File[workspace + "/logs/start_time/value"][(0)].decode()
+        )
+        listI.append(h5File[workspace + "/workspace/values"][()])
+        listErr.append(h5File[workspace + "/workspace/errors"][()])
+        if FWS:
+            energies.append(
                 h5File[workspace + "/logs/Doppler.maximum_delta_energy/value"][
                     ()
                 ]
             )
-            listT.append(
-                h5File[workspace + "/logs/sample.temperature/value"][()]
-            )
+        else:
+            energies = h5File[workspace + "/workspace/axis1"][()]
+            energies *= 1e3
 
-        for data in listObs:
-            if data.shape[0] != listObs[0].shape[0]:
-                interp = True
+    times = np.array([parse(t.split(",")[0]) for t in times])
+    times = np.array([(t - times[0]).total_seconds() / 3600 for t in times])
+    # process observable name
+    if observable_name == "time":
+        listObs = np.array(times)
+    if observable_name == "temperature":
+        listObs = np.array(temps)
 
-        if interp:
-            listObs, listI, listErr = _interpFWS(listObs, listI, listErr)
+    lastAxisSize = listI[0].shape[-1]
+    for data in listI:
+        if FWS and data.shape[0] != listObs.shape[0]:
+            interpObs = True
+        if not FWS and data.shape[-1] != lastAxisSize:
+            interpEnergies = True
 
-        # converts intensities and errors to numpy and array and transpose
-        # to get (# frames, # qVals, # energies) shaped array
-        listObs = np.array(listObs).mean(0)
+    if interpObs:
+        listObs, listI, listErr = _interpFWS(listObs, listI, listErr)
+    if interpEnergies:
+        energies, listI, listErr = _interpEnergies(energies, listI, listErr)
+
+    # converts intensities and errors to numpy and array and transpose
+    # to get (# frames, # qVals, # energies) shaped array
+    if FWS:
         listI = np.array(listI).T
         listErr = np.array(listErr).T
-        deltaE = np.array(deltaE)[:, 0]
-        listT = np.array(listT).mean(0)
+        energies = np.array(energies)[:, 0]
 
-        # process observable name
-        if observable_name == "time":
-            listObs = listObs / 3600  # converts to hours
-            times = np.copy(listObs)
-        if observable_name == "temperature":
-            listT = np.copy(listObs)
-            times = np.array([parse(times.split(",")[0])])
-            times = np.array(
-                [(t - times[0]).total_seconds() / 3600 for t in times]
-            )
+    dataList = dataTuple(
+        listI,
+        listErr,
+        energies,
+        temps,
+        times,
+        str(name),
+        listQ,
+        np.arange(listQ.size),
+        listObs,
+        observable_name,
+        False,
+    )
 
-        dataList = dataTuple(
-            listI,
-            listErr,
-            deltaE,
-            listT,
-            times,
-            str(name),
-            listQ,
-            np.arange(listQ.size),
-            listObs,
-            observable_name,
-            False,
-        )
-
-        return dataList
-
-    # Assumes QENS data
-    else:
-        wavelength = h5File["mantid_workspace_1/logs/wavelength/value"][()]
-        name = h5File["mantid_workspace_1/logs/subtitle/value"][()].astype(str)
-        observable_name, spectrum_axis = _processAlgoInfo(h5File)
-        temps = np.array(
-            [h5File["mantid_workspace_1/logs/sample.temperature/value"][()]]
-        )
-        times = h5File["mantid_workspace_1/logs/start_time/value"][
-            (0)
-        ].decode()
-        times = np.array([parse(times.split(",")[0])])
-        times = np.array(
-            [(t - times[0]).total_seconds() / 3600 for t in times]
-        )
-
-        listQ = h5File["mantid_workspace_1/workspace/axis2"][()]
-
-        if spectrum_axis in ["SpectrumNumber", "2Theta"]:  # converts to q
-            listQ = np.array(
-                4 * np.pi / wavelength * np.sin(np.pi * listQ / 360)
-            )
-        if spectrum_axis == "Q2":  # converts to q
-            listQ = np.sqrt(np.array(listQ))
-
-        listObs = np.array([])
-        listE = h5File["mantid_workspace_1/workspace/axis1"][()][:-1] * 1e3
-
-        listI = h5File["mantid_workspace_1/workspace/values"][()]
-        listErr = h5File["mantid_workspace_1/workspace/errors"][()]
-
-        listI = listI[np.newaxis, :, :]
-        listErr = listErr[np.newaxis, :, :]
-
-        # process observable name
-        if observable_name == "time":
-            listObs = np.copy(times)
-        if observable_name == "temperature":
-            listObs = np.copy(temps)
-
-        dataList = dataTuple(
-            listI,
-            listErr,
-            listE,
-            temps,
-            times,
-            str(name),
-            listQ,
-            np.arange(listQ.size),
-            listObs,
-            observable_name,
-            False,
-        )
-
-        return dataList
+    return dataList
 
 
 def _interpFWS(listX, listI, listErr):
@@ -202,12 +147,12 @@ def _interpFWS(listX, listI, listErr):
             maxSize = data.shape[0]
             maxX = data
 
-    # Performs an interpolation for each dataset with a sampling
+    # Performs an interpolation for each dataset that has a sampling
     # rate smaller than the maximum
-    for k, data in enumerate(listX):
+    for k, data in enumerate(listI):
         if data.shape[0] != maxSize:
             interpI = interp1d(
-                data,
+                listX[k],
                 listI[k],
                 kind="linear",
                 fill_value=(listI[k][:, 0], listI[k][:, -1]),
@@ -215,20 +160,83 @@ def _interpFWS(listX, listI, listErr):
             )
 
             interpErr = interp1d(
-                data,
+                listX[k],
                 listErr[k],
                 kind="linear",
                 fill_value=(listErr[k][:, 0], listErr[k][:, -1]),
                 bounds_error=False,
             )
 
-            data = maxX
             listI[k] = interpI(maxX)
             listErr[k] = interpErr(maxX)
 
-            data = maxX
-
     return listX, listI, listErr
+
+
+def _interpEnergies(energies, listI, listErr):
+    """In the case of different sampling for the energy transfers
+    in QENS data, the function interpolates the data and produces
+    data with the same length in the energy dimension.
+
+    """
+    maxSize = 0
+    maxX = None
+
+    # Finds the maximum sampling in the list of dataset
+    for k, data in enumerate(listI):
+        if data.shape[0] >= maxSize:
+            maxSize = data.shape[-1]
+            maxX = np.arange(maxSize)
+
+    # Performs an interpolation for each dataset that has a sampling
+    # rate smaller than the maximum
+    for k, data in enumerate(listI):
+        if data.shape[0] != maxSize:
+            interpI = interp1d(
+                np.arange(data.shape[-1]),
+                listI[k],
+                kind="linear",
+                fill_value=(listI[k][:, 0], listI[k][:, -1]),
+                bounds_error=False,
+            )
+
+            interpErr = interp1d(
+                np.arange(data.shape[-1]),
+                listErr[k],
+                kind="linear",
+                fill_value=(listErr[k][:, 0], listErr[k][:, -1]),
+                bounds_error=False,
+            )
+
+            listI[k] = interpI(maxX)
+            listErr[k] = interpErr(maxX)
+
+    energies = interp1d(
+        np.arange(energies.size),
+        energies,
+        kind="linear",
+        fill_value=(energies[0], energies[-1]),
+        bounds_error=False,
+    )(maxX)
+
+    return energies, listI, listErr
+
+
+def _getMomentumTransfers(h5File, listQ, wavelength):
+    """Obtain the list of q-values from HDF file and length of listQ"""
+    anglesPSD = [
+        h5File["mantid_workspace_1/logs/PSD.PSD angle %i/value" % i][()]
+        for i in range(1, 17)
+    ]
+    anglesSD = [
+        h5File["mantid_workspace_1/logs/SingleD.SD%i angle/value" % i][()]
+        for i in range(1, 9)
+    ]
+    nbrSD = listQ.size - 16
+
+    angles = np.concatenate((anglesSD[:nbrSD], anglesPSD))
+    angles = np.array(4 * np.pi / wavelength * np.sin(np.pi * angles / 360))
+    return angles.flatten()
 
 
 def _processAlgoInfo(f):
@@ -249,6 +257,7 @@ def _processAlgoInfo(f):
     algoConfig = f["mantid_workspace_1/process/MantidAlgorithm_1/data"][(0)]
     algoConfig = algoConfig.decode().splitlines()
 
+    algo = "IndirectILLEnergyTransfer"
     obs = "time"  # default value in case no observable is found
     specAx = ""
 
@@ -259,6 +268,9 @@ def _processAlgoInfo(f):
         if "SpectrumAxis" in i:
             specAx = i.split(",")[1]
             specAx = specAx[specAx.find(":") + 2 :]
+    for i in algoConfig:
+        if algo in i:
+            specAx = "decNbr"
 
     if obs == "start_time":
         obs = "time"
