@@ -15,23 +15,22 @@ def slidingAverage(data, windowLength):
     window = np.ones(windowLength)
     nbrIter = data.observable.size - windowLength + 1
 
-    intensities = np.array(
-        [
-            np.mean(data.intensities[i : i + windowLength], 0)
-            for i in range(nbrIter)
-        ]
-    )
-    errors = np.array(
-        [
-            np.sqrt(np.sum(data.errors[i : i + windowLength] ** 2, 0))
-            for i in range(nbrIter)
-        ]
-    )
+    outIntensities = []
+    outErrors = []
+    for i in range(nbrIter):
+        intensities = data.intensities[i : i + windowLength]
+        errors = data.errors[i : i + windowLength]
+
+        intensities = np.array(np.mean(intensities, 0))
+        errors = np.array(np.sqrt(np.sum(errors ** 2, 0)))
+        outIntensities.append(intensities)
+        outErrors.append(errors)
+
     observable = np.convolve(data.observable, window, mode="valid")
 
     data = data._replace(
-        intensities=intensities,
-        errors=errors / windowLength,
+        intensities=np.array(outIntensities),
+        errors=np.array(outErrors) / windowLength,
         observable=observable / windowLength,
     )
 

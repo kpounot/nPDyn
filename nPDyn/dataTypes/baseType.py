@@ -538,8 +538,6 @@ class BaseType:
 
     def discardDetectors(self, *qIdx):
         """Remove detectors (q-values)."""
-        print(self.data.qIdx)
-        print(qIdx)
         ids = np.array(
             [idx for idx, val in enumerate(self.data.qIdx) if val not in qIdx]
         )
@@ -753,7 +751,7 @@ class BaseType:
                 resModel = self.resData.model
                 if self.data.norm and not self.resData.data.norm:
                     resModel = resModel / lmModel(
-                        lambda x: self._getNormRes()[0]
+                        lambda x: self._getNormRes()[0], prefix="res_"
                     )
                 model = ConvolvedModel(model, resModel)
                 model.param_hints.update(self.resData.getFixedOptParams(0))
@@ -761,6 +759,8 @@ class BaseType:
         if addEC:
             if isinstance(self.model, Model):
                 ecModel = self.ECData.model.copy()
+                for key, item in ecModel.components.items():
+                    item.skip_convolve = True
                 if self.data.norm and not self.ECData.data.norm:
                     ecModel /= Component(
                         "norm", linear, a=0.0, b=self._getNormRes()[0]
@@ -769,8 +769,9 @@ class BaseType:
             else:
                 ecModel = self.ECData.model
                 if self.data.norm and not self.ECData.data.norm:
-                    resModel /= lmModel(lambda x: self._getNormRes()[0])
-                model = ConvolvedModel(model, resModel)
+                    ecModel /= lmModel(
+                        lambda x: self._getNormRes()[0], prefix="ec_"
+                    )
                 model.param_hints.update(self.ECData.getFixedOptParams(0))
 
         if addD2O:
@@ -779,7 +780,7 @@ class BaseType:
             else:
                 norm = 1
             if isinstance(self.model, Model):
-                self.model.addComponent(
+                model.addComponent(
                     Component(
                         "$D_2O$",
                         lambda x: norm
@@ -790,7 +791,8 @@ class BaseType:
                 )
             else:
                 model += self.D2OData.model
-                model /= lmModel(lambda x: norm)
+                model *= lmModel(lambda x: volFractionD2O, prefix="D2O_")
+                model /= lmModel(lambda x: norm, prefix="D2O_")
                 model.param_hints.update(self.D2OData.getFixedOptParams(0))
 
         for idx, obs in enumerate(self.data.observable):

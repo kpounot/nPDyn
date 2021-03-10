@@ -11,6 +11,7 @@ from nPDyn.models.presets import (
     delta,
     gaussian,
     lorentzian,
+    generalizedLorentzian,
     rotations,
     calibratedD2O,
 )
@@ -55,7 +56,7 @@ def modelPVoigt(q, name="PVoigt", **kwargs):
             "gaussian",
             gaussian,
             scale="scale * frac",
-            width="width / sqrt(2 * log(2))",
+            width="width / np.sqrt(2 * np.log(2))",
         )
     )
 
@@ -96,7 +97,7 @@ def modelPVoigtBkgd(q, name="PVoigtBkgd", **kwargs):
             "gaussian",
             gaussian,
             scale="scale * frac",
-            width="width / sqrt(2 * log(2))",
+            width="width / np.sqrt(2 * np.log(2))",
         )
     )
     m.addComponent(Component("background", linear, True, a=0.0, b="bkgd"))
@@ -135,9 +136,8 @@ def modelGaussBkgd(q, name="GaussBkgd", **kwargs):
     return m
 
 
-def modelLorentzianSum(q, name="LorentzianSum", nLor=2, **kwargs):
-    """A model containing a delta and a sum of Lorentzians
-    with a background term.
+def modelLorentzianSum(q, name="LorentzianSum", nLor=2, qWise=True, **kwargs):
+    """A model containing a delta and a sum of Lorentzians.
 
     Parameters
     ----------
@@ -147,37 +147,91 @@ def modelLorentzianSum(q, name="LorentzianSum", nLor=2, **kwargs):
         Name for the model
     nLor : 2
         Number of Lorentzian to be used.
+    qWise : bool
+        If True, no q dependence is imposed on the parameters and
+        the each spectrum is fitted independently.
     kwargs : dict
         Additional arguments to pass to Parameters.
         Can override default parameter attributes.
 
     """
     p = Parameters(
-        a0={"value": 0.5, "bounds": (0.0, 1.0)},
+        scale={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
+        a0={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
         center={"value": 0.0, "fixed": True},
-        msd={"value": 1.0, "bounds": (0.0, np.inf)},
-        bkgd={"value": np.zeros_like(q) + 0.001, "bounds": (0.0, np.inf)},
     )
+    if qWise:
+        aDefault = np.zeros_like(q) + 0.5
+        widthDefault = np.zeros_like(q) + 10
+        widthStr = "w%i"
+    else:
+        aDefault = 0.5
+        widthDefault = 10
+        widthStr = "w%i * q ** 2"
 
     for idx in range(nLor):
-        p.set("a%i" % (idx + 1), value=0.5, bounds=(0.0, 1.0))
-        p.set("w%i" % (idx + 1), value=10, bounds=(0.0, np.inf))
+        p.set("a%i" % (idx + 1), value=aDefault, bounds=(0.0, 1.0))
+        p.set("w%i" % (idx + 1), value=widthDefault, bounds=(0.0, np.inf))
 
     p.update(**kwargs)
 
     m = Model(p, name)
 
-    m.addComponent(Component("EISF", delta, scale="exp(-q**2 * msd) * a0"))
+    m.addComponent(Component("EISF", delta, scale="a0 * scale"))
     for idx in range(nLor):
         m.addComponent(
             Component(
                 r"$\mathcal{L}_{%i}$" % (idx + 1),
                 lorentzian,
-                scale="exp(-q**2 - msd) * a%i" % (idx + 1),
-                width="w%i * q**2" % (idx + 1),
+                scale="a%i * scale" % (idx + 1),
+                width=widthStr % (idx + 1),
             )
         )
-    m.addComponent(Component("background", linear, True, a=0.0, b="bkgd"))
+
+    return m
+
+
+def modelGeneralizedLorentzian(q, name="GeneralizedLorentzian", **kwargs):
+    """A model containing a delta and a generalized lorentzian.
+
+    This model has been described elsewhere [#]_.
+
+    Parameters
+    ----------
+    q : np.ndarray
+        Array of values for momentum transfer q.
+    name : str
+        Name for the model
+    kwargs : dict
+        Additional arguments to pass to Parameters.
+        Can override default parameter attributes.
+
+
+    References
+    ----------
+    .. [#] https://doi.org/10.1063/1.5121703
+
+    """
+    p = Parameters(
+        scale={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
+        a={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
+        center={"value": 0.0, "fixed": True},
+        alpha={"value": np.zeros_like(q) + 0.8, "bounds": (0.0, 1)},
+        tau={"value": np.zeros_like(q) + 0.01, "bounds": (0.0, np.inf)},
+    )
+
+    p.update(**kwargs)
+
+    m = Model(p, name)
+
+    m.addComponent(Component("EISF", delta, scale="scale * a"))
+    m.addComponent(
+        Component(
+            r"$\mathcal{L}_{\alpha, \tau}$",
+            generalizedLorentzian,
+            scale="scale * (1 - a)",
+        )
+    )
 
     return m
 
@@ -217,7 +271,7 @@ def modelWater(q, name="waterDynamics", **kwargs):
         Component(
             "EISF",
             delta,
-            scale="exp(-q**2 * msd) * "
+            scale="np.exp(-q**2 * msd) * "
             "(a0 + ar * spherical_jn(0, 0.96 * q)**2)",
         )
     )
@@ -233,7 +287,7 @@ def modelWater(q, name="waterDynamics", **kwargs):
         Component(
             r"$\mathcal{L}_t$",
             lorentzian,
-            scale="exp(-q**2 * msd) * at",
+            scale="np.exp(-q**2 * msd) * at",
             width="wt * q**2",
         )
     )
@@ -282,7 +336,7 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
     else:
         p = Parameters(
             beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
-            a0={"value": 0.5, "bounds": (0.0, 1)},
+            a0={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
             wg={"value": 5, "bounds": (0.0, np.inf)},
             wi={"value": 30, "bounds": (0.0, np.inf)},
             tau={"value": 1e-3, "bounds": (0.0, np.inf)},
@@ -346,12 +400,12 @@ def modelTwoStatesSwitchDiff(q, name="TwoStatesSwitch", **kwargs):
     w0 = "g0 * q**2"
     w1 = (
         "(g1 * q**2 + g2 * q**2 + tau1 + tau2 + "
-        "sqrt(((g1 - g2) * q**2 + tau1 - tau2)**2 + 4 * "
+        "np.sqrt(((g1 - g2) * q**2 + tau1 - tau2)**2 + 4 * "
         "tau1 * tau2)) / 2"
     )
     w2 = (
         "(g1 * q**2 + g2 * q**2 + tau1 + tau2 - "
-        "sqrt(((g1 - g2) * q**2 + tau1 - tau2)**2 + 4 * "
+        "np.sqrt(((g1 - g2) * q**2 + tau1 - tau2)**2 + 4 * "
         "tau1 * tau2)) / 2"
     )
     s1 = (

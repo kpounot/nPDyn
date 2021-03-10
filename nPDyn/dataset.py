@@ -439,7 +439,7 @@ class Dataset:
         neutron_wavelength=6.27,
         absco_kwargs={},
         D2O=True,
-        res=True
+        res=False
     ):
         """Method for quick absorption correction on all selected
         dataset in fileIdxList.

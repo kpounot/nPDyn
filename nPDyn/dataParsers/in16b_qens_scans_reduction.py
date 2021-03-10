@@ -200,6 +200,11 @@ class IN16B_QENS:
             self.monitor = [np.sum(np.array(self.monitor), 0)]
             self.dataList = [np.sum(np.array(self.dataList), 0)]
 
+        # finding dead channels
+        deadChannels = np.ones_like(self.monitor[0]).flatten().astype(bool)
+        for val in self.monitor:
+            deadChannels &= val.flatten() <= 0
+
         for idx, data in enumerate(self.dataList):
             if self.unmirroring:
                 if self.vanadiumRef is not None:
@@ -214,16 +219,12 @@ class IN16B_QENS:
                 self.monitor[idx] = self._unmirrorData(
                     self.monitor[idx].reshape(1, self.monitor[idx].shape[0])
                 )
-                np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
 
                 errData = np.sqrt(data)
-
             else:
                 errData = np.sqrt(data)
 
             if self.normalize:
-                np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
-
                 if self.detGroup == "no":
                     monitor = self.monitor[idx][:, :, np.newaxis]
                 else:
@@ -336,7 +337,10 @@ class IN16B_QENS:
         using the selected method.
 
         """
-        # if detGroup is not, sum over all vertical positions to find
+        data = np.array(data)
+        if data.ndim == 1:
+            data = data[np.newaxis, :]
+        # if detGroup is none, sum over all vertical positions to find
         # peaks more effectively
         if data.ndim == 3:
             data = data.sum(2)
@@ -382,7 +386,7 @@ class IN16B_QENS:
 
                 params = curve_fit(
                     Gaussian,
-                    np.arange(midChannel),
+                    np.arange(qData[:midChannel].size),
                     qData[:midChannel],
                     sigma=errors[:midChannel],
                     p0=[qData[:midChannel].max(), 1, midChannel / 2, 0],
@@ -391,7 +395,7 @@ class IN16B_QENS:
 
                 params = curve_fit(
                     Gaussian,
-                    np.arange(midChannel),
+                    np.arange(qData[midChannel:].size),
                     qData[midChannel:],
                     sigma=errors[midChannel:],
                     p0=[qData[midChannel:].max(), 1, midChannel / 2, 0],

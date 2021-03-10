@@ -2,6 +2,9 @@ v2.1.0
 ------
     Adding the possibility to use the z-direction on the position-sensitive
     detectors as an observable.
+    Adding and optimizing data reduction for BATS data recorded on IN16B at the ILL.
+    Adding new built-in models.
+    Adding a 'slidingAverage' capability along the observable.
     Some bug corrections and code quality improvements.
 
 v2.0.1

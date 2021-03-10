@@ -486,7 +486,7 @@ def delta(q, **kwargs):
     return model
 
 
-def calibratedD2O(q, volFraction=0.95, temp=300, **kwargs):
+def calibratedD2O(q, temp=300, **kwargs):
     """Lineshape for D2O where the Lorentzian width was obtained
     from a measurement on IN6 at the ILL.
 
@@ -494,8 +494,6 @@ def calibratedD2O(q, volFraction=0.95, temp=300, **kwargs):
     ----------
     q : np.array or list
         Array of momentum transfer q values
-    volFraction : float in [0, 1]
-        Volume fraction of the D2O in the sample.
     temp : float
         Sample temperature used for the experiment.
     kwargs : dict, optional
@@ -519,8 +517,7 @@ def calibratedD2O(q, volFraction=0.95, temp=300, **kwargs):
         q,
         "calibrationD2O",
         "{amplitude} * getD2Odata(%s)(%f, {q}) "
-        "/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))"
-        % (volFraction, temp, volFraction, temp),
+        "/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))" % (1, temp, 1, temp),
         **defaults
     )
 

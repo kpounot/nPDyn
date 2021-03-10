@@ -84,8 +84,11 @@ class QENSPlot(QWidget):
         self.compareButton = QPushButton("Compare")
         self.compareButton.clicked.connect(self.compare)
 
-        self.analysisButton = QPushButton("Analysis")
-        self.analysisButton.clicked.connect(self.analysisPlot)
+        self.analysisQButton = QPushButton("Analysis - q-wise")
+        self.analysisQButton.clicked.connect(self.analysisQPlot)
+
+        self.analysisObsButton = QPushButton("Analysis - observable-wise")
+        self.analysisObsButton.clicked.connect(self.analysisObsPlot)
 
         self.plot3DButton = QPushButton("3D Plot")
         self.plot3DButton.clicked.connect(self.plot3D)
@@ -143,7 +146,8 @@ class QENSPlot(QWidget):
         layout.addWidget(self.compareButton)
         layout.addWidget(self.plot3DButton)
         if not self.noFit:
-            layout.addWidget(self.analysisButton)
+            layout.addWidget(self.analysisQButton)
+            layout.addWidget(self.analysisObsButton)
         self.setLayout(layout)
 
     # -------------------------------------------------
@@ -288,9 +292,9 @@ class QENSPlot(QWidget):
         self.canvas.draw()
 
     # Plot of the parameters resulting from the fit procedure
-    def analysisPlot(self):
+    def analysisQPlot(self):
         """Plot the fitted parameters."""
-        self.currPlot = self.analysisPlot
+        self.currPlot = self.analysisQPlot
 
         self.figure.clear()
 
@@ -333,6 +337,65 @@ class QENSPlot(QWidget):
 
         self.canvas.draw()
 
+    # Plot of the parameters resulting from the fit procedure
+    def analysisObsPlot(self):
+        """Plot the fitted parameters."""
+        self.currPlot = self.analysisObsPlot
+
+        self.figure.clear()
+
+        qIdx = self.qSlider.value()
+        obsList = self.get_obsRange()
+
+        # Creates as many subplots as there are parameters in the model
+        ax = subplotsFormat(self, True, False, None, True)
+
+        # Plot the parameters of the fits
+        for fileIdx, dataset in enumerate(self.dataset):
+            params = {key: [] for key in dataset.params[0].keys()}
+            pErrors = {key: [] for key in dataset.params[0].keys()}
+            for obsIdx, obs in enumerate(obsList):
+                for key, item in dataset.params[obsIdx].items():
+                    if isinstance(item.value, (list, np.ndarray)):
+                        params[key].append(
+                            np.array(item.value).flatten()[qIdx]
+                        )
+                        pErrors[key].append(
+                            np.array(item.error).flatten()[qIdx]
+                        )
+                    else:
+                        params[key].append(item.value)
+                        pErrors[key].append(item.error)
+
+            for idx, key in enumerate(params.keys()):
+                values = params[key]
+                errors = pErrors[key]
+                values = np.array(values).flatten()
+                errors = np.array(errors).flatten()
+
+                if not self.errBox.isChecked():
+                    errors = np.zeros_like(errors)
+
+                marker = "o"
+                if values.size == 1:
+                    values = np.zeros_like(obsList) + values
+                    errors = np.zeros_like(obsList) + errors
+                    marker = None
+
+                ax[idx].plot(
+                    obsList, values, marker=marker, label=dataset.fileName
+                )
+
+                ax[idx].fill_between(
+                    obsList, values - errors, values + errors, alpha=0.4
+                )
+                ax[idx].set_ylabel(key)
+                ax[idx].set_xlabel(dataset.observable_name)
+
+        ax[-1].legend(framealpha=0.5)
+
+        self.canvas.draw()
+
     # -------------------------------------------------
     # Helper functions
     # -------------------------------------------------
@@ -350,7 +413,7 @@ class QENSPlot(QWidget):
         This assumes the observables are the same for all datasets.
 
         """
-        return self.dataset[0].data.observable
+        return self.dataset[0].data.observable.astype(float)
 
     def updateLabels(self):
         """Update the labels on the right of the sliders."""

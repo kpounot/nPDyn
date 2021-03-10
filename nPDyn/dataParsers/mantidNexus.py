@@ -71,7 +71,11 @@ def processNexus(dataFile, FWS=False):
     energies = []
     temps = []
     times = []
-    for workspace in h5File:
+    nbrWorkspace = len(h5File.keys())
+    workspaces = [
+        "mantid_workspace_%i" % i for i in range(1, nbrWorkspace + 1)
+    ]
+    for workspace in workspaces:
         temps.append(h5File[workspace + "/logs/sample.temperature/value"][()])
         times.append(
             h5File[workspace + "/logs/start_time/value"][(0)].decode()
@@ -96,11 +100,10 @@ def processNexus(dataFile, FWS=False):
     if observable_name == "temperature":
         listObs = np.array(temps)
 
-    lastAxisSize = listI[0].shape[-1]
     for data in listI:
         if FWS and data.shape[0] != listObs.shape[0]:
             interpObs = True
-        if not FWS and data.shape[-1] != lastAxisSize:
+        if not FWS and data.shape[-1] != len(energies):
             interpEnergies = True
 
     if interpObs:
@@ -110,9 +113,11 @@ def processNexus(dataFile, FWS=False):
 
     # converts intensities and errors to numpy and array and transpose
     # to get (# frames, # qVals, # energies) shaped array
+    listI = np.array(listI)
+    listErr = np.array(listErr)
     if FWS:
-        listI = np.array(listI).T
-        listErr = np.array(listErr).T
+        listI = listI.T
+        listErr = listErr.T
         energies = np.array(energies)[:, 0]
 
     dataList = dataTuple(

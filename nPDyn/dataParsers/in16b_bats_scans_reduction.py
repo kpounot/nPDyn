@@ -11,7 +11,7 @@ import numpy as np
 
 from collections import namedtuple
 
-from scipy.signal import savgol_filter
+from scipy.signal import savgol_filter, find_peaks
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 
@@ -82,7 +82,7 @@ class IN16B_BATS:
         observable="time",
         tElastic=None,
         monitorOffset=None,
-        monitorCutoff=0.60,
+        monitorCutoff=0.80,
         pulseChopper="C34",
     ):
 
@@ -135,47 +135,43 @@ class IN16B_BATS:
         self.monitor = []
         self.tofList = []
 
-        for dataFile in self.scanList:
+        for dIdx, dataFile in enumerate(self.scanList):
             dataset = h5py.File(dataFile, mode="r")
 
             data = dataset["entry0/data/PSD_data"][()]
 
             tof = dataset["entry0/instrument/PSD/time_of_flight"][()]
             tof = (np.arange(tof[1]) + 0.5) * tof[0] + tof[2]
-            self.tofList.append(tof)
 
             self.name = dataset["entry0/subtitle"][(0)].astype(str)
 
             monitor = (
                 dataset["entry0/monitor/data"][()].squeeze().astype("float")
             )
+            self.monitor.append(monitor)
 
             # compute the time-of-flight for the monitor
             monTof = dataset["entry0/monitor/time_of_flight"][()]
             monTof = (np.arange(monTof[1]) + 0.5) * monTof[0] + monTof[2]
 
-            # apply a mask on the monitor based on monitorCutoff
-            maxMon = np.max(monitor)
-            self.monSignalIds = np.where(
-                monitor > maxMon * self.monitorCutoff
-            )[0]
-            monMask = np.zeros_like(monitor)
-            monMask[self.monSignalIds] += 1
-            monitor *= monMask
-            self.monitor.append(monitor)
-
             wavelength = dataset["entry0/wavelength"][()]
             refEnergy = 1.3106479439885732e-40 / (wavelength * 1e-10) ** 2
 
+            if dIdx == 0:
+                data, center = self._alignGroups(data)
+            else:
+                data, center = self._alignGroups(data, center)
+
             if self.detGroup == "no":
+                sampleToDec = dataset[
+                    "entry0/instrument/PSD/distance_to_sample"
+                ][()]
+                tubeHeight = dataset[
+                    "entry0/instrument/PSD/tubes_opening_ver"
+                ][()]
                 self.observable = "$q_z$"
                 nbrDet = data.shape[0]
                 nbrYPixels = int(data.shape[1])
-                sampleToDec = (
-                    dataset["entry0/instrument/PSD/distance_to_sample"][()]
-                    * 10
-                )
-                tubeHeight = dataset["entry0/instrument/PSD/tubes_size"][()]
                 qZ = np.arange(nbrYPixels) - nbrYPixels / 2
                 qZ *= tubeHeight / nbrYPixels
                 qZ *= 4 * np.pi / (sampleToDec * wavelength)
@@ -219,59 +215,61 @@ class IN16B_BATS:
             self.monitor = [np.sum(np.array(self.monitor), 0)]
             self.dataList = [np.sum(np.array(self.dataList), 0)]
 
+        # get the elastic time
+        if self.tElastic is not None:
+            tElastic = self.tElastic
+        else:
+            tElastic = tof[center]
+
+        # convert time-of-flight to energies
+        refDist = self._refDist[self.pulseChopper]
+        refVel = np.sqrt(2 * refEnergy / 1.67493e-27)
+        refTime = refDist / refVel
+        dt = tof - tElastic
+        velocities = refDist / (refTime + dt * 1e-6)
+        energies = 1.67493e-27 * velocities ** 2 / 2
+        energies -= refEnergy
+        energies *= 6.241509e18 * 1e6
+        refPos = np.argmin(energies ** 2)
+
         for idx, data in enumerate(self.dataList):
-            peaks = self._findPeaks(data)
-            if self.tElastic is not None:
-                tElastic = self.tElastic
-                refPeak = np.argmin((tElastic - tof) ** 2)
-            else:
-                refPeak = int(np.mean(peaks[nbrSingleD + 1 :], 0))
-                tElastic = tof[refPeak]
-
-            refDist = self._refDist[self.pulseChopper]
-            refVel = np.sqrt(2 * refEnergy / 1.67493e-27)
-            refTime = refDist / refVel
-            dt = tof - tElastic
-            velocities = refDist / (refTime + dt * 1e-6)
-            energies = 1.67493e-27 * velocities ** 2 / 2
-            energies -= refEnergy
-            energies *= 6.241509e18 * 1e6
-            self.energyList.append(np.copy(energies[::-1]))
-
-            refPos = np.argmin(energies ** 2)
-
             for qIdx, qData in enumerate(data):
-                data[qIdx] = np.roll(qData, int(refPos - peaks[qIdx]))
+                if qIdx < nbrSingleD:
+                    peak = self._findPeaks(qData)[0]
+                else:
+                    peak = center
+                data[qIdx] = np.roll(qData, int(refPos - peak))
 
             errList = np.sqrt(data)
             if self.normalize:
-                monCenter = self._findPeaks(self.monitor)
+                monCenter = self._findPeaks(self.monitor[idx])
                 if self.monitorOffset is not None:
-                    refPos = np.argmin((self.monitorOffset - monTof) ** 2)
+                    monRefPos = np.argmin((self.monitorOffset - monTof) ** 2)
                     self.monitor[idx] = np.roll(
                         self.monitor[idx],
-                        int(refPos - monCenter[idx]),
+                        int(monRefPos - monCenter),
                     )
                 else:
                     self.monitor[idx] = np.roll(
-                        self.monitor[idx], int(refPos - monCenter[idx])
+                        self.monitor[idx], int(refPos - monCenter)
                     )
 
-                # correct for energy density
-                self.monitor[idx] /= ((refTime + dt * 1e-6) / refTime) ** 3
+                np.place(self.monitor[idx], self.monitor[idx] <= 0, -np.inf)
 
                 if self.detGroup == "no":
                     monitor = np.copy(self.monitor[idx][:, :, np.newaxis])
                 else:
                     monitor = np.copy(self.monitor[idx])
 
-                np.place(monitor, monitor == 0, np.inf)
                 data = data / monitor
                 errList = errList / monitor
 
-            self.dataList[idx] = data
-            self.errList.append(errList)
+            self.dataList[idx] = data[:, ::-1]
+            self.monitor[idx] = self.monitor[idx][::-1]
+            self.errList.append(errList[:, ::-1])
+            self.energyList.append(np.copy(energies[::-1]))
 
+        self.tofList = tof
         self._convertDataset()
 
     def _getSingleD(self, dataset, data, angles):
@@ -321,20 +319,22 @@ class IN16B_BATS:
 
         """
         if self.strip is None:
-            data = np.array(self.dataList)[:, :, self.monSignalIds]
-            errors = np.array(self.errList)[:, :, self.monSignalIds]
-            energies = self.energyList[0][self.monSignalIds]
-            tof = self.tofList[0][self.monSignalIds]
+            maxMon = self.monitor[0].max()
+            monSignal = self.monitor[0] >= maxMon * self.monitorCutoff
+            data = np.array(self.dataList)[:, :, monSignal]
+            errors = np.array(self.errList)[:, :, monSignal]
+            energies = self.energyList[0][monSignal]
+            tof = self.tofList[monSignal]
         elif self.strip > 0:
             data = np.array(self.dataList)[:, :, self.strip : -self.strip]
             errors = np.array(self.errList)[:, :, self.strip : -self.strip]
             energies = self.energyList[0][self.strip : -self.strip]
-            tof = self.tofList[0][self.strip : -self.strip]
+            tof = self.tofList[self.strip : -self.strip]
         else:
             data = np.array(self.dataList)
             errors = np.array(self.errList)
             energies = self.energyList[0]
-            tof = self.tofList[0]
+            tof = self.tofList
 
         # converts the times to hours
         times = np.array(self.startTimeList)
@@ -378,64 +378,78 @@ class IN16B_BATS:
 
     def _findPeaks(self, data):
         """Find the peak in each time-of-flight measurement."""
-        # if detGroup is none, sum over all vertical positions to find
-        # peaks more effectively
         data = np.array(data)
         if data.ndim == 1:
             data = data[np.newaxis, :]
+        # if detGroup is none, sum over all vertical positions to find
+        # peaks more effectively
         if data.ndim == 3:
             data = data.sum(1)
 
         nbrChannels = data.shape[1]
+        middle = int(nbrChannels / 2)
+        window = (middle - nbrChannels / 5, middle + nbrChannels / 5)
 
         if self.peakFindingMask is None:
             mask = np.zeros_like(data)
-            mask[:, self.monSignalIds] = 1
+            mask[:, int(window[0]) : int(window[1])] = 1
 
         maskedData = data * mask
 
-        # Finds the peaks using a Savitsky-Golay filter to
-        # smooth the data, followed by extracting the position of the maximum
-        filters = np.array(
-            [
-                savgol_filter(maskedData, 5, 4),
-                savgol_filter(maskedData, 11, 4),
-                savgol_filter(maskedData, 19, 3),
-            ]
-        )
-        savGolPeaks = np.mean(np.argmax(filters, 2), 0)
-
         # Finds the peaks by using a Gaussian function to fit the data
-        Gaussian = lambda x, normF, gauW, shift, bkgd: (
+        Gaussian = lambda x, normF, gauW, shift: (
             normF
             * np.exp(-((x - shift) ** 2) / (2 * gauW ** 2))
             / (gauW * np.sqrt(2 * np.pi))
-            + bkgd
         )
-
         try:
             gaussPeaks = []
             for qData in maskedData:
+                qData = np.convolve(qData, np.ones(12), mode="same")
                 errors = np.sqrt(qData)
                 np.place(errors, errors == 0, np.inf)
-
                 params = curve_fit(
                     Gaussian,
                     np.arange(nbrChannels),
                     qData,
                     sigma=errors,
-                    p0=[qData.max(), 1, nbrChannels / 2, 0],
+                    bounds=(0.0, np.inf),
+                    p0=[
+                        qData.max(),
+                        1,
+                        nbrChannels / 2,
+                    ],
+                    max_nfev=10000,
                 )
                 gaussPeaks.append(params[0][2])
-
-            gaussPeaks = np.array(gaussPeaks)
-
-            peaks = (0.8 * gaussPeaks + 0.2 * savGolPeaks).astype(int)
+            return np.rint(gaussPeaks).astype(int)
 
         except RuntimeError:
-            peaks = savGolPeaks.astype(int)
+            # Finds the peaks using a Savitsky-Golay filter to
+            # smooth the data, and extract the position of the maximum
+            filters = np.array(
+                [
+                    savgol_filter(maskedData, 5, 4),
+                    savgol_filter(maskedData, 11, 4),
+                    savgol_filter(maskedData, 19, 3),
+                    savgol_filter(maskedData, 25, 5),
+                ]
+            )
+            savGolPeaks = np.mean(np.argmax(filters, 2), 0)
 
-        return peaks
+            findPeaks = []
+            for qData in maskedData:
+                qPeaks = find_peaks(
+                    qData,
+                    distance=qData.size / 2,
+                    prominence=0.5 * qData.max(),
+                )[0]
+                selData = qData[qPeaks]
+                findPeaks.append(qPeaks[np.argmax(selData)].squeeze())
+
+            return np.rint(
+                0.5 * savGolPeaks + 0.5 * np.array(findPeaks)
+            ).astype(int)
 
     def _detGrouping(self, data):
         """The method performs a sum along detector tubes using the provided
@@ -489,3 +503,44 @@ class IN16B_BATS:
             out = np.sum(data, 1)
 
         return out.astype("float")
+
+    def _alignGroups(self, data, position=None):
+        """Align the peaks along the z-axis of the detectors."""
+        modData = data.sum(0)
+        modData = np.array(
+            [np.convolve(val, np.ones(20), mode="same") for val in modData.T]
+        )
+        nbrPixels = modData.shape[1]
+        nbrChannels = modData.shape[0]
+        window = (int(nbrChannels / 2 - 250), int(nbrChannels / 2 + 250))
+        mask = np.zeros_like(modData)
+        mask[window[0] : window[1]] = 1
+        modData *= mask
+
+        f = lambda x, d, offset, shift: (
+            d / np.cos((x - shift) / x.size) + offset
+        )
+
+        res = curve_fit(
+            f,
+            np.arange(nbrPixels),
+            modData.argmax(0),
+            p0=[nbrPixels / 2, 1024, nbrPixels / 2],
+        )
+
+        maxPos = np.rint(f(np.arange(nbrPixels), *res[0])).astype(int)
+
+        if position is None:
+            center = np.min(maxPos)
+        else:
+            center = position
+
+        for qIdx, qData in enumerate(data):
+            data[qIdx] = np.array(
+                [
+                    np.roll(val, (center - maxPos)[idx])
+                    for idx, val in enumerate(qData)
+                ]
+            )
+
+        return data, center

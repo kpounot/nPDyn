@@ -17,7 +17,7 @@ import operator
 import numpy as np
 
 try:
-    from lmfit import CompositeModel
+    from lmfit import CompositeModel, Model
     from lmfit.models import COMMON_GUESS_DOC
 except ImportError:
     print(
@@ -233,3 +233,55 @@ class ModelDeltaLorentzians(CompositeModel):
         return update_param_vals(pars, self.prefix, **kwargs)
 
     guess.__doc__ = COMMON_GUESS_DOC
+
+
+class ModelProteinJumpDiff(CompositeModel):
+    """Model for protein in solution and jump diffusion for internal dynamics.
+
+    Parameters
+    ----------
+    q : np.array or list
+        Array of momentum transfer q-values to be used.
+    qWise : bool
+        Whether the Lorentzian width are independent for each momentum
+        transfer q or not (explicit q-dependence of the form 'width * q**2').
+    kwargs : dict
+        Additional keyword arguments to pass to :func:`build_2D_model`
+
+    """
+
+    def __init__(self, q, qWise=False, **kwargs):
+        prefix = ""
+        if "prefix" in kwargs.keys():
+            prefix = kwargs.pop("prefix")
+
+        scale = hline(q, prefix="global_")
+        left = scale * lorentzian(
+            q, qWise, prefix="%sglobal_" % prefix, **kwargs
+        )
+        scale = hline(q, prefix="internal_")
+        right = scale * jump_diff(
+            q, qWise, prefix="%sinternal_" % prefix, **kwargs
+        )
+
+        super().__init__(left, right, operator.add)
+
+        for pName in self.param_names:
+            if "global_amplitude" in pName:
+                self.set_param_hint(pName, min=0, max=1)
+            if "internal_b" in pName:
+                self.set_param_hint(
+                    pName, expr="%s" % pName.replace("internal", "global")
+                )
+            if "internal_amplitude" in pName:
+                self.set_param_hint(
+                    pName, expr="1 - %s" % pName.replace("internal", "global")
+                )
+            if "internal_sigma" in pName:
+                self.set_param_hint(
+                    pName,
+                    expr="%s + %s"
+                    % (pName, pName.replace("internal", "global")),
+                )
+            if "center" in pName:
+                self.set_param_hint(pName, vary=False)

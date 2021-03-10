@@ -19,6 +19,7 @@ from scipy.optimize import (
     minimize,
     basinhopping,
     differential_evolution,
+    shgo,
 )
 from scipy.sparse.linalg import LinearOperator
 from scipy.signal import fftconvolve
@@ -75,65 +76,6 @@ class FindParamNames(ast.NodeTransformer):
                 ctx=node.ctx,
             )
             return res
-        return node
-
-
-class ParseFuncCalls(ast.NodeTransformer):
-    """Helper class to parse strings to evaluation for function
-    arguments in :class:`Component`.
-
-    Parameters
-    ----------
-    allowedFuncs : dict
-        A dictionary of function names and their associated definitions.
-
-    """
-
-    def __init__(self, key, allowedFuncs):
-        super().__init__()
-        self.key = key
-        self.allowedFuncs = allowedFuncs
-
-    def visit_Call(self, node):
-        """Call visitor
-
-        For safer eval, allow only some calls of specific functions
-        whose name are associated to a fixed dictionary in the
-        :py:class:`Component` class.
-
-        """
-        for iterNode in ast.walk(node):
-            if isinstance(iterNode, ast.Call):
-                if not isinstance(iterNode.func, ast.Name):
-                    raise ValueError(
-                        "Error with the expression for function argument: %s\n"
-                        "Only direct function call are allowed, no "
-                        "methods from imported libraries or subscript "
-                        "of some list or dict." % self.key
-                    )
-                funcName = iterNode.func.id
-                if funcName in self.allowedFuncs:
-                    if _PY_VERSION <= 3.6:
-                        sliceVal = ast.Index(value=ast.Str(s=funcName))
-                    else:
-                        sliceVal = ast.Index(ast.Constant(s=funcName))
-
-                    iterNode.func = ast.Subscript(
-                        value=ast.Name(
-                            id="allowedFuncs", ctx=iterNode.func.ctx
-                        ),
-                        slice=sliceVal,
-                        ctx=iterNode.func.ctx,
-                    )
-
-                else:
-                    raise ValueError(
-                        "Error with the expression for function argument: %s\n"
-                        "Only a few functions are allowed for evaluation of "
-                        "parameter expressions (see documentation "
-                        "'model.Component' for details." % self.key
-                    )
-
         return node
 
 
@@ -328,6 +270,7 @@ class Model:
             - "curve_fit"
             - "basinhopping"
             - "differential_evolution"
+            - "shgo"
             - "minimize"
         fit_kws : dict, optional
             Additional keywords to be passed to the fit method.
@@ -345,7 +288,8 @@ class Model:
         if fit_kws is None:
             fit_kws = {}
 
-        func = lambda p: np.sum(
+        norm = 1 / np.sum(data ** 2 / weights ** 2)
+        func = lambda p: norm * np.sum(
             (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
         )
 
@@ -380,6 +324,16 @@ class Model:
                 fit.x, np.sqrt(np.diag(weights))
             )
 
+        if fit_method == "shgo":
+            fit = shgo(func, bounds, **fit_kws)
+
+            weights = fit.lowest_optimization_result.hess_inv
+            if isinstance(weights, LinearOperator):
+                weights = weights.todense()
+            self.optParams = self.params.listToParams(
+                fit.x, np.sqrt(np.diag(weights))
+            )
+
         if fit_method == "minimize":
             fit = minimize(func, params, bounds=bounds, **fit_kws)
 
@@ -393,10 +347,10 @@ class Model:
             minFloat = np.finfo("float64").min
             for boundsIdx, boundsTuple in enumerate(bounds):
                 pMin, pMax = boundsTuple
-                if pMin == -np.inf:
+                if not np.isfinite(pMin):
                     pMin = minFloat
-                if pMax == np.inf:
-                    pMax == maxFloat
+                if not np.isfinite(pMax):
+                    pMax = maxFloat
                 bounds[boundsIdx] = (pMin, pMax)
 
             fit = differential_evolution(func, bounds=bounds, **fit_kws)
@@ -569,9 +523,12 @@ class Model:
                 # if no convolution defined, go numerical or raise KeyError
                 if val.func.__name__ not in convDict.keys():
                     if self._on_undef_conv == "numeric":
+                        shift = int(round(x.size / 2)) - np.argmin(np.abs(x))
                         res.append(
                             fftconvolve(
-                                comp.eval(x, params, **kwargs),
+                                np.roll(
+                                    comp.eval(x, params, **kwargs), shift, -1
+                                ),
                                 val.eval(x, convParams, **kwargs),
                                 mode="same",
                                 axes=-1,
@@ -595,9 +552,10 @@ class Model:
         else:
             for key, val in convolve.components.items():
                 if self._on_undef_conv == "numeric":
+                    shift = int(round(x.size / 2)) - np.argmin(np.abs(x))
                     res.append(
                         fftconvolve(
-                            comp.eval(x, params, **kwargs),
+                            np.roll(comp.eval(x, params, **kwargs), shift, -1),
                             val.eval(x, convParams, **kwargs),
                             mode="same",
                             axes=-1,
@@ -689,17 +647,6 @@ class Component:
             - **str**, the values are evaluated first. If any word in
               the string is present in the `Model.params` dictionary keys,
               the corresponding parameter value is substituted.
-              Some math functions can be called too as in the example
-              provided below.
-              These are, 'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan',
-              'sinh', cosh', 'tanh', 'arcsinh', 'arccosh', 'arctanh',
-              'floor', 'ceil', 'exp', 'log', 'sqrt', 'wofz',
-              'spherical_jn', 'gamma', 'erf', 'erfc'.
-              The function names in the string are automatically replaced
-              be the functions defined in *numpy* and *scipy* with the same
-              arguments.
-              Only these functions are allowed for safer eval.
-              Anything else will result in an error.
 
     Examples
     --------
@@ -719,7 +666,7 @@ class Component:
 
     Some math functions can be used as well (below the exponential):
 
-    >>> myComp = Component('lor', lorentzian, scale='exp(-q**2 * msd)')
+    >>> myComp = Component('lor', lorentzian, scale='np.exp(-q**2 * msd)')
 
     """
 
@@ -734,33 +681,6 @@ class Component:
         self.funcArgs = {}
         self._guessArgs()
         self.funcArgs.update(funcArgs)
-
-    @property
-    def _allowedFuncs(self):
-        return {
-            "sin": np.sin,
-            "cos": np.cos,
-            "tan": np.tan,
-            "arcsin": np.arcsin,
-            "arccos": np.arccos,
-            "arctan": np.arctan,
-            "sinh": np.sinh,
-            "cosh": np.cosh,
-            "tanh": np.tanh,
-            "arcsinh": np.arcsinh,
-            "arccosh": np.arccosh,
-            "arctanh": np.arctanh,
-            "floor": np.floor,
-            "ceil": np.ceil,
-            "exp": np.exp,
-            "log": np.log,
-            "sqrt": np.sqrt,
-            "wofz": wofz,
-            "spherical_jn": spherical_jn,
-            "gamma": gamma,
-            "erf": erf,
-            "erfc": erfc,
-        }
 
     def eval(self, x, params, **kwargs):
         """Evaluate the components using the given parameters.
@@ -783,8 +703,6 @@ class Component:
 
         """
         params = deepcopy(params)
-        allowedFuncs = self._allowedFuncs
-
         for key, val in kwargs.items():
             if key in params.keys():
                 params.update(**{key: val})
@@ -797,9 +715,6 @@ class Component:
                 arg = ast.parse(arg, mode="eval")
                 arg = ast.fix_missing_locations(
                     FindParamNames(key, params).visit(arg)
-                )
-                arg = ast.fix_missing_locations(
-                    ParseFuncCalls(key, allowedFuncs.keys()).visit(arg)
                 )
                 c = compile(arg, "<string>", "eval")
                 args[key] = eval(c)

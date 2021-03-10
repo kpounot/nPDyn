@@ -53,6 +53,28 @@ def lorentzian(x, scale=1, width=1, center=0):
     return res
 
 
+def generalizedLorentzian(x, scale=1, alpha=1, tau=1, center=0):
+    """A generalized Lorentzian function.
+
+    This is the Fourier transform of the Mittag-Leffler function.
+    See [#]_.
+
+    References
+    ----------
+    .. [#] https://doi.org/10.1063/1.5121703
+
+    """
+    x = tau * np.abs(x - center)
+    res = (
+        scale
+        / np.pi
+        * tau
+        * np.sin(np.pi / 2 * alpha)
+        / (x * (x ** (-alpha) + x ** (alpha) + 2 * np.cos(np.pi / 2 * alpha)))
+    )
+    return res
+
+
 def rotations(x, q, scale=1, width=1, center=0):
     """A sum of normalized Lorentzian functions for rotations.
 
