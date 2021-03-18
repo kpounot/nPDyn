@@ -15,6 +15,7 @@ def parseString(s):
     if re.match(r"[\/]", s[-1]):
         files = glob.glob(s + "*")
         scanList = [val for val in files if os.path.isfile(val)]
+        scanList.sort()
     else:
         path = os.path.dirname(s)
         if len(path) > 0:

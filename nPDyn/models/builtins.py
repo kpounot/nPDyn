@@ -160,12 +160,11 @@ def modelLorentzianSum(q, name="LorentzianSum", nLor=2, qWise=True, **kwargs):
         a0={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
         center={"value": 0.0, "fixed": True},
     )
+    aDefault = np.zeros_like(q) + 0.5
     if qWise:
-        aDefault = np.zeros_like(q) + 0.5
         widthDefault = np.zeros_like(q) + 10
         widthStr = "w%i"
     else:
-        aDefault = 0.5
         widthDefault = 10
         widthStr = "w%i * q ** 2"
 

@@ -68,6 +68,9 @@ class IN16B_BATS:
         Cutoff with respect to monitor maximum to discard data.
     pulseChopper : {'C12', 'C34'}
         Chopper pair that is used to define the pulse.
+    slidingSum : int, optional
+        If not None, the size of the window to perform a sliding sum
+        over the observables (default None).
 
     """
 
@@ -84,6 +87,7 @@ class IN16B_BATS:
         monitorOffset=None,
         monitorCutoff=0.80,
         pulseChopper="C34",
+        slidingSum=None,
     ):
 
         self.data = namedtuple(
@@ -92,7 +96,7 @@ class IN16B_BATS:
             "temps times name qVals "
             "qIdx observable "
             "observable_name norm "
-            "tof",
+            "tof diffraction",
         )
 
         self.scanList = parseString(scanList)
@@ -109,8 +113,10 @@ class IN16B_BATS:
         self.monitorCutoff = monitorCutoff
         self.pulseChopper = pulseChopper
         self._refDist = {"C12": 34.300, "C34": 33.388}
+        self.slidingSum = slidingSum
 
         self.dataList = []
+        self.diffList = []
         self.errList = []
         self.tofList = []
         self.energyList = []
@@ -126,6 +132,7 @@ class IN16B_BATS:
 
         """
         self.dataList = []
+        self.diffList = []
         self.errList = []
         self.energyList = []
         self.qList = []
@@ -142,6 +149,10 @@ class IN16B_BATS:
 
             tof = dataset["entry0/instrument/PSD/time_of_flight"][()]
             tof = (np.arange(tof[1]) + 0.5) * tof[0] + tof[2]
+
+            if "dataDiffDet" in dataset["entry0"].keys():
+                diffraction = dataset["entry0/dataDiffDet/DiffDet_data"][()]
+                self.diffList.append(diffraction.squeeze())
 
             self.name = dataset["entry0/subtitle"][(0)].astype(str)
 
@@ -211,9 +222,13 @@ class IN16B_BATS:
 
             dataset.close()
 
+        if self.slidingSum is not None:
+            self._slidingSum(self.slidingSum)
+
         if self.sumScans:
             self.monitor = [np.sum(np.array(self.monitor), 0)]
             self.dataList = [np.sum(np.array(self.dataList), 0)]
+            self.diffList = [np.sum(np.array(self.diffList), 0)]
 
         # get the elastic time
         if self.tElastic is not None:
@@ -374,6 +389,7 @@ class IN16B_BATS:
             self.observable,
             False,
             tof,
+            np.array(self.diffList),
         )
 
     def _findPeaks(self, data):
@@ -544,3 +560,37 @@ class IN16B_BATS:
             )
 
         return data, center
+
+    def _slidingSum(self, size):
+        """Performs a sliding sum over scans.
+
+        Parameters
+        ----------
+        size : int
+            The size of the window to be summed over.
+        data : list
+            The list of datasets/scans.
+        monitor : list
+            The list of monitor data corresponding to each dataset.
+
+        """
+        outData = []
+        outDiff = []
+        outMonitor = []
+        outTemp = []
+
+        data = np.array(self.dataList)
+        diff = np.array(self.diffList)
+        monitor = np.array(self.monitor)
+        temp = np.array(self.tempList)
+        for idx, val in enumerate(data[:-size]):
+            outData.append(np.sum(data[idx : idx + size], 0))
+            outDiff.append(np.sum(diff[idx : idx + size], 0))
+            outMonitor.append(np.sum(monitor[idx : idx + size], 0))
+            outTemp.append(np.mean(temp[idx : idx + size], 0))
+
+        self.dataList = outData
+        self.diffList = outDiff
+        self.monitor = outMonitor
+        self.tempList = outTemp
+        self.startTimeList = self.startTimeList[:-size]

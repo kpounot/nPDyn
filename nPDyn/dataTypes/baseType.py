@@ -269,6 +269,11 @@ class BaseType:
         """Return the name"""
         return self.data.name
 
+    @property
+    def diffraction(self):
+        """Return the diffraction data"""
+        return self.data.diffraction
+
     # accessors for associated datasets
     @property
     def resData(self):

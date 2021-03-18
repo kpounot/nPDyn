@@ -26,6 +26,7 @@ from matplotlib.backends.backend_qt5agg import (
     NavigationToolbar2QT as NavigationToolbar,
 )
 from matplotlib.figure import Figure
+from matplotlib.colors import LightSource
 import matplotlib
 
 from nPDyn.plot.subPlotsFormat import subplotsFormat
@@ -252,14 +253,10 @@ class FWSPlot(QWidget):
         self.currPlot = self.plot3D
         self.figure.clear()
 
-        ax = self.figure.subplots(subplot_kw={"projection": "3d"})
+        ax = subplotsFormat(self, projection="3d")
 
         eIdx = self.eSlider.value()
 
-        # Use a fancy colormap
-        normColors = matplotlib.colors.Normalize(
-            vmin=0, vmax=self.dataset[0].data.intensities.shape[0]
-        )
         cmapList = [
             matplotlib.cm.get_cmap("winter"),
             matplotlib.cm.get_cmap("spring"),
@@ -269,29 +266,37 @@ class FWSPlot(QWidget):
             matplotlib.cm.get_cmap("Wistia"),
         ]
 
-        maxScan = self.dataset[0].data.intensities.shape[0]
+        lightSource = LightSource(270, 10)
 
-        yy = self.dataset[0].data.observable
-        ylabel = self.dataset[0].data.observable_name
+        for idx, val in enumerate(self.dataset):
+            yy = val.observable
+            ylabel = val.observable_name
 
-        xx, yy = np.meshgrid(self.dataset[0].data.qVals, yy)
+            xx, yy = np.meshgrid(val.qVals, yy)
 
-        ax.plot_wireframe(
-            xx,
-            yy,
-            self.dataset[0].data.intensities[:, :, eIdx],
-            label=(
-                "$\\Delta E$ = %.2f $\\mu eV$"
-                % self.dataset[0].data.energies[eIdx]
-            ),
-            colors=cmapList[eIdx](normColors(np.arange(maxScan))),
-        )
+            rgb = lightSource.shade(
+                val.intensities[:, :, eIdx],
+                cmapList[eIdx],
+                blend_mode="overlay",
+            )
 
-        ax.set_xlabel(r"$q\ [\AA^{-1}]$")
-        ax.set_ylabel(ylabel)
-        ax.set_zlabel(r"$S(q, \Delta E)$")
-        ax.legend(framealpha=0.5)
-        ax.grid()
+            ax[idx].plot_surface(
+                xx,
+                yy,
+                val.intensities[:, :, eIdx],
+                rcount=100,
+                ccount=100,
+                facecolors=rgb,
+                label=("$\\Delta E$ = %.2f $\\mu eV$" % val.energies[eIdx]),
+                antialiased=True,
+                shade=False,
+            )
+
+            ax[idx].set_xlabel(r"$q\ [\AA^{-1}]$")
+            ax[idx].set_ylabel(ylabel)
+            ax[idx].set_zlabel(r"$S(q, \Delta E)$")
+            ax[idx].set_title(val.name)
+            ax[idx].grid()
 
         self.canvas.draw()
 

@@ -23,7 +23,7 @@ def printGroup(groups):
         print("\n")
 
 
-def groupScansIN16B(scans, speedTol=0.02):
+def groupScansIN16B(scans, speedTol=0.02, groupFWS=True):
     """Group the scans together based on properties in the files.
 
     The following properties are compared and the scans which share the
@@ -48,6 +48,11 @@ def groupScansIN16B(scans, speedTol=0.02):
     speedTol : float, optional
         Tolerance for the'speed' values to be considered equal
         (default 0.02)
+    groupFWS : bool
+        If True, all scans having a value for doppler speed
+        different from 4.5 will be considered as FWS and the
+        values for 'setTemperature', 'setField', 'setPressure',
+        'doppler delta energy' and 'doppler speed' won't be compared.
 
     """
     scans = parseString(scans)
@@ -60,22 +65,48 @@ def groupScansIN16B(scans, speedTol=0.02):
             for val in out:
                 equals = val["title"][0] == prop["title"][0]
                 equals &= val["subtitle"][0] == prop["subtitle"][0]
-                equals &= val["setTemperature"][0] == prop["setTemperature"][0]
-                equals &= val["setField"][0] == prop["setField"][0]
-                equals &= val["setPressure"][0] == prop["setPressure"][0]
                 equals &= val["wavelength"][0] == prop["wavelength"][0]
-                equals &= np.array_equal(
-                    val["doppler_delta_energy"][0],
-                    prop["doppler_delta_energy"][0],
-                    True,
-                )
-                equals &= np.allclose(
-                    val["doppler_speed"], prop["doppler_speed"], speedTol
-                )
+                if prop["doppler_speed"] != 4.5:
+                    if not groupFWS:
+                        equals &= (
+                            val["setTemperature"][0]
+                            == prop["setTemperature"][0]
+                        )
+                        equals &= val["setField"][0] == prop["setField"][0]
+                        equals &= (
+                            val["setPressure"][0] == prop["setPressure"][0]
+                        )
+                        equals &= np.array_equal(
+                            val["doppler_delta_energy"][0],
+                            prop["doppler_delta_energy"][0],
+                            True,
+                        )
+                        equals &= np.allclose(
+                            val["doppler_speed"],
+                            prop["doppler_speed"],
+                            speedTol,
+                        )
+                else:
+                    equals &= (
+                        val["setTemperature"][0] == prop["setTemperature"][0]
+                    )
+                    equals &= val["setField"][0] == prop["setField"][0]
+                    equals &= val["setPressure"][0] == prop["setPressure"][0]
+                    equals &= np.array_equal(
+                        val["doppler_delta_energy"][0],
+                        prop["doppler_delta_energy"][0],
+                        True,
+                    )
+                    equals &= np.allclose(
+                        val["doppler_speed"], prop["doppler_speed"], speedTol
+                    )
                 if equals:
                     val["runNumber"] = np.append(
                         val["runNumber"], prop["runNumber"]
                     )
+                    val["setTemperature"] = prop["setTemperature"]
+                    val["setField"] = prop["setField"]
+                    val["setPressure"] = prop["setPressure"]
                     break
             if not equals:
                 out.append(prop)
@@ -85,7 +116,12 @@ def groupScansIN16B(scans, speedTol=0.02):
 
 def _readPropertiesIN16B(scan):
     """Extract the properties from a HDF5 file generated on IN16B."""
-    f = h5py.File(scan, "r")
+    try:
+        f = h5py.File(scan, "r")
+    except Exception as e:
+        print("Error with scan %s:\n" % scan)
+        print(e)
+        return
     pMap = {
         "title": "entry0/title",
         "subtitle": "entry0/subtitle",

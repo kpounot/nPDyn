@@ -76,7 +76,8 @@ class IN16B_FWS:
             "intensities errors energies "
             "temps times name qVals "
             "qIdx observable "
-            "observable_name norm",
+            "observable_name norm "
+            "diffraction",
         )
 
         self.scanList = parseString(scanList)
@@ -96,6 +97,7 @@ class IN16B_FWS:
         self.offset = offset
 
         self.dataList = []
+        self.diffList = []
         self.errList = []
         self.monitor = []
         self.energyList = []
@@ -111,8 +113,8 @@ class IN16B_FWS:
         them using the given parameters.
 
         """
-
         self.dataList = []
+        self.diffList = []
         self.errList = []
         self.monitor = []
         self.energyList = []
@@ -122,11 +124,8 @@ class IN16B_FWS:
         self.startTimeList = []
 
         for dataFile in self.scanList:
-
             print("Processing file %s...             " % dataFile, end="\r")
-
             dataset = h5py.File(dataFile, mode="r")
-
             data = dataset["entry0/data/PSD_data"][()]
 
             self.name = dataset["entry0/subtitle"][(0)].astype(str)
@@ -143,6 +142,10 @@ class IN16B_FWS:
                 dataset["entry0/monitor/data"][()].squeeze().astype("float")
             )
             self.monitor.append(np.copy(monitor))
+
+            if "dataDiffDet" in dataset["entry0"].keys():
+                diffraction = dataset["entry0/dataDiffDet/DiffDet_data"][()]
+                self.diffList.append(diffraction.squeeze().sum(1))
 
             wavelength = dataset["entry0/wavelength"][()]
 
@@ -195,7 +198,6 @@ class IN16B_FWS:
             dataset.close()
 
         for idx, data in enumerate(self.dataList):
-
             if self.normalize:
                 if self.alignPeaks:
                     normData, errData = self._normalizeToMonitor(
@@ -211,7 +213,6 @@ class IN16B_FWS:
 
                     normData = (data / monitor).sum(1)
                     errData = (errData / monitor).sum(1)
-
             else:
                 normData, errData = (data.sum(1), np.sqrt(data.sum(1)))
 
@@ -227,7 +228,6 @@ class IN16B_FWS:
         :returns: data and angles arrays with the single detector data.
 
         """
-
         dataSD = []
         anglesSD = []
 
@@ -267,12 +267,14 @@ class IN16B_FWS:
         namedtuple(s) that can be directly used by nPDyn.
 
         """
-        energies, times, data, errors, temps = self._processEnergyOffsets()
+        interpData = self._processEnergyOffsets()
+        energies, times, data, errors, temps, diff = interpData
 
         if self.sumScans:
             data = data.sum(0)[np.newaxis, :, :]
             errors = errors.sum(0)[np.newaxis, :, :]
             temps = np.array([val.mean() for val in temps])
+            diff = np.mean(diff, 0)
             times = np.array([val.mean() for val in times])
 
         if self.observable == "time":
@@ -300,6 +302,7 @@ class IN16B_FWS:
             Y,
             self.observable,
             False,
+            diff,
         )
 
     def _normalizeToMonitor(self, data, monitor):
@@ -412,12 +415,12 @@ class IN16B_FWS:
         temperatures for each energy offset.
 
         """
-
         energies = np.unique(self.energyList)
 
         data = []
         errors = []
         temps = []
+        diff = []
 
         # Computes the time deltas for each energy offset
         starts = np.array(self.startTimeList)
@@ -448,6 +451,8 @@ class IN16B_FWS:
         for idx, dEidx in enumerate(idxList):
             dataAtdE = np.array([self.dataList[pos] for pos in dEidx])
             errAtdE = np.array([self.errList[pos] for pos in dEidx])
+            diffAtdE = np.array([self.diffList[pos] for pos in dEidx])
+            tempAtdE = np.array(self.tempList)[dEidx].squeeze()
             if dataAtdE.shape[0] < maxSize:
                 interpI = interp1d(
                     deltaTime[idx],
@@ -457,7 +462,6 @@ class IN16B_FWS:
                     fill_value=(dataAtdE[0], dataAtdE[-1]),
                     bounds_error=False,
                 )
-
                 interpErr = interp1d(
                     deltaTime[idx],
                     errAtdE,
@@ -466,13 +470,32 @@ class IN16B_FWS:
                     fill_value=(errAtdE[0], errAtdE[-1]),
                     bounds_error=False,
                 )
+                interpTemp = interp1d(
+                    deltaTime[idx],
+                    tempAtdE,
+                    axis=0,
+                    kind="linear",
+                    fill_value=(self.tempList[0], self.tempList[-1]),
+                    bounds_error=False,
+                )
+                interpDiff = interp1d(
+                    deltaTime[idx],
+                    diffAtdE,
+                    axis=0,
+                    kind="linear",
+                    fill_value=(self.diffList[0], self.diffList[-1]),
+                    bounds_error=False,
+                )
 
                 dataAtdE = interpI(maxX)
                 errAtdE = interpErr(maxX)
+                tempAtdE = interpTemp(maxX)
+                diffAtdE = interpDiff(maxX)
 
             data.append(dataAtdE)
             errors.append(errAtdE)
-            temps.append(np.array(self.tempList)[dEidx].squeeze())
+            temps.append(tempAtdE)
+            diff.append(diffAtdE)
             deltaTime[idx] = maxX
 
         if self.detGroup == "no":
@@ -488,4 +511,5 @@ class IN16B_FWS:
             data,
             errors,
             np.array(temps).mean(0),
+            np.array(diff).mean(0),
         )
