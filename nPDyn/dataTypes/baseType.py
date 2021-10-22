@@ -171,7 +171,7 @@ class BaseType:
             observable_name=np.copy(self.data.observable_name),
         )
 
-    def importRawData(self, dataList, instrument, dataType, kwargs):
+    def importRawData(self, dataList, instrument, dataType, **kwargs):
         """This method uses instrument-specific algorithm to process raw data.
 
         :arg dataList:      a list of data files to be imported
@@ -267,12 +267,20 @@ class BaseType:
     @property
     def name(self):
         """Return the name"""
-        return self.data.name
+        if self.data.name is not None:
+            return self.data.name
+        else:
+            return self.data.fileName
 
     @property
     def diffraction(self):
         """Return the diffraction data"""
         return self.data.diffraction
+
+    @property
+    def diff_qVals(self):
+        """Return the momentum transfers for diffraction data"""
+        return self.data.diff_qVals
 
     # accessors for associated datasets
     @property
@@ -342,6 +350,16 @@ class BaseType:
         self.data = self.data._replace(
             intensities=scale * self.data.intensities,
             errors=scale * self.data.errors,
+        )
+
+    def addData(self, values, errors=None):
+        """Add values to intensities using the `values` argument."""
+        if errors is None:
+            errors = np.zeros_like(values)
+
+        self.data = self.data._replace(
+            intensities=values + self.data.intensities,
+            errors=np.sqrt(self.data.errors ** 2 + errors ** 2),
         )
 
     @ensure_attr("resData")
@@ -700,7 +718,7 @@ class BaseType:
             passed to the fit function ('data', 'errors', 'x',...).
 
         """
-        print("Fitting dataset: %s" % self.fileName)
+        print("Fitting dataset: %s" % self.name)
 
         if model is None:
             if self.model is None:
@@ -824,7 +842,10 @@ class BaseType:
             else:
                 self._fit.append(fitRes)
 
-        self.model = model
+        if isinstance(self.model, Model):
+            self.model = model.copy()
+        else:
+            self.model = model
 
         print("\nDone.\n")
 

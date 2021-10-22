@@ -31,6 +31,7 @@ packagesList = [
     "nPDyn",
     "nPDyn.dataManipulation",
     "nPDyn.dataParsers",
+    "nPDyn.dataParsers.instruments",
     "nPDyn.dataTypes",
     "nPDyn.models",
     "nPDyn.lmfit",

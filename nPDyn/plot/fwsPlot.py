@@ -152,6 +152,10 @@ class FWSPlot(QWidget):
             self.compBox = QCheckBox("Plot components", self)
             self.compBox.stateChanged.connect(self.updatePlot)
 
+        self.legendBox = QCheckBox("Show legend", self)
+        self.legendBox.setCheckState(QtCore.Qt.Checked)
+        self.legendBox.stateChanged.connect(self.updatePlot)
+
         # Set the layout
         layout = QVBoxLayout()
         layout.addWidget(self.canvas, stretch=1)
@@ -165,6 +169,7 @@ class FWSPlot(QWidget):
         if not self.noFit:
             layout.addWidget(self.fitBox)
             layout.addWidget(self.compBox)
+        layout.addWidget(self.legendBox)
         layout.addWidget(self.button)
         layout.addWidget(self.plot3DButton)
         if not self.noFit:
@@ -243,8 +248,9 @@ class FWSPlot(QWidget):
 
             subplot.set_xlabel(xLabel)
             subplot.set_ylabel(r"$S(q, \omega)$")
-            subplot.set_title(self.dataset[idx].fileName)
-            subplot.legend()
+            subplot.set_title(self.dataset[idx].name)
+            if self.legendBox.isChecked():
+                subplot.legend()
 
         self.canvas.draw()
 
@@ -295,7 +301,8 @@ class FWSPlot(QWidget):
             ax[idx].set_xlabel(r"$q\ [\AA^{-1}]$")
             ax[idx].set_ylabel(ylabel)
             ax[idx].set_zlabel(r"$S(q, \Delta E)$")
-            ax[idx].set_title(val.name)
+            if self.legendBox.isChecked():
+                ax[idx].set_title(val.name)
             ax[idx].grid()
 
         self.canvas.draw()
@@ -323,6 +330,9 @@ class FWSPlot(QWidget):
                     X = dataset.data.observable
                     Y = np.array([p[key].value for p in params])
                     Err = np.array([p[key].error for p in params])
+                    if Y.ndim > 1:
+                        Y = Y[:, qIdx]
+                        Err = Err[:, qIdx]
                     xLabel = dataset.data.observable_name
                 elif self.qRadioButton.isChecked():
                     X = qList
@@ -350,13 +360,14 @@ class FWSPlot(QWidget):
                     Err = np.zeros_like(X) + Err
                     marker = None
 
-                ax[idx].plot(X, Y, marker=marker, label=dataset.fileName)
+                ax[idx].plot(X, Y, marker=marker, label=dataset.name)
 
                 ax[idx].fill_between(X, Y - Err, Y + Err, alpha=0.4)
                 ax[idx].set_ylabel(key)
                 ax[idx].set_xlabel(xLabel)
 
-        ax[-1].legend(framealpha=0.5)
+        if self.legendBox.isChecked():
+            ax[-1].legend(framealpha=0.5)
 
         self.canvas.draw()
 

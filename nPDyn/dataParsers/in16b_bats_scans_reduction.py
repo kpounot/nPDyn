@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
 from nPDyn.dataParsers.stringParser import parseString
 
+from nPDyn import Sample
+
 
 class IN16B_BATS:
     """This class can handle raw data from IN16B-BATS
@@ -286,6 +288,21 @@ class IN16B_BATS:
 
         self.tofList = tof
         self._convertDataset()
+
+        out = Sample(
+            self.outTuple.intensities,
+            errors=self.outTuple.errors,
+            q=self.outTuple.qVals,
+            name=self.outTuple.name,
+            time=self.outTuple.times,
+            temperature=self.outTuple.temps,
+            energies=self.outTuple.energies,
+            diffraction=self.outTuple.diffraction,
+            qdiff=self.outTuple.diff_qVals,
+            observable=self.outTuple.observable_name,
+        )
+
+        return out
 
     def _getSingleD(self, dataset, data, angles):
         """Determines the number of single detector used and add the data

@@ -66,7 +66,7 @@ def groupScansIN16B(scans, speedTol=0.02, groupFWS=True):
                 equals = val["title"][0] == prop["title"][0]
                 equals &= val["subtitle"][0] == prop["subtitle"][0]
                 equals &= val["wavelength"][0] == prop["wavelength"][0]
-                if prop["doppler_speed"] != 4.5:
+                if prop["doppler_delta_energy"] < 15:
                     if not groupFWS:
                         equals &= (
                             val["setTemperature"][0]
@@ -76,26 +76,27 @@ def groupScansIN16B(scans, speedTol=0.02, groupFWS=True):
                         equals &= (
                             val["setPressure"][0] == prop["setPressure"][0]
                         )
-                        equals &= np.array_equal(
-                            val["doppler_delta_energy"][0],
-                            prop["doppler_delta_energy"][0],
-                            True,
+                        equals &= (
+                            val["doppler_delta_energy"][0]
+                            == prop["doppler_delta_energy"][0]
                         )
                         equals &= np.allclose(
                             val["doppler_speed"],
                             prop["doppler_speed"],
                             speedTol,
                         )
+                    else:
+                        equals &= prop["doppler_delta_energy"][0] < 15
+                        equals &= val["doppler_delta_energy"][0] < 15
                 else:
                     equals &= (
                         val["setTemperature"][0] == prop["setTemperature"][0]
                     )
                     equals &= val["setField"][0] == prop["setField"][0]
                     equals &= val["setPressure"][0] == prop["setPressure"][0]
-                    equals &= np.array_equal(
-                        val["doppler_delta_energy"][0],
-                        prop["doppler_delta_energy"][0],
-                        True,
+                    equals &= (
+                        val["doppler_delta_energy"][0]
+                        == prop["doppler_delta_energy"][0]
                     )
                     equals &= np.allclose(
                         val["doppler_speed"], prop["doppler_speed"], speedTol

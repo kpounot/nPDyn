@@ -70,8 +70,8 @@ class Dataset:
         ECFile=None,
         fECFile=None,
         resFiles=None,
-        D2OFile=None,
-        fD2OFile=None,
+        D2OFiles=None,
+        fD2OFiles=None,
     ):
         # Declaring attributes related to samples dataset
         self.dataList = []
@@ -80,12 +80,10 @@ class Dataset:
         self.resData = []
 
         # Declaring D2O lineshape related variables
-        self.D2OData = None
-        self.fD2OData = None
+        self.D2OData = []
 
         # Declaring empty cell signal related variables
         self.ECData = None
-        self.fECData = None
 
         # Used to store msd from trajectories, present here to allow for
         # different psf files loading
@@ -99,8 +97,8 @@ class Dataset:
                 "ECFile": ECFile,
                 "fECFile": fECFile,
                 "resFiles": resFiles,
-                "D2OFile": D2OFile,
-                "fD2OFile": fD2OFile,
+                "D2OFiles": D2OFiles,
+                "fD2OFiles": fD2OFiles,
             }
         )
         self.datasetAssign()
@@ -113,8 +111,8 @@ class Dataset:
         ECFile=None,
         fECFile=None,
         resFiles=None,
-        D2OFile=None,
-        fD2OFile=None,
+        D2OFiles=None,
+        fD2OFiles=None,
     ):
         """Read and import pre-processed data from experimental data file.
 
@@ -152,20 +150,37 @@ class Dataset:
             self.ECData = data
 
         if resFiles:
-            for f in resFiles:
-                data = qensType.QENSType(f)
+            if isinstance(resFiles, str):
+                data = qensType.QENSType(resFiles)
                 data.importData(fileFormat=fileFormat)
                 self.resData.append(data)
+            else:
+                for f in resFiles:
+                    data = qensType.QENSType(f)
+                    data.importData(fileFormat=fileFormat)
+                    self.resData.append(data)
 
-        if D2OFile:
-            data = qensType.QENSType(D2OFile)
-            data.importData(fileFormat=fileFormat)
-            self.D2OData = data
+        if D2OFiles:
+            if isinstance(D2OFiles, str):
+                data = qensType.QENSType(D2OFiles)
+                data.importData(fileFormat=fileFormat)
+                self.D2OData.append(data)
+            else:
+                for f in D2OFiles:
+                    data = qensType.QENSType(f)
+                    data.importData(fileFormat=fileFormat)
+                    self.D2OData.append(data)
 
-        if fD2OFile:
-            data = fwsType.FWSType(fD2OFile)
-            data.importData(fileFormat=fileFormat)
-            self.fD2OData = data
+        if fD2OFiles:
+            if isinstance(fD2OFiles, str):
+                data = fwsType.FWSType(fD2OFiles)
+                data.importData(fileFormat=fileFormat)
+                self.D2OData.append(data)
+            else:
+                for f in fD2OFiles:
+                    data = fwsType.FWSType(f)
+                    data.importData(fileFormat=fileFormat)
+                    self.D2OData.append(data)
 
         if QENSFiles:
             for f in QENSFiles:
@@ -181,9 +196,7 @@ class Dataset:
 
         self.datasetAssign()
 
-    def importRawData(
-        self, dataList, instrument, dataType="QENS", kwargs=None
-    ):
+    def importRawData(self, dataList, instrument, dataType="QENS", **kwargs):
         """This method uses instrument-specific algorithm to import raw data.
 
         :arg dataList:      a list of data files to be imported
@@ -200,38 +213,38 @@ class Dataset:
 
         if dataType == "QENS":
             data = qensType.QENSType(dataList)
-            data.importRawData(dataList, instrument, dataType, kwargs)
+            data.importRawData(dataList, instrument, dataType, **kwargs)
             self.dataList.append(data)
 
         elif dataType == "FWS":
             data = fwsType.FWSType(dataList)
-            data.importRawData(dataList, instrument, dataType, kwargs)
+            data.importRawData(dataList, instrument, dataType, **kwargs)
             self.dataList.append(data)
 
         elif dataType == "res":
             data = qensType.QENSType(dataList)
-            data.importRawData(dataList, instrument, dataType, kwargs)
+            data.importRawData(dataList, instrument, dataType, **kwargs)
             self.resData.append(data)
 
         elif dataType == "ec":
             data = qensType.QENSType(dataList)
-            data.importRawData(dataList, instrument, dataType, kwargs)
+            data.importRawData(dataList, instrument, dataType, **kwargs)
             self.ECData = data
 
         elif dataType == "fec":
             data = fwsType.FWSType(dataList)
-            data.importRawData(dataList, instrument, dataType, kwargs)
-            self.fECData = data
+            data.importRawData(dataList, instrument, dataType, **kwargs)
+            self.ECData = data
 
         elif dataType == "D2O":
             data = qensType.QENSType(dataList)
-            data.importRawData(dataList, instrument, dataType, kwargs)
-            self.D2OData = data
+            data.importRawData(dataList, instrument, dataType, **kwargs)
+            self.D2OData.append(data)
 
         elif dataType == "fD2O":
             data = fwsType.FWSType(dataList)
-            data.importRawData(dataList, instrument, dataType, kwargs)
-            self.fD2OData = data
+            data.importRawData(dataList, instrument, dataType, **kwargs)
+            self.D2OData.append(data)
 
         self.datasetAssign()
 
@@ -255,45 +268,43 @@ class Dataset:
 
         """
         lenResData = len(self.resData)
+        lenD2OData = len(self.D2OData)
 
         # process resolution function data
         if lenResData > 0:
             if lenResData == 1:
                 for data in self.dataList:
                     data.resData = self.resData[0]
-
+                if lenD2OData == 1:
+                    self.D2OData[0].resData = self.resData[0]
+                if lenD2OData == lenResData:
+                    for D2OData in self.D2OData:
+                        D2OData.resData = self.resData[0]
             if lenResData == len(self.dataList):
                 for idx, data in enumerate(self.dataList):
                     data.resData = self.resData[idx]
+                if lenD2OData == 1:
+                    self.D2OData[0].resData = self.resData[0]
+                if lenD2OData == lenResData:
+                    for idx, D2OData in enumerate(self.D2OData):
+                        D2OData.resData = self.resData[idx]
 
-        # process empty cell and D2O data
+        # process D2O data
+        for D2OData in self.D2OData:
+            D2OData.ECData = self.ECData
+            if lenD2OData == 1:
+                for data in self.dataList:
+                    data.D2OData = self.D2OData[0]
+            if lenD2OData == len(self.dataList):
+                for idx, data in enumerate(self.dataList):
+                    data.D2OData = self.D2OData[idx]
+
+        # process empty cell
         for idx, data in enumerate(self.dataList):
-            if self.fECData is not None:
-                data.ECData = self.fECData
-            else:
-                data.ECData = self.ECData
-            if self.fD2OData is not None:
-                data.D2OData = self.fD2OData
-            else:
-                data.D2OData = self.D2OData
+            data.ECData = self.ECData
 
         for idx, data in enumerate(self.resData):
-            if self.fECData is not None:
-                data.ECData = self.fECData
-            else:
-                data.ECData = self.ECData
-            if self.fD2OData is not None:
-                data.D2OData = self.fD2OData
-            else:
-                data.D2OData = self.D2OData
-
-        if self.D2OData is not None:
-            if lenResData > 0:
-                self.D2OData.resData = self.resData[0]
-            if self.fECData is not None:
-                self.D2OData.ECData = self.fECData
-            else:
-                self.D2OData.ECData = self.ECData
+            data.ECData = self.ECData
 
     # -------------------------------------------------
     # Importation, reset and deletion methods
@@ -334,17 +345,11 @@ class Dataset:
         for resData in self.resData:
             resData.resetData()
 
-        if self.D2OData:
-            self.D2OData.resetData()
-
-        if self.fD2OData:
-            self.fD2OData.resetData()
+        for D2OData in self.D2OData:
+            D2OData.resetData()
 
         if self.ECData:
             self.ECData.resetData()
-
-        if self.fECData:
-            self.fECData.resetData()
 
     # -------------------------------------------------
     # Data manipulation methods
@@ -366,6 +371,26 @@ class Dataset:
 
         for i in fileIdxList:
             self.dataList[i].scaleData(scale)
+
+    def addData(self, values, *fileIdxList, errors=None):
+        """Add values to the selected data in `self.dataList`.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            Values to be added to the intensities.
+        fileIdxList : int, optional
+            List of indices of dataset in self.dataList to be normalized.
+        errors : np.ndarray, optional
+            Errors associated with the values.
+
+        """
+        # If not file indices were given, assumes that all should be use
+        if not fileIdxList:
+            fileIdxList = range(len(self.dataList))
+
+        for i in fileIdxList:
+            self.dataList[i].addData(values, errors)
 
     def normalize_usingResFunc(self, *fileIdxList):
         """This method uses the fitted model for resolution function
@@ -480,25 +505,16 @@ class Dataset:
         if D2O:
             if self.D2OData is not None:
                 try:
-                    self.D2OData.absorptionCorrection(
-                        canType, canScaling, neutron_wavelength, absco_kwargs
-                    )
+                    for D2OData in self.D2OData:
+                        D2OData.absorptionCorrection(
+                            canType,
+                            canScaling,
+                            neutron_wavelength,
+                            absco_kwargs,
+                        )
                 except AttributeError as e:
                     print(
                         "No D2O data were loaded, corrections on these "
-                        "cannot be applied\n"
-                    )
-                    print(e)
-                    return
-
-            if self.fD2OData is not None:
-                try:
-                    self.fD2OData.absorptionCorrection(
-                        canType, canScaling, neutron_wavelength, absco_kwargs
-                    )
-                except AttributeError as e:
-                    print(
-                        "No fD2O data were loaded, corrections on these "
                         "cannot be applied\n"
                     )
                     print(e)
@@ -543,12 +559,8 @@ class Dataset:
 
         if subD2O:
             try:
-                self.dataList[i].D2OData.subtractEC(subFactor, useModel)
-            except AttributeError:
-                pass
-
-            try:
-                self.dataList[i].fD2OData.subtractEC(subFactor, useModel)
+                for val in self.D2OData:
+                    val.subtractEC(subFactor, useModel)
             except AttributeError:
                 pass
 
@@ -560,9 +572,11 @@ class Dataset:
         for data in self.resData:
             data.discardDetectors(*qIdx)
 
-        for data in (self.ECData, self.fECData, self.D2OData, self.fD2OData):
+        for data in self.D2OData:
             if data is not None:
                 data.discardDetectors(*qIdx)
+
+        self.ECData.discardDetectors(*qIdx)
 
     def setQRange(self, minQ, maxQ):
         """Defines a q-range within which detectors are not discarded.
@@ -581,9 +595,11 @@ class Dataset:
         for data in self.resData:
             data.setQRange(minQ, maxQ)
 
-        for data in (self.ECData, self.fECData, self.D2OData, self.fD2OData):
+        for data in self.D2OData:
             if data is not None:
                 data.setQRange(minQ, maxQ)
+
+        data.ECData.setQRange(minQ, maxQ)
 
     def fitData(self, *fileIdxList, **kwargs):
         """Helper function to quickly call fit method in all class instances
@@ -668,7 +684,8 @@ class Dataset:
             self.ECData.binData(binS, axis=axis)
 
         if self.D2OData:
-            self.D2OData.binData(binS, axis=axis)
+            for D2OData in self.D2OData:
+                D2OData.binData(binS, axis=axis)
 
     def slidingAverage(self, windowLength, *fileIdxList):
         """Sliding average of the selected datasets along obervables.
@@ -714,9 +731,9 @@ class Dataset:
         possibilities.
 
         """
-        makeWindow(QENSPlot, [self.D2OData])
+        makeWindow(QENSPlot, self.D2OData)
 
-    def plotQENS(self, *fileIdxList):
+    def plotQENS(self, *samples):
         """This methods plot the sample data in a PyQt5 widget allowing
         the user to show different types of plots.
 
@@ -725,17 +742,10 @@ class Dataset:
 
         Parameters
         ----------
-        fileIdxList : int, optional
-            List of indices of dataset in self.dataList to be normalized.
+        samples : :py:class:`nPDyn.Sample`
 
         """
-        # If not file indices were given, assumes that all should be use
-        if not fileIdxList:
-            fileIdxList = range(len(self.dataList))
-
-        dataList = [self.dataList[i] for i in fileIdxList]
-
-        makeWindow(QENSPlot, dataList)
+        makeWindow(QENSPlot, samples)
 
     def plotFWS(self, *fileIdxList):
         """This methods plot the sample data in a PyQt5 widget

@@ -166,6 +166,7 @@ class Model:
 
         self._optParams = None
         self._fitResult = None
+        self._bic = None
         self._userkws = {}
 
         self._on_undef_conv = on_undef_conv
@@ -234,6 +235,11 @@ class Model:
         self._optParams = params
 
     @property
+    def bic(self):
+        """Return the bayesian information criterion (BIC)."""
+        return self._bic
+
+    @property
     def userkws(self):
         """Return the keywords used for the fit."""
         return self._userkws
@@ -281,6 +287,10 @@ class Model:
             Additional keywords arguments to give for the evaluation
             of the model. Can override parameters too.
 
+        Returns
+        -------
+        A copy of the fitted model instance.
+
         """
         # process 'x' array and match the shape of data
         params, bounds = self.params.paramList
@@ -305,7 +315,7 @@ class Model:
                 bounds=bounds,
                 **fit_kws
             )
-
+            nbrParams = len(fit[0])
             self.optParams = self.params.listToParams(
                 fit[0], np.sqrt(np.diag(fit[1]))
             )
@@ -317,29 +327,32 @@ class Model:
                 fit_kws["minimizer_kwargs"] = {"bounds": bounds}
             fit = basinhopping(func, params, **fit_kws)
 
-            weights = fit.lowest_optimization_result.hess_inv
-            if isinstance(weights, LinearOperator):
-                weights = weights.todense()
+            paramErr = fit.lowest_optimization_result.hess_inv
+            if isinstance(paramErr, LinearOperator):
+                paramErr = paramErr.todense()
+            nbrParams = len(fit.x)
             self.optParams = self.params.listToParams(
-                fit.x, np.sqrt(np.diag(weights))
+                fit.x, np.sqrt(np.diag(paramErr))
             )
 
         if fit_method == "shgo":
             fit = shgo(func, bounds, **fit_kws)
 
-            weights = fit.lowest_optimization_result.hess_inv
-            if isinstance(weights, LinearOperator):
-                weights = weights.todense()
+            paramErr = fit.lowest_optimization_result.hess_inv
+            if isinstance(paramErr, LinearOperator):
+                paramErr = paramErr.todense()
+            nbrParams = len(fit.x)
             self.optParams = self.params.listToParams(
-                fit.x, np.sqrt(np.diag(weights))
+                fit.x, np.sqrt(np.diag(paramErr))
             )
 
         if fit_method == "minimize":
             fit = minimize(func, params, bounds=bounds, **fit_kws)
 
-            weights = fit.hess_inv.todense()
+            paramErr = fit.hess_inv.todense()
+            nbrParams = len(fit.x)
             self.optParams = self.params.listToParams(
-                fit.x, np.sqrt(np.diag(weights))
+                fit.x, np.sqrt(np.diag(paramErr))
             )
 
         if fit_method == "differential_evolution":
@@ -355,17 +368,33 @@ class Model:
 
             fit = differential_evolution(func, bounds=bounds, **fit_kws)
 
-            weights = fit.lowest_optimization_result.hess_inv
-            if isinstance(weights, LinearOperator):
-                weights = weights.todense()
+            paramErr = fit.lowest_optimization_result.hess_inv
+            if isinstance(paramErr, LinearOperator):
+                paramErr = paramErr.todense()
+            nbrParams = len(fit.x)
             self.optParams = self.params.listToParams(
-                fit.x, np.sqrt(np.diag(weights))
+                fit.x, np.sqrt(np.diag(paramErr))
             )
 
+        # computes the bayesian information criterion
+        self._bic = nbrParams * np.log(x.size) + 2 * np.log(
+            np.exp(
+                -norm
+                * (
+                    (self.eval(x, self.optParams, **kwargs) - data) ** 2
+                    / weights ** 2
+                ).sum()
+            )
+        )
+
         self._userkws["x"] = x
+        self._userkws["data"] = data
+        self._userkws["weights"] = weights
         self._userkws["params"] = params
         self._userkws.update(**kwargs)
         self._fitResult = fit
+
+        return self.copy()
 
     # --------------------------------------------------
     # accessors
@@ -429,6 +458,8 @@ class Model:
         m._operators = deepcopy(self._operators)
         m._optParams = deepcopy(self._optParams)
         m._userkws = deepcopy(self._userkws)
+        m._fitResult = deepcopy(self._fitResult)
+        m._bic = deepcopy(self._bic)
 
         return m
 

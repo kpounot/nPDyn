@@ -11,8 +11,7 @@ Finally, several methods allow for easy plotting of the data and
 the fit results.
 
 """
-
-from nPDyn.dataset import Dataset
+from nPDyn.sample import Sample
 
 from ._version import get_versions
 

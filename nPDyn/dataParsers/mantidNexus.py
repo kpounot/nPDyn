@@ -6,6 +6,8 @@ from dateutil.parser import parse
 
 from scipy.interpolate import interp1d
 
+from nPDyn import Sample
+
 
 def processNexus(dataFile, FWS=False):
     """This script is meant to be used with IN16B data
@@ -38,15 +40,6 @@ def processNexus(dataFile, FWS=False):
         - norm          - boolean, whether data were normalized or not
 
     """
-
-    dataTuple = namedtuple(
-        "dataTuple",
-        "intensities errors energies "
-        "temps times name qVals "
-        "qIdx observable "
-        "observable_name norm",
-    )
-
     h5File = h5.File(dataFile, "r")
 
     interpObs = False
@@ -62,12 +55,13 @@ def processNexus(dataFile, FWS=False):
     if spectrum_axis == "decNbr":  # IndirectILLEnergyTransfer, no axis2...
         listQ = _getMomentumTransfers(h5File, listQ, wavelength)
 
-    dataList = []  # Stores the full dataset for a given data file
-
     # Initialize some lists and store energies,
     # intensities and errors in them
     listI = []
     listErr = []
+    listObs = []
+    diffList = []
+    diffQList = []
     energies = []
     temps = []
     times = []
@@ -88,21 +82,28 @@ def processNexus(dataFile, FWS=False):
                     ()
                 ]
             )
+            listObs.append(h5File[workspace + "/workspace/axis1"][()])
         else:
             energies = h5File[workspace + "/workspace/axis1"][()]
             energies *= 1e3
 
     times = np.array([parse(t.split(",")[0]) for t in times])
     times = np.array([(t - times[0]).total_seconds() / 3600 for t in times])
-    # process observable name
-    if observable_name == "time":
-        listObs = np.array(times)
-    if observable_name == "temperature":
-        listObs = np.array(temps)
 
-    for data in listI:
-        if FWS and data.shape[0] != listObs.shape[0]:
-            interpObs = True
+    if not FWS:
+        # process observable name
+        if observable_name == "time":
+            listObs = np.array(times).flatten()
+        if observable_name == "temperature":
+            listObs = np.array(temps).flatten()
+
+    for idx, data in enumerate(listI):
+        if FWS:
+            if data.shape[0] != listObs[idx].shape[0]:
+                interpObs = True
+            else:
+                listObs = listObs[0]
+
         if not FWS and data.shape[-1] != len(energies):
             interpEnergies = True
 
@@ -120,21 +121,20 @@ def processNexus(dataFile, FWS=False):
         listErr = listErr.T
         energies = np.array(energies)[:, 0]
 
-    dataList = dataTuple(
+    out = Sample(
         listI,
-        listErr,
-        energies,
-        temps,
-        times,
-        str(name),
-        listQ,
-        np.arange(listQ.size),
-        listObs,
-        observable_name,
-        False,
+        errors=listErr,
+        q=listQ,
+        name=str(name),
+        time=times,
+        temperature=temps,
+        energies=energies,
+        diffraction=diffList,
+        qdiff=diffQList,
+        observable=observable_name,
     )
 
-    return dataList
+    return out
 
 
 def _interpFWS(listX, listI, listErr):
@@ -175,7 +175,7 @@ def _interpFWS(listX, listI, listErr):
             listI[k] = interpI(maxX)
             listErr[k] = interpErr(maxX)
 
-    return listX, listI, listErr
+    return maxX, listI, listErr
 
 
 def _interpEnergies(energies, listI, listErr):
@@ -279,5 +279,8 @@ def _processAlgoInfo(f):
 
     if obs == "start_time":
         obs = "time"
+
+    if "temperature" in obs:
+        obs = "temperature"
 
     return obs, specAx

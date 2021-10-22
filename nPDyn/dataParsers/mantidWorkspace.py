@@ -74,13 +74,15 @@ class WorkspaceHandler:
         if isinstance(ws, WorkspaceGroup):
             for i in range(ws.getNumberOfEntries()):
                 self._getWorkspaceInfo(ws[i])
+            initTime = self._times[0]
             for idx, t in enumerate(self._times):
-                self._times[idx] = (t - self._times[0]).total_seconds() / 3600
+                self._times[idx] = (t - initTime).total_seconds() / 3600
         elif isinstance(ws, MatrixWorkspace):
             self._ws = ws
             self._getWorkspaceInfo(ws)
+            initTime = self._times[0]
             for idx, t in enumerate(self._times):
-                self._times[idx] = (t - self._times[0]).total_seconds() / 3600
+                self._times[idx] = (t - initTime).total_seconds() / 3600
 
     def _getWorkspaceInfo(self, ws):
         """Helper function to extract useful information from a workspace."""
@@ -94,6 +96,18 @@ class WorkspaceHandler:
             self._qVals = 4 * np.pi * np.sin(np.pi * qVals / 360) / wavelength
         if qCaption == "Q2":
             self._qVals = np.sqrt(qVals)
+        if qCaption == "Spectrum":
+            angles = []
+            numTubes = int(ws.getRun()["PSD.num_tubes"].value)
+            numDec = int(ws.getNumberHistograms())
+            nbrSD = numDec - numTubes
+            for i in range(1, nbrSD + 1):
+                angles.append(ws.getRun()["SingleD.SD%i angle" % i].value)
+            for i in range(1, numTubes + 1):
+                angles.append(ws.getRun()["PSD.PSD angle %i" % i].value)
+            angles = np.array(angles)
+            self._qVals = 4 * np.pi * np.sin(np.pi * angles / 360) / wavelength
+
         self._qIdx = np.arange(self._qVals.size)
 
         time = ws.getRun()["start_time"].value.split(",")[0]
@@ -208,6 +222,16 @@ class WorkspaceHandler:
         """Accessor for the 'norm' attribute."""
         return self._norm
 
+    @property
+    def diffraction(self):
+        """Accessor for the 'diffraction' attribute."""
+        return np.array([])
+
+    @property
+    def diff_qVals(self):
+        """Accessor for the 'diff_qVals' attribute."""
+        return np.array([])
+
     def copy(self):
         """Return a copy of the WorkspaceHandler."""
         out = WorkspaceHandler(self._ws, self._fws)
@@ -223,7 +247,7 @@ class WorkspaceHandler:
         return out
 
     def _replace(self, **kwargs):
-        """This method partly reproduces the bahvior of `namedtuple._replace`
+        """This method partly reproduces the behavior of `namedtuple._replace`
         method.
 
         """
@@ -237,7 +261,7 @@ class WorkspaceHandler:
                     "Attribute %s cannot be changed with the "
                     "WorkspaceHandler class as it is read from "
                     "the Mantid workspace on each request.\n"
-                    "Please use Mantid API to modify it." % key
+                    "Please use Mantid API to modify it and reload data." % key
                 )
                 continue
             else:

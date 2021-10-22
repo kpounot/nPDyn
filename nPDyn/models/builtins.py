@@ -190,7 +190,9 @@ def modelLorentzianSum(q, name="LorentzianSum", nLor=2, qWise=True, **kwargs):
     return m
 
 
-def modelGeneralizedLorentzian(q, name="GeneralizedLorentzian", **kwargs):
+def modelGeneralizedLorentzian(
+    q, name="GeneralizedLorentzian", qWise=True, **kwargs
+):
     """A model containing a delta and a generalized lorentzian.
 
     This model has been described elsewhere [#]_.
@@ -211,12 +213,21 @@ def modelGeneralizedLorentzian(q, name="GeneralizedLorentzian", **kwargs):
     .. [#] https://doi.org/10.1063/1.5121703
 
     """
+    if qWise:
+        alpha = {"value": np.zeros_like(q) + 1, "bounds": (0.0, 1)}
+        tau = {"value": np.zeros_like(q) + 0.01, "bounds": (0.0, np.inf)}
+        tauExpr = "tau"
+    else:
+        alpha = {"value": 1, "bounds": (0.0, 1)}
+        tau = {"value": 1, "bounds": (0.0, np.inf)}
+        tauExpr = "(tau * q ** 2)**(-1 / alpha)"
+
     p = Parameters(
         scale={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
         a={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
         center={"value": 0.0, "fixed": True},
-        alpha={"value": np.zeros_like(q) + 0.8, "bounds": (0.0, 1)},
-        tau={"value": np.zeros_like(q) + 0.01, "bounds": (0.0, np.inf)},
+        alpha=alpha,
+        tau=tau,
     )
 
     p.update(**kwargs)
@@ -226,9 +237,10 @@ def modelGeneralizedLorentzian(q, name="GeneralizedLorentzian", **kwargs):
     m.addComponent(Component("EISF", delta, scale="scale * a"))
     m.addComponent(
         Component(
-            r"$\mathcal{L}_{\alpha, \tau}$",
+            "$\\mathcal{L}_{\\alpha, \\tau}$",
             generalizedLorentzian,
             scale="scale * (1 - a)",
+            tau=tauExpr,
         )
     )
 
@@ -278,7 +290,7 @@ def modelWater(q, name="waterDynamics", **kwargs):
         Component(
             r"$\mathcal{L}_r$",
             rotations,
-            scale="exp(-q**2 * msd) * ar",
+            scale="np.exp(-q**2 * msd) * ar",
             width="wr",
         )
     )
@@ -336,7 +348,7 @@ def modelProteinJumpDiff(q, name="proteinJumpDiff", qWise=False, **kwargs):
         p = Parameters(
             beta={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
             a0={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
-            wg={"value": 5, "bounds": (0.0, np.inf)},
+            wg={"value": 2, "bounds": (0.0, np.inf)},
             wi={"value": 30, "bounds": (0.0, np.inf)},
             tau={"value": 1e-3, "bounds": (0.0, np.inf)},
             center={"value": 0.0, "fixed": True},

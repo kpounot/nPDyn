@@ -16,6 +16,9 @@ from scipy.optimize import curve_fit
 
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
 from nPDyn.dataParsers.stringParser import parseString
+from nPDyn.dataParsers.instruments.in16b import getDiffDetXAxis
+
+from nPDyn import Sample
 
 
 class IN16B_QENS:
@@ -82,7 +85,7 @@ class IN16B_QENS:
             "temps times name qVals "
             "qIdx observable "
             "observable_name norm "
-            "diffraction",
+            "diffraction diff_qVals",
         )
 
         self.scanList = parseString(scanList)
@@ -111,6 +114,7 @@ class IN16B_QENS:
 
         self.dataList = []
         self.diffList = []
+        self.diffQList = []
         self.errList = []
         self.energyList = []
         self.qList = []
@@ -126,6 +130,7 @@ class IN16B_QENS:
         """
         self.dataList = []
         self.diffList = []
+        self.diffQList = []
         self.energyList = []
         self.qList = []
         self.qzList = []
@@ -139,18 +144,24 @@ class IN16B_QENS:
             data = dataset["entry0/data/PSD_data"][()]
             data = np.roll(data, self.roll, axis=-1)
 
-            if "dataDiffDet" in dataset["entry0"].keys():
-                diffraction = dataset["entry0/dataDiffDet/DiffDet_data"][()]
-                self.diffList.append(diffraction.squeeze())
-
-            self.name = dataset["entry0/subtitle"][(0)].astype(str)
+            wavelength = dataset["entry0/wavelength"][()]
 
             monitor = (
                 dataset["entry0/monitor/data"][()].squeeze().astype("float")
             )
             self.monitor.append(monitor)
 
-            wavelength = dataset["entry0/wavelength"][()]
+            if "dataDiffDet" in dataset["entry0"].keys():
+                diffraction = dataset["entry0/dataDiffDet/DiffDet_data"][()]
+                self.diffQList = getDiffDetXAxis(wavelength)
+                if self.normalize:
+                    np.place(monitor, monitor <= 0, -np.inf)
+                    diffraction = (
+                        diffraction / monitor[np.newaxis, np.newaxis, :]
+                    )
+                self.diffList.append(diffraction.squeeze().mean(-1))
+
+            self.name = dataset["entry0/subtitle"][(0)].astype(str)
 
             if self.detGroup == "no":
                 self.observable = "$q_z$"
@@ -213,7 +224,7 @@ class IN16B_QENS:
         if self.sumScans:
             self.monitor = [np.sum(np.array(self.monitor), 0)]
             self.dataList = [np.sum(np.array(self.dataList), 0)]
-            self.diffList = [np.sum(np.array(self.diffList), 0)]
+            self.diffList = np.sum(np.array(self.diffList), 0)
 
         for idx, data in enumerate(self.dataList):
             if self.unmirroring:
@@ -236,7 +247,7 @@ class IN16B_QENS:
                 np.place(self.monitor[idx], self.monitor[idx] <= 0, -np.inf)
 
                 if self.detGroup == "no":
-                    monitor = self.monitor[idx][:, :, np.newaxis]
+                    monitor = self.monitor[idx][:, np.newaxis, np.newaxis]
                 else:
                     monitor = self.monitor[idx]
 
@@ -247,6 +258,21 @@ class IN16B_QENS:
             self.errList.append(errData)
 
         self._convertDataset()
+
+        out = Sample(
+            self.outTuple.intensities,
+            errors=self.outTuple.errors,
+            q=self.outTuple.qVals,
+            name=self.outTuple.name,
+            time=self.outTuple.times,
+            temperature=self.outTuple.temps,
+            energies=self.outTuple.energies,
+            diffraction=self.outTuple.diffraction,
+            qdiff=self.outTuple.diff_qVals,
+            observable=self.outTuple.observable_name,
+        )
+
+        return out
 
     def _getSingleD(self, dataset, data, angles):
         """Determines the number of single detector used and add the data
@@ -341,6 +367,7 @@ class IN16B_QENS:
             self.observable,
             False,
             np.array(self.diffList),
+            self.diffQList,
         )
 
     def _findPeaks(self, data):
@@ -359,10 +386,10 @@ class IN16B_QENS:
         nbrChannels = data.shape[1]
         midChannel = int(nbrChannels / 2)
         window = (
-            int(midChannel / 2 - nbrChannels / 10),
-            int(midChannel / 2 + nbrChannels / 10),
-            3 * int(midChannel / 2 - nbrChannels / 10),
-            3 * int(midChannel / 2 + nbrChannels / 10),
+            int(midChannel / 2 - nbrChannels / 5),
+            int(midChannel / 2 + nbrChannels / 5),
+            3 * int(midChannel / 2 - nbrChannels / 5),
+            3 * int(midChannel / 2 + nbrChannels / 5),
         )
 
         if self.peakFindingMask is None:
@@ -394,7 +421,6 @@ class IN16B_QENS:
                     sigma=errors[:midChannel],
                     bounds=(0.0, np.inf),
                     p0=[qData[:midChannel].max(), 1, midChannel / 2],
-                    max_nfev=10000,
                 )
                 leftPeaks.append(params[0][2])
 
@@ -405,7 +431,6 @@ class IN16B_QENS:
                     sigma=errors[midChannel:],
                     bounds=(0.0, np.inf),
                     p0=[qData[midChannel:].max(), 1, midChannel / 2],
-                    max_nfev=10000,
                 )
                 rightPeaks.append(params[0][2])
 

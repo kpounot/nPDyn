@@ -28,6 +28,7 @@ from matplotlib.figure import Figure
 import matplotlib
 
 from nPDyn.plot.subPlotsFormat import subplotsFormat
+from nPDyn.plot.create_window import makeWindow
 
 try:
     matplotlib.use("Qt5Agg")
@@ -56,14 +57,9 @@ class QENSPlot(QWidget):
         super().__init__()
 
         self.dataset = dataset
-        if not isinstance(self.dataset, (list, np.array)):
-            self.dataset = [self.dataset]
-
         self.noFit = False
-        self.initChecks()
 
-        self.obsRange = self.get_obsRange()
-        self.qRange = self.get_qRange()
+        self.initChecks()
 
         self.currPlot = self.plot
 
@@ -102,10 +98,10 @@ class QENSPlot(QWidget):
         oLayout = QHBoxLayout()
         self.obsLabel = QLabel("Observable index: ", self)
         self.obsSlider = QSlider(QtCore.Qt.Horizontal, self)
-        self.obsSlider.setRange(0, self.obsRange.size - 1)
+        self.obsSlider.setRange(0, self.get_obsRange().size - 1)
         self.obsSlider.valueChanged.connect(self.updatePlot)
         self.obsSlider.valueChanged.connect(self.updateLabels)
-        self.obsVal = QLabel(self.obsRange.astype(str)[0], self)
+        self.obsVal = QLabel(self.get_obsRange().astype(str)[0], self)
         oLayout.addWidget(self.obsLabel)
         oLayout.addWidget(self.obsSlider)
         oLayout.addWidget(self.obsVal)
@@ -113,10 +109,10 @@ class QENSPlot(QWidget):
         qLayout = QHBoxLayout()
         self.qLabel = QLabel("Momentum transfer (q) value: ", self)
         self.qSlider = QSlider(QtCore.Qt.Horizontal, self)
-        self.qSlider.setRange(0, self.qRange.size - 1)
+        self.qSlider.setRange(0, self.get_qRange().size - 1)
         self.qSlider.valueChanged.connect(self.updatePlot)
         self.qSlider.valueChanged.connect(self.updateLabels)
-        self.qVal = QLabel("%.2f" % self.qRange[0], self)
+        self.qVal = QLabel("%.2f" % self.get_qRange()[0], self)
         qLayout.addWidget(self.qLabel)
         qLayout.addWidget(self.qSlider)
         qLayout.addWidget(self.qVal)
@@ -131,6 +127,10 @@ class QENSPlot(QWidget):
             self.compBox = QCheckBox("Plot components", self)
             self.compBox.stateChanged.connect(self.updatePlot)
 
+        self.legendBox = QCheckBox("Show legend", self)
+        self.legendBox.setCheckState(QtCore.Qt.Checked)
+        self.legendBox.stateChanged.connect(self.updatePlot)
+
         # Set the layout
         layout = QVBoxLayout()
         layout.addWidget(self.canvas, stretch=1)
@@ -142,6 +142,7 @@ class QENSPlot(QWidget):
         if not self.noFit:
             layout.addWidget(self.fitBox)
             layout.addWidget(self.compBox)
+        layout.addWidget(self.legendBox)
         layout.addWidget(self.button)
         layout.addWidget(self.compareButton)
         layout.addWidget(self.plot3DButton)
@@ -163,56 +164,80 @@ class QENSPlot(QWidget):
         obsIdx = self.obsSlider.value()
         qIdx = self.qSlider.value()
 
+        plot_errors = False
+        if self.errBox.isChecked():
+            plot_errors = True
+
+        plot_legend = False
+        if self.legendBox.isChecked():
+            plot_legend = True
+
+        ymin = (
+            0.1
+            * np.asarray(self.dataset[0])[
+                np.asarray(self.dataset[0]) > 0
+            ].min()
+        )
+        ymax = 5 * np.asarray(self.dataset[0]).max()
         for idx, subplot in enumerate(ax):
-            errors = self.dataset[idx].data.errors[obsIdx][qIdx]
-            if not self.errBox.isChecked():
-                errors = np.zeros_like(errors)
+            data = self.dataset[idx]
+            axes = data.axes.copy()
+            if data.observable in axes:
+                obs_ax = data.axes.index(data.observable)
+                data = data.take(obsIdx, obs_ax)
+            if "q" in axes:
+                q_ax = data.axes.index("q")
+                data = data.take(qIdx, q_ax)
 
-            energies = self.dataset[idx].data.energies
-            intensities = self.dataset[idx].data.intensities[obsIdx][qIdx]
-
-            # Plot the data for selected q value
-            subplot.errorbar(
-                energies,
-                intensities,
-                errors,
-                fmt="o",
+            data.plot(
+                subplot,
+                plot_errors=plot_errors,
+                plot_legend=plot_legend,
                 label="experimental",
-                zorder=1,
             )
 
-            subplot.set_ylim(
-                0.1 * intensities[intensities > 0].min(),
-                1.5 * intensities.max(),
-            )
+            tmpmin = 0.1 * np.asarray(data)[np.asarray(data) > 0].min()
+            tmpmax = 5 * np.asarray(data).max()
+            ymin = min((tmpmin, ymin))
+            ymax = max((tmpmax, ymax))
 
             if not self.noFit:
+                fit = data.fit_best()
+                components = data.fit_components()
+                if data.observable in axes:
+                    fit = fit.take(obsIdx, obs_ax)
+                if "q" in axes:
+                    fit = fit.take(qIdx, q_ax)
+
                 if self.fitBox.isChecked():
                     # Plot the model
                     subplot.plot(
-                        energies,
-                        self.dataset[idx].fit_best(x=energies)[obsIdx][qIdx],
+                        getattr(data, axes[-1]),
+                        fit,
                         label=self.dataset[idx].model.name,
                         zorder=3,
                     )
 
                 if self.compBox.isChecked():
-                    components = self.dataset[idx].fit_components(x=energies)
                     # Plot the model components
                     for key, val in components.items():
+                        if data.observable in axes:
+                            val = val.take(obsIdx, obs_ax)
+                        if "q" in axes:
+                            val = val.take(qIdx, q_ax)
                         subplot.plot(
-                            energies,
-                            val[obsIdx, qIdx],
+                            getattr(data, axes[-1]),
+                            val,
                             label=key,
                             ls="--",
                             zorder=2,
                         )
 
-            subplot.set_xlabel(r"$\hslash\omega [\mu eV]$")
-            subplot.set_yscale("log")
-            subplot.set_ylabel(r"$S(%.2f, \omega)$" % self.qRange[qIdx])
-            subplot.set_title(self.dataset[idx].fileName)
-            subplot.legend()
+                if plot_legend:
+                    subplot.legend()
+
+            subplot.set_ylim(ymin, ymax)
+            subplot.set_title(self.dataset[idx].name)
 
         self.canvas.draw()
 
@@ -226,34 +251,43 @@ class QENSPlot(QWidget):
         obsIdx = self.obsSlider.value()
         qIdx = self.qSlider.value()
 
-        for dataset in self.dataset:
-            errors = dataset.data.errors[obsIdx][qIdx]
-            if not self.errBox.isChecked():
-                errors = np.zeros_like(errors)
+        plot_errors = False
+        if self.errBox.isChecked():
+            plot_errors = True
 
-            energies = dataset.data.energies
-            intensities = dataset.data.intensities[obsIdx][qIdx]
+        plot_legend = False
+        if self.legendBox.isChecked():
+            plot_legend = True
 
-            # Plot the data for selected q value
-            ax.errorbar(
-                energies,
-                intensities,
-                errors,
-                fmt="o",
-                label="%s" % dataset.fileName,
-                zorder=1,
+        ymin = (
+            0.1
+            * np.asarray(self.dataset[0])[
+                np.asarray(self.dataset[0]) > 0
+            ].min()
+        )
+        ymax = 5 * np.asarray(self.dataset[0]).max()
+        for idx, data in enumerate(self.dataset):
+            axes = data.axes.copy()
+            if data.observable in axes:
+                obs_ax = data.axes.index(data.observable)
+                data = data.take(obsIdx, obs_ax)
+            if "q" in axes:
+                q_ax = data.axes.index("q")
+                data = data.take(qIdx, q_ax)
+
+            data.plot(
+                ax,
+                plot_errors=plot_errors,
+                plot_legend=plot_legend,
+                label=data.name,
             )
 
-            ax.set_ylim(
-                0.1 * intensities[intensities > 0].min(),
-                1.5 * intensities.max(),
-            )
+            tmpmin = 0.1 * np.asarray(data)[np.asarray(data) > 0].min()
+            tmpmax = 5 * np.asarray(data).max()
+            ymin = min((tmpmin, ymin))
+            ymax = max((tmpmax, ymax))
 
-            ax.set_xlabel(r"$\hslash\omega [\mu eV]$")
-            ax.set_yscale("log")
-            ax.set_ylabel(r"$S(%.2f, \omega)$" % self.qRange[qIdx])
-            ax.set_title(dataset.fileName)
-            ax.legend()
+        ax.set_ylim(ymin, ymax)
 
         self.canvas.draw()
 
@@ -264,30 +298,15 @@ class QENSPlot(QWidget):
         self.figure.clear()
 
         obsIdx = self.obsSlider.value()
-
-        # Use a fancy colormap
-        normColors = matplotlib.colors.Normalize(vmin=0, vmax=2)
-        cmap = matplotlib.cm.get_cmap("winter")
-
         ax = subplotsFormat(self, projection="3d")
-
         for idx, subplot in enumerate(ax):
-            for i, qWiseData in enumerate(
-                self.dataset[idx].data.intensities[obsIdx]
-            ):
-                subplot.plot(
-                    self.dataset[idx].data.energies,
-                    qWiseData,
-                    self.dataset[idx].data.qVals[i],
-                    zdir="y",
-                    zorder=len(ax) - idx,
-                    c=cmap(normColors(self.dataset[idx].data.qVals[i])),
-                )
+            self.dataset[idx].plot_3D(
+                subplot,
+                index=obsIdx,
+            )
 
-            subplot.set_xlabel(r"$\hslash \omega \ [\mu eV]$")
-            subplot.set_ylabel("$q$")
-            subplot.set_zlabel(r"$S \ (q, \omega)$")
-            subplot.set_title(self.dataset[idx].fileName, fontsize=10)
+            if self.legendBox.isChecked():
+                subplot.set_title(self.dataset[idx].name, fontsize=10)
 
         self.canvas.draw()
 
@@ -306,7 +325,7 @@ class QENSPlot(QWidget):
         # Plot the parameters of the fits
         for fileIdx, dataset in enumerate(self.dataset):
             params = dataset.params[obsIdx]
-            qList = dataset.data.qVals
+            qList = dataset.q
 
             for idx, key in enumerate(params.keys()):
                 values = params[key].value
@@ -323,9 +342,7 @@ class QENSPlot(QWidget):
                     errors = np.zeros_like(qList) + errors
                     marker = None
 
-                ax[idx].plot(
-                    qList, values, marker=marker, label=dataset.fileName
-                )
+                ax[idx].plot(qList, values, marker=marker, label=dataset.name)
 
                 ax[idx].fill_between(
                     qList, values - errors, values + errors, alpha=0.4
@@ -333,7 +350,8 @@ class QENSPlot(QWidget):
                 ax[idx].set_ylabel(key)
                 ax[idx].set_xlabel(r"$q \ [\AA^{-1}]$")
 
-        ax[-1].legend(framealpha=0.5)
+        if self.legendBox.isChecked():
+            ax[-1].legend(framealpha=0.5)
 
         self.canvas.draw()
 
@@ -383,7 +401,7 @@ class QENSPlot(QWidget):
                     marker = None
 
                 ax[idx].plot(
-                    obsList, values, marker=marker, label=dataset.fileName
+                    obsList, values, marker=marker, label=dataset.name
                 )
 
                 ax[idx].fill_between(
@@ -392,36 +410,43 @@ class QENSPlot(QWidget):
                 ax[idx].set_ylabel(key)
                 ax[idx].set_xlabel(dataset.observable_name)
 
-        ax[-1].legend(framealpha=0.5)
+        if self.legendBox.isChecked():
+            ax[-1].legend(framealpha=0.5)
 
         self.canvas.draw()
 
     # -------------------------------------------------
     # Helper functions
     # -------------------------------------------------
-    def get_qRange(self):
+    def get_qRange(self, idx=0):
         """Return the q-values used in the dataset(s).
 
         This assumes the q-values are the same for all datasets.
 
         """
-        return self.dataset[0].data.qVals
+        out = self.dataset[idx].q
+        if isinstance(out, int):
+            out = [out]
+        return out
 
-    def get_obsRange(self):
+    def get_obsRange(self, idx=0):
         """Return the observables used in the dataset(s).
 
         This assumes the observables are the same for all datasets.
 
         """
-        return self.dataset[0].data.observable.astype(float)
+        out = getattr(self.dataset[idx], self.dataset[idx].observable)
+        if isinstance(out, int):
+            out = [out]
+        return out
 
     def updateLabels(self):
         """Update the labels on the right of the sliders."""
         obsIdx = self.obsSlider.value()
         qIdx = self.qSlider.value()
 
-        self.obsVal.setText("%.2f" % self.obsRange[obsIdx])
-        self.qVal.setText("%.2f" % self.qRange[qIdx])
+        self.obsVal.setText("%.2f" % self.get_obsRange()[obsIdx])
+        self.qVal.setText("%.2f" % self.get_qRange()[qIdx])
 
     def updatePlot(self):
         """Redraw the current plot based on the selected parameters."""
@@ -432,13 +457,6 @@ class QENSPlot(QWidget):
         finishing class initialization.
 
         """
-
-        if np.any(np.array(self.dataset) is None):
-            raise ValueError(
-                "No data were loaded.\n"
-                "Please import data before using this method."
-            )
-
         for idx, data in enumerate(self.dataset):
             if len(data._fit) == 0:
                 print(
@@ -447,3 +465,19 @@ class QENSPlot(QWidget):
                     "Some plotting methods are not available.\n" % idx
                 )
                 self.noFit = True
+
+
+def plotQENS(*samples):
+    """This methods plot the sample data in a PyQt5 widget allowing
+    the user to show different types of plots.
+
+    The resolution function and other parameters are automatically
+    obtained from the current dataset class instance.
+
+    Parameters
+    ----------
+    samples : :py:class:`nPDyn.Sample`
+        Samples to be plotted.
+
+    """
+    makeWindow(QENSPlot, samples)

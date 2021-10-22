@@ -2,6 +2,8 @@ import numpy as np
 
 from collections import namedtuple
 
+from nPDyn import Sample
+
 
 def convert(datafile, FWS=None):
     """This method takes a single dataFile as argument and
@@ -36,14 +38,6 @@ def convert(datafile, FWS=None):
 
     datafile = datafile
 
-    dataTuple = namedtuple(
-        "dataTuple",
-        "intensities errors energies "
-        "temps times name qVals "
-        "qIdx observable "
-        "observable_name norm",
-    )
-
     with open(datafile) as fileinput:
         data = fileinput.read().splitlines()
 
@@ -60,7 +54,6 @@ def convert(datafile, FWS=None):
     errors = []
     temps = None
     times = np.array([0.0])
-    obs = None
     obs_name = ""
     energies = None
 
@@ -108,30 +101,24 @@ def convert(datafile, FWS=None):
 
     if X[X < 0].size != 0:  # X probably refers to energies (QENS)
         energies = X
-        obs = np.array([0])
         obs_name = ""
         temps = np.array([0.0])
     else:  # X probably refers to temperatures
         energies = np.array([0.0])
         temps = X
-        obs = temps
         obs_name = "temperature"
         intensities = intensities.T
         errors = errors.T
 
-    # Creating the named tuple (no temp with .inx)
-    dataSet = dataTuple(
+    out = Sample(
         intensities,
-        errors,
-        energies,
-        temps,
-        times,
-        obs_name,
-        qVals,
-        np.arange(qVals.size),
-        obs,
-        obs_name,
-        False,
+        errors=errors,
+        q=qVals,
+        name=datafile,
+        time=times,
+        temperature=temps,
+        energies=energies,
+        observable=obs_name,
     )
 
-    return dataSet
+    return out
