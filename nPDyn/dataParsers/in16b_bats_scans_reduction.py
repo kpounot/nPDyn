@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
 from nPDyn.dataParsers.stringParser import parseString
+from nPDyn.dataParsers.instruments.in16b import getDiffDetXAxis
 
 from nPDyn import Sample
 
@@ -98,7 +99,7 @@ class IN16B_BATS:
             "temps times name qVals "
             "qIdx observable "
             "observable_name norm "
-            "tof diffraction",
+            "tof diffraction diff_qVals",
         )
 
         self.scanList = parseString(scanList)
@@ -119,6 +120,7 @@ class IN16B_BATS:
 
         self.dataList = []
         self.diffList = []
+        self.diffQList = []
         self.errList = []
         self.tofList = []
         self.energyList = []
@@ -135,6 +137,7 @@ class IN16B_BATS:
         """
         self.dataList = []
         self.diffList = []
+        self.diffQList = []
         self.errList = []
         self.energyList = []
         self.qList = []
@@ -152,11 +155,8 @@ class IN16B_BATS:
             tof = dataset["entry0/instrument/PSD/time_of_flight"][()]
             tof = (np.arange(tof[1]) + 0.5) * tof[0] + tof[2]
 
-            if "dataDiffDet" in dataset["entry0"].keys():
-                diffraction = dataset["entry0/dataDiffDet/DiffDet_data"][()]
-                self.diffList.append(diffraction.squeeze())
-
-            self.name = dataset["entry0/subtitle"][(0)].astype(str)
+            wavelength = dataset["entry0/wavelength"][()]
+            refEnergy = 1.3106479439885732e-40 / (wavelength * 1e-10) ** 2
 
             monitor = (
                 dataset["entry0/monitor/data"][()].squeeze().astype("float")
@@ -167,8 +167,18 @@ class IN16B_BATS:
             monTof = dataset["entry0/monitor/time_of_flight"][()]
             monTof = (np.arange(monTof[1]) + 0.5) * monTof[0] + monTof[2]
 
-            wavelength = dataset["entry0/wavelength"][()]
-            refEnergy = 1.3106479439885732e-40 / (wavelength * 1e-10) ** 2
+            if "dataDiffDet" in dataset["entry0"].keys():
+                diffraction = dataset["entry0/dataDiffDet/DiffDet_data"][()]
+                self.diffQList = getDiffDetXAxis(wavelength)
+                if self.normalize:
+                    diff_norm = monitor
+                    np.place(diff_norm, diff_norm <= 0, -np.inf)
+                    diffraction = (
+                        diffraction / monitor[np.newaxis, np.newaxis, :].T
+                    )
+                self.diffList.append(diffraction.squeeze().mean(-1))
+
+            self.name = dataset["entry0/subtitle"][(0)].astype(str)
 
             if dIdx == 0:
                 data, center = self._alignGroups(data)
@@ -300,6 +310,7 @@ class IN16B_BATS:
             diffraction=self.outTuple.diffraction,
             qdiff=self.outTuple.diff_qVals,
             observable=self.outTuple.observable_name,
+            axes=[self.outTuple.observable_name, "q", "energies"],
         )
 
         return out
@@ -407,11 +418,13 @@ class IN16B_BATS:
             False,
             tof,
             np.array(self.diffList),
+            np.array(self.diffQList),
         )
 
     def _findPeaks(self, data):
         """Find the peak in each time-of-flight measurement."""
         data = np.array(data)
+        np.place(data, ~np.isfinite(data), 0)
         if data.ndim == 1:
             data = data[np.newaxis, :]
         # if detGroup is none, sum over all vertical positions to find
@@ -430,22 +443,20 @@ class IN16B_BATS:
         maskedData = data * mask
 
         # Finds the peaks by using a Gaussian function to fit the data
-        Gaussian = lambda x, normF, gauW, shift: (
+        gaussian = lambda x, normF, gauW, shift: (
             normF
             * np.exp(-((x - shift) ** 2) / (2 * gauW ** 2))
             / (gauW * np.sqrt(2 * np.pi))
         )
+
         try:
             gaussPeaks = []
             for qData in maskedData:
                 qData = np.convolve(qData, np.ones(12), mode="same")
-                errors = np.sqrt(qData)
-                np.place(errors, errors == 0, np.inf)
                 params = curve_fit(
-                    Gaussian,
+                    gaussian,
                     np.arange(nbrChannels),
                     qData,
-                    sigma=errors,
                     bounds=(0.0, np.inf),
                     p0=[
                         qData.max(),

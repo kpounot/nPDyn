@@ -1,5 +1,0 @@
-Dataset
-=======
-
-.. automodule:: dataset
-   :members:

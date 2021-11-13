@@ -270,6 +270,7 @@ class IN16B_QENS:
             diffraction=self.outTuple.diffraction,
             qdiff=self.outTuple.diff_qVals,
             observable=self.outTuple.observable_name,
+            axes=[self.outTuple.observable_name, "q", "energies"],
         )
 
         return out

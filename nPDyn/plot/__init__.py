@@ -1,1 +1,1 @@
-from nPDyn.plot.qensPlot import plotQENS
+from nPDyn.plot.plot import plot

@@ -16,6 +16,7 @@ from matplotlib.colors import Normalize
 from matplotlib.colorbar import ColorbarBase
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.ticker import MaxNLocator, FuncFormatter
+import matplotlib
 
 try:
     from lmfit import Model as lmModel
@@ -80,7 +81,7 @@ class Sample(np.ndarray):
         or for sample metadata. The metadata are:
             - **filename**, the name of the file used to extract the data.
             - **errors**, the errors associated with scattering data.
-            ' **energies**, the energy transfers associated with the data.
+            - **energies**, the energy transfers associated with the data.
             - **time**, the experimental time.
             - **wavelength**, the wavelength of the incoming neutrons.
             - **name**, the name for the sample.
@@ -182,7 +183,7 @@ class Sample(np.ndarray):
         self.energies = getattr(obj, "energies", 0)
         self.wavelength = getattr(obj, "wavelength", 0)
         self.filename = getattr(obj, "filename", 0)
-        self.name = getattr(obj, "name", self.filename)
+        self.name = getattr(obj, "name", 0)
         self.temperature = getattr(obj, "temperature", 0)
         self.concentration = getattr(obj, "concentration", 0)
         self.pressure = getattr(obj, "pressure", 0)
@@ -494,15 +495,15 @@ class Sample(np.ndarray):
                 self.take(
                     np.arange(bin_size * idx, bin_size * idx + bin_size), axis
                 )
-                .mean(axis)
                 .swapaxes(0, axis)
+                .mean(0)
             )
             err = (
                 self.errors.take(
                     np.arange(bin_size * idx, bin_size * idx + bin_size), axis
                 )
-                .mean(axis)
                 .swapaxes(0, axis)
+                .mean(0)
             )
             ax = ax_vals[bin_size * idx : bin_size * idx + bin_size].mean()
             new_arr[idx] = arr
@@ -552,13 +553,13 @@ class Sample(np.ndarray):
         for idx in range(last_idx):
             arr = (
                 self.take(np.arange(idx, idx + win_size), axis)
-                .mean(axis)
                 .swapaxes(0, axis)
+                .mean(0)
             )
             err = (
                 self.errors.take(np.arange(idx, idx + win_size), axis)
-                .mean(axis)
                 .swapaxes(0, axis)
+                .mean(0)
             )
             ax = ax_vals[idx : idx + win_size].mean()
             new_arr[idx] = arr
@@ -600,8 +601,8 @@ class Sample(np.ndarray):
             ref_energies_idx = ref.axes.index("energies")
             out = self.swapaxes(energies_idx, -1)
             try:
-                ref_dat = ref.fit_best()
-            except AttributeError:
+                ref_dat = ref.fit_best(x=self.energies)
+            except IndexError:
                 ref_dat = ref
             ref_dat = ref_dat.swapaxes(ref_energies_idx, -1)
             energies = ref.energies
@@ -646,14 +647,6 @@ class Sample(np.ndarray):
         .. [#] http://apps.jcns.fz-juelich.de/doku/sc/absco
 
         """
-        if self.shape != ec.shape:
-            print(
-                "The shape of empty cell data array does not correspond "
-                "to the shape of the current sample data array.\n"
-                "Paalman-Ping coefficients cannot be applied."
-            )
-            return
-
         # Defining some defaults arguments
         kwargs = {
             "mu_i_S": 0.660,
@@ -858,6 +851,7 @@ class Sample(np.ndarray):
             else:
                 ax = fig.subplots(1, 2, gridspec_kw={"width_ratios": (15, 1)})
         else:
+            fig = fig_ax.figure
             ax = [fig_ax, cb_ax]
 
         x = getattr(self, self.axes[axis])
@@ -884,20 +878,30 @@ class Sample(np.ndarray):
         elif self.ndim == 2:
             cmap = get_cmap(colormap)
             y = y.T if axis == 0 else y
-            y = y[:: int(np.ceil(y.shape[0] / max_lines))]
+            step = int(np.ceil(y.shape[0] / max_lines))
+            y = y[::step]
             err = y.errors
             cb_x = getattr(self, self.axes[axis - 1])
+            cb_x = cb_x[::step]
             norm = Normalize(cb_x[0], cb_x[-1])
             for idx, line in enumerate(y):
-                ax[0].errorbar(x, line, err[idx], color=cmap(norm(cb_x[idx])))
+                ax[0].errorbar(
+                    x,
+                    line,
+                    err[idx],
+                    color=cmap(norm(cb_x[idx])),
+                    label=label if idx == 0 else None,
+                )
             cb_label = xlabels[self.axes[axis - 1]]
             ColorbarBase(ax[1], cmap, norm, label=cb_label)
 
         ax[0].set_yscale(yscale)
         ax[0].set_xlabel(xlabel)
         ax[0].set_ylabel(ylabel)
+
         if plot_legend:
-            ax[0].legend()
+            leg = ax[0].legend()
+            leg.set_draggable(True)
 
     def plot_3D(
         self,
@@ -949,6 +953,7 @@ class Sample(np.ndarray):
             fig = plt.figure(figsize=(9, 6))
             ax = fig.subplots(subplot_kw={"projection": "3d"})
         else:
+            fig = fig_ax.figure
             ax = fig_ax
 
         labels = {
@@ -961,7 +966,7 @@ class Sample(np.ndarray):
         if axis == "observable":
             axis = self.observable
         ax_idx = self.axes.index(axis)
-        z = np.moveaxis(self, 0, ax_idx)[index]
+        z = self.swapaxes(0, ax_idx)[index]
         x = getattr(z, z.axes[0])
         xlabel = labels[z.axes[1]] if xlabel is None else xlabel
         y = getattr(z, z.axes[1])
@@ -975,25 +980,29 @@ class Sample(np.ndarray):
             ax.zaxis.set_major_formatter(FuncFormatter(log_tick_formatter))
             ax.zaxis.set_major_locator(MaxNLocator(integer=True))
 
-        max_axis = np.argmin((x.size, y.size))
-        x, y = (x, y) if x.size <= y.size else (y, x)
-        z = z.swapaxes(0, max_axis)
         cmap = get_cmap(colormap)
-        norm = plt.Normalize(0, x.size)
+        filt_z = z[np.isfinite(z)]
+        norm = plt.Normalize(filt_z.min(), filt_z.max())
+        colors = cmap(norm(z))
         xx, yy = np.meshgrid(y, x)
-        for idx, val in enumerate(z[::-1]):
-            ax.plot(
-                xx[x.size - (idx + 1)],
-                yy[x.size - (idx + 1)],
-                val,
-                zdir="z",
-                color=cmap(norm(x.size - (idx + 1))),
-            )
 
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.set_zlabel(zlabel)
-        ax.legend()
+        surf = ax.plot_surface(
+            xx,
+            yy,
+            z,
+            rcount=min((20, x.size)),
+            ccount=min((20, y.size)),
+            facecolors=colors,
+            shade=False,
+        )
+
+        surf.set_facecolor((0, 0, 0, 0))
+
+        labelpad = matplotlib.rcParams["font.size"] + 1
+
+        ax.set_xlabel(xlabel, labelpad=labelpad)
+        ax.set_ylabel(ylabel, labelpad=labelpad)
+        ax.set_zlabel(zlabel, labelpad=labelpad)
 
     # -------------------------------------------------------
     # Methods related to data fitting
@@ -1239,7 +1248,7 @@ class Sample(np.ndarray):
             `ModelResult.eval`.
 
         """
-        kws = self._fit[0].userkws
+        kws = self._fit[0].userkws.copy()
         kws.update(**kwargs)
 
         out = []
@@ -1264,7 +1273,7 @@ class Sample(np.ndarray):
             `ModelResult.eval_components`.
 
         """
-        kws = self._fit[0].userkws
+        kws = self._fit[0].userkws.copy()
         kws.update(**kwargs)
 
         comps = {}
@@ -1323,3 +1332,29 @@ class Sample(np.ndarray):
             np.place(errors, data == np.inf, np.inf)
 
         return data, errors, x
+
+    def _extract_lmfit_params(self, modelRes):
+        """Convert lmfit parameters into the format used in nPDyn."""
+        out = Parameters()
+
+        tmp = {}
+        for key, val in modelRes.params.items():
+            if re.search(r"_\d+$", key):
+                key = key[: key.rfind("_")]
+            if key not in tmp.keys():
+                tmp[key] = {
+                    "value": [],
+                    "error": [],
+                    "fixed": False,
+                    "bounds": (-np.inf, np.inf),
+                }
+            tmp[key]["value"].append(val.value)
+            tmp[key]["error"].append(
+                val.stderr if val.stderr is not None else 0
+            )
+            tmp[key]["fixed"] = not val.vary
+            tmp[key]["bounds"] = (val.min, val.max)
+
+        out.update(**tmp)
+
+        return out

@@ -5,49 +5,28 @@ path = os.path.dirname(os.path.abspath(__file__))
 import unittest
 import pytest
 
-import nPDyn
+from nPDyn.dataParsers import processNexus, inxConvert
 
 
-def test_import_ec():
+def test_import_qens_nexus():
     dataPath = path + "/sample_data/empty_cell_QENS_280K.nxs"
-    data = nPDyn.Dataset(ECFile=dataPath)
-    assert data.ECData.data.qVals is not None
+    data = processNexus(dataPath)
+    assert data.shape == (1, 18, 1024)
 
 
-def test_import_fec():
+def test_import_fws_nexus():
     dataPath = path + "/sample_data/lys_part_01_FWS.nxs"
-    data = nPDyn.Dataset(fECFile=dataPath)
-    assert data.fECData.data.qVals is not None
+    data = processNexus(dataPath, True)
+    assert data.shape == (21, 18, 4)
 
 
-def test_import_resFiles():
-    dataPath = path + "/sample_data/D_syn_fibers_QENS_10K.inx"
-    dataList = [dataPath, dataPath]
-    data = nPDyn.Dataset(resFiles=dataList)
-    assert data.resData[1].data.qVals is not None
-
-
-def test_import_D2O():
+def test_import_qens_inx():
     dataPath = path + "/sample_data/D_syn_fibers_QENS_300K.inx"
-    data = nPDyn.Dataset(D2OFile=dataPath)
-    assert data.D2OData.data.qVals is not None
+    data = inxConvert.convert(dataPath)
+    assert data.shape == (1, 14, 793)
 
 
-def test_import_fD2O():
-    dataPath = path + "/sample_data/lys_part_01_FWS.nxs"
-    data = nPDyn.Dataset(fD2OFile=dataPath)
-    assert data.fD2OData.data.qVals is not None
-
-
-def test_import_QENS():
-    dataPath = path + "/sample_data/D_syn_fibers_QENS_300K.inx"
-    dataList = [dataPath, dataPath]
-    data = nPDyn.Dataset(QENSFiles=dataList)
-    assert data.dataList[1].data.qVals is not None
-
-
-def test_import_FWS():
-    dataPath = path + "/sample_data/lys_part_01_FWS.nxs"
-    dataList = [dataPath, dataPath]
-    data = nPDyn.Dataset(FWSFiles=dataList)
-    assert data.dataList[1].data.qVals is not None
+def test_import_fws_inx():
+    dataPath = path + "/sample_data/D_syn_fibers_elastic_10to300K.inx"
+    data = inxConvert.convert(dataPath, True)
+    assert data.shape == (2880, 14, 1)

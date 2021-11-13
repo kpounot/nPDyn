@@ -11,16 +11,20 @@ from nPDyn.dataParsers.stringParser import parseString, arrayToString
 
 def printGroup(groups):
     """Fancy printing for scan groups."""
+    out = ""
     for group in groups:
         for key, val in group.items():
             if key in ("title", "subtitle"):
-                print(str(val[0].decode("utf-8")))
+                out += str(val[0].decode("utf-8")) + "\n"
             elif key == "runNumber":
-                print("\tscans: ", end="")
-                print(arrayToString(val))
+                out += "\tscans: "
+                out += arrayToString(val)
+                out += "\n"
             else:
-                print("\t%s: %s" % (key, str(val[0])))
-        print("\n")
+                out += "\t%s: %s\n" % (key, str(val[0]))
+        out += "\n"
+
+    return out
 
 
 def groupScansIN16B(scans, speedTol=0.02, groupFWS=True):
@@ -138,6 +142,9 @@ def _readPropertiesIN16B(scan):
 
     for key, val in pMap.items():
         pMap[key] = f[val][()]
+
+    if not np.isfinite(pMap["doppler_delta_energy"]):
+        pMap["doppler_delta_energy"] = np.array([-1])
 
     f.close()
 

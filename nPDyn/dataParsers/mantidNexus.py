@@ -100,7 +100,8 @@ def processNexus(dataFile, FWS=False):
     for idx, data in enumerate(listI):
         if FWS:
             if data.shape[0] != listObs[idx].shape[0]:
-                interpObs = True
+                if listObs[idx].shape[0] > 1:
+                    interpObs = True
             else:
                 listObs = listObs[0]
 
@@ -120,18 +121,23 @@ def processNexus(dataFile, FWS=False):
         listI = listI.T
         listErr = listErr.T
         energies = np.array(energies)[:, 0]
+        if observable_name == "time":
+            times = listObs
+        elif observable_name == "temperature":
+            temps = listObs
 
     out = Sample(
         listI,
         errors=listErr,
         q=listQ,
         name=str(name),
-        time=times,
-        temperature=temps,
-        energies=energies,
+        time=np.array(times).flatten(),
+        temperature=np.array(temps).flatten(),
+        energies=np.array(energies).flatten(),
         diffraction=diffList,
         qdiff=diffQList,
         observable=observable_name,
+        axes=[observable_name, "q", "energies"],
     )
 
     return out
@@ -277,7 +283,7 @@ def _processAlgoInfo(f):
         if algo in i:
             specAx = "decNbr"
 
-    if obs == "start_time":
+    if obs == "start_time" or obs == "run_number":
         obs = "time"
 
     if "temperature" in obs:

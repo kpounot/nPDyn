@@ -67,7 +67,7 @@ class IN16B_FWS:
         scanList,
         sumScans=False,
         alignPeaks=True,
-        peakFindWindow=6,
+        peakFindWindow=8,
         detGroup=None,
         normalize=True,
         observable="time",
@@ -243,6 +243,7 @@ class IN16B_FWS:
             diffraction=self.outTuple.diffraction,
             qdiff=self.outTuple.diff_qVals,
             observable=self.outTuple.observable_name,
+            axes=[self.outTuple.observable_name, "q", "energies"],
         )
 
         return out
@@ -303,9 +304,9 @@ class IN16B_FWS:
             times = np.array([val.mean() for val in times])
 
         if self.observable == "time":
-            Y = times.squeeze()
+            Y = np.array(times).squeeze()
         elif self.observable == "temperature":
-            Y = temps.squeeze()
+            Y = np.array(temps).squeeze()
         elif self.observable == "$q_z$":
             data = data.transpose(3, 1, 2, 0).squeeze()
             errors = errors.transpose(3, 1, 2, 0).squeeze()
@@ -344,26 +345,33 @@ class IN16B_FWS:
         the channel axis.
 
         """
-
         dataList = []
         errList = []
 
         threshold = np.sort(monitor)[::-1][: self.peakFindWindow].mean() * 0.8
         peaks = find_peaks(monitor, threshold=threshold)[0]
-        monitor = monitor[peaks]
+
+        halfBin = int(self.peakFindWindow / 2)
+
+        monPeaks = []
+        for peak in peaks:
+            monPeaks.append(
+                monitor[
+                    int(np.heaviside(peak - halfBin, 0)) : peak + halfBin
+                ].sum()
+            )
+        monitor = np.array(monPeaks)
 
         if self.observable == "$q_z$":
             monitor = monitor[:, np.newaxis]
 
-        halfBin = int(self.peakFindWindow / 2)
-
         for qData in data:
             qDataPeaks = []
             for peak in peaks:
+                left = int(np.heaviside(peak - halfBin, 0))
+                right = min(qData.shape[0], (peak + halfBin))
                 qDataPeaks.append(
-                    qData[
-                        int(np.heaviside(peak - halfBin, 0)) : peak + halfBin
-                    ].max(0)
+                    qData.take(np.arange(left, right), -1).sum(-1)
                 )
 
             qDataPeaks = np.array(qDataPeaks)
@@ -519,10 +527,15 @@ class IN16B_FWS:
             data = np.array(data).transpose(1, 2, 0)
             errors = np.array(errors).transpose(1, 2, 0)
 
+        temps = np.array(temps)
+        times = np.array(deltaTime)
+        temps = temps.mean(0) if temps.ndim == 2 else temps
+        times = times.mean(0) if times.ndim == 2 else times
+
         return (
             energies,
-            np.array(deltaTime).mean(0),
+            times,
             data,
             errors,
-            np.array(temps).mean(0),
+            temps,
         )

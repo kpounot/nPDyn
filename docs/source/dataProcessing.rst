@@ -6,97 +6,97 @@ Paalman-Pings coefficient calculation and detector selection.
 
 These are described below.
 
+Arithmetic operations
+^^^^^^^^^^^^^^^^^^^^^
+The :py:class:`sample.Sample` is essentially a NumPy array, so
+arithmetic operations can be used as for any array.
+
+>>> from nPDyn.dataParsers import processNexus
+>>> sample1 = processNexus('mySample1.nxs')
+>>> sample2 = processNexus('mySample2.nxs')
+>>> corrected_sample = sample1 - 0.95 * sample2
+
+Again, the errors are automatically propagated for most of the commonly
+used operators (addition, subtraction multiplication, division,
+exponentiation, logarithm, power, square, square root).
+
 Binning
 ^^^^^^^
-The dataset can be binned along two axes, energies and observable.
-This can be done using the method :py:meth:`dataset.Dataset.binAll`,
-:py:meth:`dataset.Dataset.binDataset` or :py:meth:`dataset.Dataset.binResData`
-(for resolution data only).
+The dataset can be binned along any axis.
+This can be done using the method :py:meth:`sample.Sample.bin`.
 
 Here is an example code with quasi-elastic neutron scattering (QENS) data:
 
->>> import nPDyn
->>> exp = nPDyn.Dataset()
->>> exp.importFiles(QENSFiles=['myData.nxs'])
->>> exp.dataList[0].data.intensities.shape
+>>> from nPDyn.dataParsers import processNexus
+>>> sample = processNexus('myData.nxs')
+>>> sample.shape
 (1, 18, 1004)
 >>> # 1 observable, 18 detectors/q values and 1004 energy transfers
->>> exp.binAll(5, axis='energies')  # bins of 5 points on the energy axis
->>> exp.dataList[0].data.intensities.shape
+>>> sample = sample.bin(5, axis=2)  # bins of 5 points on the energy axis
+>>> sample.shape
 (1, 18, 200)
->>> exp.dataList[0].data.energies.shape
+>>> sample.energies.shape
 (200,)
-
-Use ``exp.binAll(5, axis='observable')`` to bin along the observable axis.
 
 Normalization
 ^^^^^^^^^^^^^
-Normalization of data can be done by dividing the by integration
+Normalization of data can be done by dividing by the integration
 of themselves, of vanadium or of data at low temperature.
-These normalizations can be performed using the
-:py:meth:`dataset.Dataset.normalize_usingSelf`,
-:py:meth:`dataset.Dataset.normalize_usingResFunc`, or
-:py:meth:`dataset.Dataset.normalize_usingLowTemp`, respectively.
 
 The following:
 
->>> import nPDyn
->>> exp = nPDyn.Dataset(
-...     QENSFiles=['myData01.nxs', 'myData02.nxs', 'myData0".nxs],
-...     resFiles=['vanadium.nxs'])
->>> exp.normalize_usingResFunc(0, 1)
+>>> from nPDyn.dataParsers import processNexus
+>>> sample = processNexus('myData.nxs')
+>>> sample = sample.normalize()
 
-will apply normalization using the vanadium data on the first and second
-entries (index 0 and 1) in ``exp.dataList``, while writing simply
+will apply normalization using the integration of the 'sample' dataset.
 
->>> exp.normalize_usingResFunc()
+Using
 
-will apply normalization to all data in ``exp.dataList``.
-The same apply for the other normalization methods.
+>>> from nPDyn.dataParsers import processNexus
+>>> sample = processNexus('myData.nxs')
+>>> vanadium = processNexus('vanadium.nxs')
+>>> sample = sample.normalize(vanadium)
 
-
-Scaling
-^^^^^^^
-The user can also apply a scaling factor to the data.
-To this end, use:
-
->>> import nPDyn
->>> exp = nPDyn.Dataset(
-...     QENSFiles['myData01.nxs', myData02.nxs', 'myData03.nxs'])
->>> exp.scaleData(0.5, 0, 1)
-
-to apply a scaling factor of 0.5 on 'myData01.nxs' and 'myData02.nxs'.
+The signal of the vanadium will be integrated and used for normalization.
+If a fitted model exists for the vanadium, it will be used instead of the
+experimental data.
 
 Background corrections
 ^^^^^^^^^^^^^^^^^^^^^^
-nPDyn provides two types of background corrections, namely empty cell
-subtraction (see :py:meth:`dataset.Dataset.subtract_EC`),
-and paalman-pings coefficients
-(see :py:meth:`dataset.Dataset.absorptionCorrection`).
+The correction of background, often using empty cell signal, can be
+done either using simple arithmetic operators or using the
+:py:meth:`sample.Sample.absorptionCorrection` method.
 
-For instance:
+For instance,
 
->>> import nPDyn
->>> exp = nPDyn.Dataset(
-...     QENSFiles['myData01.nxs', myData02.nxs', 'myData03.nxs'],
-...     ECFile='empty_cell.nxs',
-...     D2OFile='D2O.nxs')
->>> exp.subtract_EC(0,2, subFactor=0.9, subD2O=True, useModel=False)
+>>> from nPDyn.dataParsers import processNexus
+>>> sample = processNexus('mySample.nxs')
+>>> empty_cell = processNexus('empty_cell.nxs')
+>>> sample = sample.absorptionCorrection(
+...     empty_cell,
+...     canScaling=0.95,
+...     canType='tube',
+...     useModel=False
+... )
 
-will scale the empty cell data by 0.9 and subtract it from 'myData01.nxs'
-and 'myData03.nxs' as well as from the D2O data.
+will computes the Paalman-Ping coefficient for a tubular sample
+holder, scale the empty cell data provided factor and apply
+the absorption correction to the dataset.
 
 
-Detector selection
-^^^^^^^^^^^^^^^^^^
+Selection of data range
+^^^^^^^^^^^^^^^^^^^^^^^
 The user will very likely want to restrain the analysis to a specific
-range of momentum transfers q or to discard some detectors.
-To this end, the :py:class:`dataset.Dataset` provides the following
-methods, :py:meth:`dataset.Dataset.setQRange`
-and :py:meth:`dataset.Dataset.discardDetectors`.
+range of momentum transfers q or observable values.
+To this end, some self-explaining methods are provided to select a
+range based on values instead of indices:
 
-Reset data
-^^^^^^^^^^
-All the data can be restored to their original state (the one at importation)
-using :py:meth:`dataset.Dataset.resetData` or
-:py:meth:`dataset.Dataset.resetAll`.
+>>> from nPDyn.dataParsers import processNexus
+>>> sample = processNexus('mySample.nxs')
+>>> sample.shape
+(10, 18, 1004)
+>>> sample = sample.get_q_range(0.3, 1.7)
+>>> sample = sample.get_observable_range(280, 320)
+>>> sample.shape
+(4, 14, 1004)

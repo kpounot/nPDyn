@@ -4,5 +4,5 @@ plot
 .. toctree::
    :maxdepth: 1
 
-   qensPlot
+   plot
    subPlotsFormat

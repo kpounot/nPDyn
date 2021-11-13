@@ -1,5 +1,0 @@
-qensPlot
-========
-
-.. automodule:: qensPlot
-   :members:

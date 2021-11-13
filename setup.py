@@ -29,10 +29,8 @@ with open(dirPath + "/README.rst") as f:
 
 packagesList = [
     "nPDyn",
-    "nPDyn.dataManipulation",
     "nPDyn.dataParsers",
     "nPDyn.dataParsers.instruments",
-    "nPDyn.dataTypes",
     "nPDyn.models",
     "nPDyn.lmfit",
     "nPDyn.models.d2O_calibration",
@@ -96,5 +94,6 @@ setup(
         "h5py",
         "lmfit",
         "defusedxml",
+        "qtwidgets",
     ],
 )

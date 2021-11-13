@@ -1,0 +1,5 @@
+Sample
+======
+
+.. automodule:: sample
+   :members:

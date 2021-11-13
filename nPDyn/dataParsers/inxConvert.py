@@ -119,6 +119,7 @@ def convert(datafile, FWS=None):
         temperature=temps,
         energies=energies,
         observable=obs_name,
+        axes=[obs_name, "q", "energies"],
     )
 
     return out
