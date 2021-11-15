@@ -6,7 +6,7 @@ import pytest
 
 import numpy as np
 
-from nPDyn.dataParsers import processNexus, inxConvert
+from nPDyn.dataParsers import processNexus, inxConvert, IN16B_BATS
 from nPDyn import Sample
 
 
@@ -52,3 +52,13 @@ def msdDataset():
     )
 
     return efws
+
+
+@pytest.fixture
+def bats_data():
+    data = IN16B_BATS(
+        path + "/sample_data/bats_data/",
+        detGroup=path + "/sample_data/IN16B_grouping_cycle201.xml",
+    ).process()
+
+    return data

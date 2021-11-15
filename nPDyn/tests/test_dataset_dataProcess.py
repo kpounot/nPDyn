@@ -79,3 +79,9 @@ def test_setQRange(fullFWSDataset):
     fws, res, ec, bkgd = fullFWSDataset
     fws = fws.get_q_range(0.4, 1.7)
     assert fws.q.size == 12
+
+
+def test_array_manipulation(fullQENSDataset):
+    qens, res, ec, bkgd = fullQENSDataset
+    qens = qens.transpose().take([5], 1).squeeze().sliding_average(5, 0)
+    assert qens.shape == (1019,)

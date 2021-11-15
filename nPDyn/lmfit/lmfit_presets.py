@@ -751,6 +751,88 @@ def kww(q, **kwargs):
     return model
 
 
+def protein_liquid(q, qWise=False, **kwargs):
+    """Model for protein in solution and jump diffusion for internal dynamics.
+
+    Parameters
+    ----------
+    q : np.array or list
+        Array of momentum transfer q-values to be used.
+    qWise : bool
+        Whether the Lorentzian width are independent for each momentum
+        transfer q or not (explicit q-dependence of the form 'width * q**2').
+    kwargs : dict
+        Additional keyword arguments to pass to :func:`build_2D_model`
+
+
+    Notes
+    -----
+    The parameter root names are:
+        - beta
+        - amplitude
+        - center
+        - sigma_g
+        - sigma_i
+        - tau
+
+    """
+    # set default values (will be overridden by any in 'kwargs')
+    defaults = {
+        "defVals": {
+            "beta": 1,
+            "amplitude": 0.5,
+            "center": 0.0,
+            "sigma_g": 5,
+            "sigma_i": 30,
+            "tau": 0.02,
+        },
+        "bounds": {
+            "beta": (0.0, np.inf),
+            "amplitude": (0.0, 1),
+            "center": (-np.inf, np.inf),
+            "sigma_g": (0.0, np.inf),
+            "sigma_i": (0.0, np.inf),
+            "tau": (0.0, np.inf),
+        },
+        "vary": {"center": False},
+    }
+
+    defaults.update(kwargs)
+
+    if qWise:
+        defaults["defVals"].pop("tau")
+        defaults["bounds"].pop("tau")
+        model = build_2D_model(
+            q,
+            "protein_liquid",
+            "{beta} * {amplitude} / np.pi "
+            "* {sigma_g} / ((x - {center})**2 + {sigma_g}**2) + "
+            "{beta} * (1 - {amplitude}) / np.pi * "
+            "({sigma_g} + {sigma_i}) / ((x - {center}) ** 2 + "
+            "({sigma_g} + {sigma_i}) ** 2)",
+            **defaults
+        )
+    else:
+        model = build_2D_model(
+            q,
+            "protein_liquid",
+            "{beta} * {amplitude} / np.pi "
+            "* {sigma_g} * {q}**2 / ((x - {center})**2 + "
+            "({sigma_g} * {q}**2)**2) + "
+            "{beta} * (1 - {amplitude}) / np.pi * "
+            "({sigma_g} * {q} ** 2 + "
+            "({sigma_i} * {q} ** 2 / (1 + {sigma_i} * {q} ** 2 * {tau}))) "
+            "/ "
+            "((x - {center}) ** 2 + "
+            "({sigma_g} * {q} ** 2 + ({sigma_i} * {q} ** 2 / "
+            "({sigma_i} * {q} ** 2 * {tau})))** 2)",
+            paramGlobals=["sigma_g", "sigma_i", "tau"],
+            **defaults
+        )
+
+    return model
+
+
 def two_diff_state(q, qwise=False, **kwargs):
     """Two state switching diffusion model.
 

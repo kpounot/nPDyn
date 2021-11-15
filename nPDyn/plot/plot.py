@@ -272,7 +272,7 @@ class Plot(QWidget):
 
             if not self.noFit:
                 if self.fitBox.isChecked():
-                    Y = data.fit_best()
+                    Y = data.fit_best(x=x)
                     if self.oRadioButton.isChecked():
                         Y = Y.take([min((qIdx, Y.shape[q_ax] - 1))], q_ax)
                         Y = Y.take([min((eIdx, Y.shape[e_ax] - 1))], e_ax)
@@ -299,7 +299,7 @@ class Plot(QWidget):
                     )
 
                 if self.compBox.isChecked():
-                    components = data.fit_components()
+                    components = data.fit_components(x=x)
                     # Plot the model components
                     for key, val in components.items():
                         Y = val
@@ -436,7 +436,7 @@ class Plot(QWidget):
                 y = getattr(data, data.axes[2])
                 xx, yy = np.meshgrid(y, x)
                 if self.fitBox.isChecked():
-                    z = data.fit_best().swapaxes(0, ax_idx)[plot_idx]
+                    z = data.fit_best(x=x).swapaxes(0, ax_idx)[plot_idx]
                     xx, yy = np.meshgrid(y, x)
                     z = np.log10(z) if zscale == "log" else z
 
@@ -452,7 +452,7 @@ class Plot(QWidget):
                     )
 
                 if self.compBox.isChecked():
-                    components = data.fit_components()
+                    components = data.fit_components(x=x)
                     # Plot the model components
                     for key, comp in components.items():
                         z = comp.swapaxes(0, ax_idx)[plot_idx]
