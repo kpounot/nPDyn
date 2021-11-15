@@ -30,8 +30,7 @@ to process and analyze quasi-elastic neutron scattering (QENS) and
 fixed-window scans (FWS) obtained with backscattering spectroscopy.
 
 nPDyn can be used in combination with other software for neutron data analysis
-such as `Mantid <https://www.mantidproject.org>`_. The API provides an interface
-to Mantid workspaces for that.
+such as `Mantid <https://www.mantidproject.org>`_.
 
 An important feature of nPDyn is the modelling interface, which is designed
 to be highly versatile and intuitive for multidimensional dataset with global
@@ -95,7 +94,7 @@ See `contributing <https://github.com/kpounot/nPDyn/blob/master/contributing.rst
 
 Getting started
 ---------------
-The nPDyn API is organized around a :py:class:`sample.Sample` class.
+The nPDyn API is organized around a `Sample` class.
 This class inherits from the NumPy ndarray class with some extra
 features added, such as neutron scattering-specific attributes, binning,
 data correction algorithm, automatic error propagation and data fitting.
@@ -103,17 +102,17 @@ data correction algorithm, automatic error propagation and data fitting.
 In a neutron backscattering experiment, there is not only the measurement of
 samples but also some calibration measurements like vanadium, empty cell
 and solvent signal (often :math:`\rm D_2O`). Some methods of the
-:py:class:`sample.Sample` class can be used to perform normalization or
+`Sample` class can be used to perform normalization or
 absorption correction using the dataset corresponding to vanadium
 or empty cell, respectively. These calibration dataset can be used also
 in the `fit` function to automatically add a background or perform
 a convolution with the resolution function.
 
-Details regarding importation of data are available in the :doc:`dataImport`
+Details regarding importation of data are available in the `dataImport`
 section of the documentation.
 
 Importantly, nPDyn provides versatile tools for model building and fitting
-to the data. See the section :doc:`dataFitting` for details.
+to the data. See the section `dataFitting` for details.
 
-Finally, a :py:method:`plot.plot` method is provided for easy visualisation
+Finally, a `plot` method is provided for easy visualisation
 of the data and the fit results.
