@@ -1,4 +1,5 @@
 defusedxml
+docutils<0.18
 h5py
 lmfit
 matplotlib
