@@ -53,6 +53,58 @@ def lorentzian(x, scale=1, width=1, center=0):
     return res
 
 
+def generalizedLorentzian(x, scale=1, alpha=1, tau=1, center=0):
+    """A generalized Lorentzian function.
+
+    This is the Fourier transform of the Mittag-Leffler function.
+    See [#]_.
+
+    References
+    ----------
+    .. [#] https://doi.org/10.1063/1.5121703
+
+    """
+    x = tau * np.abs(x - center)
+    res = (
+        scale
+        / np.pi
+        * tau
+        * np.sin(np.pi / 2 * alpha)
+        / (x * (x ** (-alpha) + x ** (alpha) + 2 * np.cos(np.pi / 2 * alpha)))
+    )
+    return res
+
+
+def rotations(x, q, scale=1, width=1, center=0):
+    """A sum of normalized Lorentzian functions for rotations.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-axis values, can be an array of any shape
+    q : np.ndarray
+        Values for the momentum transfers q
+    scale : int, float, np.ndarray
+        scale factor for the normalized function
+    width : int, np.ndarray
+        width of the lineshape
+    center : int, float, np.ndarray
+        center from the zero-centered lineshape
+
+    """
+    res = []
+    for j in range(5):
+        res.append(
+            lorentzian(
+                x,
+                scale * (2 * j + 1) * spherical_jn(j, 0.96 * q) ** 2,
+                j * (j + 1) * width,
+                center,
+            )
+        )
+    return np.sum(res, 0)
+
+
 def voigt(x, scale=1, sigma=1, gamma=1, center=0):
     """A normalized Voigt profile.
 
@@ -76,6 +128,26 @@ def voigt(x, scale=1, sigma=1, gamma=1, center=0):
     return res
 
 
+def kww(x, scale=1, beta=2, tau=1, center=0):
+    """The Fourier transform of the stretched exponential function.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Values for the x-axis, can be an array of any shape
+    scale : int, float, np.ndarray
+        Scale factor for the normalized function
+    beta : int, float
+        Value for power of the exponential
+    tau : int, float, np.ndarray
+        Characteristic relaxation time.
+    center : int, float, np.ndarray
+        Center from the zero-centered lineshape
+
+    """
+    return scale * fftshift(fft(np.exp((x - center) / tau) ** (beta)))
+
+
 def delta(x, scale=1, center=0):
     """A Dirac delta centered on *center*
 
@@ -83,16 +155,17 @@ def delta(x, scale=1, center=0):
     ----------
     x : np.ndarray
         x-axis values, can be an array of any shape
-    scale : int, float,  np.ndarray
+    scale : int, float, np.ndarray
         scale factor for the normalized function
     center : int, float,  np.ndarray
         position of the Dirac Delta in energy
 
     """
     center = (x - center) ** 2
-    center = np.argwhere(center == center.min())
-    out = x * 0
-    out[center] = scale / (x[1] - x[0])
+    center = np.argmin(center)
+    out = scale * np.ones_like(x)
+    out[..., center + 1 :] = 0
+    out[..., :center] = 0
     return out
 
 
@@ -117,6 +190,7 @@ def calibratedD2O(x, q, volFraction, temp, amplitude=1.0):
         Amplitude of the D2O signal. The parameter to be fitted.
 
     """
+    q = q.flatten()
     out = (
         amplitude
         * getD2Odata(volFraction)(temp, q)
@@ -157,6 +231,42 @@ def conv_lorentzian_lorentzian(x, comp1, comp2, params1, params2, **kwargs):
     center = p1["center"] + p2["center"]
 
     return lorentzian(x, scale, width, center)
+
+
+def conv_lorentzian_rotations(x, comp1, comp2, params1, params2, **kwargs):
+    """Convolution between a Lorentzian and rotationLorentzians
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-axis values
+    comp1 : :class:`Component`
+        First component to be used for the convolution.
+    comp2 : :class:`Component`
+        Second component to be used for the convolution.
+    params1 : :class:`Parameters`
+        Parameters for `comp1`.
+    params2 : :class:`Parameters`
+        Parameters for `comp2`.
+    kwargs : dict
+        Additional keyword arguments to pass to the method
+        :meth:`processFuncArgs` for `comp1` and `comp2`.
+
+    """
+    if comp1.func.__name__ != "lorentzian":
+        comp1, comp2, params1, params2 = _switchComps(
+            comp1, comp2, params1, params2
+        )
+
+    p1 = comp1.processFuncArgs(params1, **kwargs)
+    p2 = comp2.processFuncArgs(params2, **kwargs)
+
+    scale = p1["scale"] * p2["scale"]
+    width = p1["width"] + p2["width"]
+    center = p1["center"] + p2["center"]
+    q = p2["q"]
+
+    return rotations(x, q, scale, width, center)
 
 
 def conv_gaussian_gaussian(x, comp1, comp2, params1, params2, **kwargs):
@@ -225,6 +335,55 @@ def conv_lorentzian_gaussian(x, comp1, comp2, params1, params2, **kwargs):
     return voigt(x, scale, sigma, gamma, center)
 
 
+def conv_rotations_gaussian(x, comp1, comp2, params1, params2, **kwargs):
+    """Convolution between a Lorentzian and a Gaussian
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-axis values
+    comp1 : :class:`Component`
+        First component to be used for the convolution.
+    comp2 : :class:`Component`
+        Second component to be used for the convolution.
+    params1 : :class:`Parameters`
+        Parameters for `comp1`.
+    params2 : :class:`Parameters`
+        Parameters for `comp2`.
+    kwargs : dict
+        Additional keyword arguments to pass to the method
+        :meth:`processFuncArgs` for `comp1` and `comp2`.
+
+    """
+    if comp1.func.__name__ != "rotations":
+        comp1, comp2, params1, params2 = _switchComps(
+            comp1, comp2, params1, params2
+        )
+
+    p1 = comp1.processFuncArgs(params1, **kwargs)
+    p2 = comp2.processFuncArgs(params2, **kwargs)
+
+    scale = p1["scale"] * p2["scale"]
+    gamma = p1["width"]
+    sigma = p2["width"]
+    center = p1["center"] + p2["center"]
+    q = p1["q"]
+
+    res = []
+    for j in range(5):
+        res.append(
+            voigt(
+                x,
+                scale * (2 * j + 1) * spherical_jn(j, 0.96 * q),
+                sigma,
+                j * (j + 1) * gamma,
+                center,
+            )
+        )
+
+    return np.sum(res, 0)
+
+
 def conv_delta(x, comp1, comp2, params1, params2, **kwargs):
     """Convolution between a Lorentzian and a Gaussian
 
@@ -253,6 +412,7 @@ def conv_delta(x, comp1, comp2, params1, params2, **kwargs):
     p1 = comp1.processFuncArgs(params1, **kwargs)
     p2 = comp2.processFuncArgs(params2, **kwargs)
 
+    p2["scale"] *= p1["scale"]
     p2["center"] += p1["center"]
 
     return comp2.func(x, **p2)

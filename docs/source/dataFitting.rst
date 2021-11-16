@@ -48,23 +48,32 @@ We use the sample data in the the test suite of nPDyn (from package
 root directory, use ``cd nPDyn/tests/sample_data/`` and we initiate
 our dataset using, for QENS::
 
-    >>> from nPDyn import Dataset
+    >>> from nPDyn.dataParsers import processNexus
     >>> import numpy as np
-    >>> qens = Dataset(
-    ...     QENSFiles=['lys_part_01_QENS_before_280K.nxs'],
-    ...     resFiles=['vana_QENS_280K.nxs'],
-    ...     ECFile='empty_cell_QENS_280K.nxs',
-    ...     D2OFile='D2O_QENS_280K.nxs')
+    >>> qens = processNexus('lys_part_01_QENS_before_280K.nxs')
+    >>> vana = processNexus('vana_QENS_280K.nxs')
+    >>> ec = processNexus('empty_cell_QENS_280K.nxs')
+    >>> buffer = processNexus('D2O_QENS_280K.nxs')
     >>> # Perform some data processing
-    >>> qens.binAll(5)
-    >>> qens.subtract_EC()
-    >>> qens.setQRange(0.4, 1.8)
+    >>> qens, vana, ec, buffer = (
+    ... val.bin(5) for val in (qens, vana, ec, buffer)
+    ... )
+    >>> qens, vana, buffer = (
+    ... val - 0.95 * ec for val in (qens, vana, buffer)
+    ... )
+    >>> qens, vana, ec, buffer = (
+    ... val.get_q_range(0.4, 1.8) for val in (qens, vana, ec, buffer)
+    ... )
     >>> # Extract momentum transfers for modelling and make it 2D
-    >>> q = qens.dataList[0].data.qVals[:, np.newaxis]
+    >>> q = qens.q[:, None]
 
 and for EFWS::
 
-    >>> efws = Dataset(FWSFiles=['D_syn_fibers_elastic_10to300K.inx'])
+    >>> from nPDyn.dataParsers import inxConvert
+    >>> efws = inxConvert.convert('D_syn_fibers_elastic_10to300K.inx', True)
+    >>> efws = efws.bin(5, 0)
+    >>> efws /= efws[:5].mean(0)
+    >>> efws = efws.get_q_range(0.2, 0.8)
 
 Using builtin model backend
 ---------------------------
@@ -93,15 +102,15 @@ The same is done for :math:`\rm D_2O` background using the
 Simply use::
 
     >>> from nPDyn.models.builtins import modelPVoigt
-    >>> from nPDyn.models.builtins import modelD2OBackground
-    >>> qens.fitRes(model=modelPVoigt(q, 'resolution'))
-    >>> qens.D2OData.fit(model=modelD2OBackground(q, temperature=280))
+    >>> from nPDyn.models.builtins import modelCalibratedD2O
+    >>> vana.fit(modelPVoigt(q, 'resolution'))
+    >>> buffer.fit(modelCalibratedD2O(q, temp=280))
 
 With a little anticipation on this documentation, you can use
 the following to look at the fit result::
 
-    >>> qens.plotResFunc()
-    >>> qens.plotD2OFunc()
+    >>> from nPDyn.plot import plot
+    >>> plot(vana, buffer)
 
 
 Create parameters
@@ -119,7 +128,7 @@ We can thus create the **Parameters** instance::
     ...     Ds={'value': 5, 'bounds': (0., 100)},
     ...     Di={'value': 20, 'bounds': (0., 100)},
     ...     tau={'value': 1, 'bounds': (0., np.inf)},
-    ...     bD2O={'value': 0.1, 'bounds': (0., np.inf)})
+    ... )
 
 For the EFWS sample, we only have the MSD and we use a slightly different
 way to instantiate the **Parameters** instance for demonstration purpose::
@@ -163,10 +172,12 @@ We can add them using::
     ...                # (as it is given by the convolution with resolution)
     >>> modelQENS += internal
     >>> # for the D2O signal, we use a lambda function to include the scaling
+    >>> # note this can be done automatically with the 'bkgd' and
+    >>> # 'volume_fraction_bkgd' arguments of the fit function.
     >>> modelQENS.addComponent(Component(
     ...     '$D_2O$',  # we can use LaTeX for the component and model names
-    ...     lambda x, scale: scale * qens.D2OData.fit_best(x=x)[0],
-    ...     scale='bD2O',
+    ...     lambda x, scale: scale * buffer.fit_best(x=x)[0],
+    ...     scale=0.95,
     ...     skip_convolve=True))  # we do not want to convolve this
     >>>                           # component with resolution
 
@@ -181,22 +192,24 @@ only one component. Here, we use::
 
 Fit data
 ^^^^^^^^
-The class :py:class:`dataset.Dataset` provides a method to fit all data
-in ``Dataset.dataList`` attribute at once. It simply calls the
-:py:meth:`baseType.BaseType.fit` method for each selected data.
+The class :py:class:`sample.Sample` provides a method to fit the data.
 
 Here, we use it and write for QENS::
 
-    >>> qens.fitData(
-    ...     model=modelQENS, q=q, convolveRes=True,
-    ...     fit_method='basinhopping', fit_kws={'niter': 10, 'disp': True})
+    >>> qens.fit(
+    ...     modelQENS,
+    ...     res=vana,
+    ...     fit_method='basinhopping',
+    ...     fit_kws={'niter': 10, 'disp': True}
+    ... )
 
 and for EFWS, where we set the independent variable to a column vector
 containing the momentum transfer q values::
 
-    >>> efws.fitData(
-    ...     model=modelEFWS,
-    ...     x=efws.dataList[0].data.qVals[:, np.newaxis])
+    >>> efws.fit(
+    ...     modelEFWS,
+    ...     x=efws.q[:, None]
+    ... )
 
 
 Using *lmfit* backend
@@ -228,9 +241,9 @@ make use of the provided presets :py:func:`lmfit_presets.pseudo_voigt`
 and :py:func:`lmfit_presets.calibratedD2O`, we thus use::
 
     >>> from nPDyn.lmfit.lmfit_presets import pseudo_voigt, calibratedD2O
-    >>> qens.fitRes(model=pseudo_voigt(q, prefix='res_'))
-    >>> qens.D2OData.fit(model=calibratedD2O(q, 0.95, 280, prefix='D2O_'))
-    >>> q = qens.dataList[0].data.qVals
+    >>> vana.fit(pseudo_voigt(q, prefix='res_'))
+    >>> buffer.fit(calibratedD2O(q, 0.95, 280, prefix='D2O_'))
+    >>> q = qens.q
 
 To build the model for the protein sample, we use the
 function :py:func:`lmfit_presets.build_2D_model` to get the
@@ -302,7 +315,7 @@ for details).
 
 Here, we can simply use::
 
-    >>> qens.fitData(model=fitModel, q=q, convolveRes=True)
+    >>> qens.fit(fitModel, res=vana)
 
 to fit the data using *lmfit* default parameters.
 

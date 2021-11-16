@@ -22,7 +22,7 @@ from scipy.fft import fft, fftshift
 from scipy.special import wofz, spherical_jn
 
 try:
-    from lmfit import Model, CompositeModel
+    from lmfit import Model
 except ImportError:
     print(
         "The lmfit package cannot be found, please install it to use "
@@ -138,7 +138,7 @@ def build_2D_model(
 
     # set the parameter dictionary for `lmfit.Model` function
     params = {}
-    for pId, pName in enumerate(paramNames):
+    for pName in paramNames:
         if pName in paramGlobals:
             params[pName] = (
                 paramDefVals[pName],
@@ -486,7 +486,7 @@ def delta(q, **kwargs):
     return model
 
 
-def calibratedD2O(q, volFraction, temp, **kwargs):
+def calibratedD2O(q, temp=300, **kwargs):
     """Lineshape for D2O where the Lorentzian width was obtained
     from a measurement on IN6 at the ILL.
 
@@ -494,8 +494,6 @@ def calibratedD2O(q, volFraction, temp, **kwargs):
     ----------
     q : np.array or list
         Array of momentum transfer q values
-    volFraction : float in [0, 1]
-        Volume fraction of the D2O in the sample.
     temp : float
         Sample temperature used for the experiment.
     kwargs : dict, optional
@@ -519,8 +517,7 @@ def calibratedD2O(q, volFraction, temp, **kwargs):
         q,
         "calibrationD2O",
         "{amplitude} * getD2Odata(%s)(%f, {q}) "
-        "/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))"
-        % (volFraction, temp, volFraction, temp),
+        "/ (np.pi * (x**2 + getD2Odata(%s)(%f, {q})**2))" % (1, temp, 1, temp),
         **defaults
     )
 
@@ -750,6 +747,88 @@ def kww(q, **kwargs):
         var="t",
         **defaults
     )
+
+    return model
+
+
+def protein_liquid(q, qWise=False, **kwargs):
+    """Model for protein in solution and jump diffusion for internal dynamics.
+
+    Parameters
+    ----------
+    q : np.array or list
+        Array of momentum transfer q-values to be used.
+    qWise : bool
+        Whether the Lorentzian width are independent for each momentum
+        transfer q or not (explicit q-dependence of the form 'width * q**2').
+    kwargs : dict
+        Additional keyword arguments to pass to :func:`build_2D_model`
+
+
+    Notes
+    -----
+    The parameter root names are:
+        - beta
+        - amplitude
+        - center
+        - sigma_g
+        - sigma_i
+        - tau
+
+    """
+    # set default values (will be overridden by any in 'kwargs')
+    defaults = {
+        "defVals": {
+            "beta": 1,
+            "amplitude": 0.5,
+            "center": 0.0,
+            "sigma_g": 5,
+            "sigma_i": 30,
+            "tau": 0.02,
+        },
+        "bounds": {
+            "beta": (0.0, np.inf),
+            "amplitude": (0.0, 1),
+            "center": (-np.inf, np.inf),
+            "sigma_g": (0.0, np.inf),
+            "sigma_i": (0.0, np.inf),
+            "tau": (0.0, np.inf),
+        },
+        "vary": {"center": False},
+    }
+
+    defaults.update(kwargs)
+
+    if qWise:
+        defaults["defVals"].pop("tau")
+        defaults["bounds"].pop("tau")
+        model = build_2D_model(
+            q,
+            "protein_liquid",
+            "{beta} * {amplitude} / np.pi "
+            "* {sigma_g} / ((x - {center})**2 + {sigma_g}**2) + "
+            "{beta} * (1 - {amplitude}) / np.pi * "
+            "({sigma_g} + {sigma_i}) / ((x - {center}) ** 2 + "
+            "({sigma_g} + {sigma_i}) ** 2)",
+            **defaults
+        )
+    else:
+        model = build_2D_model(
+            q,
+            "protein_liquid",
+            "{beta} * {amplitude} / np.pi "
+            "* {sigma_g} * {q}**2 / ((x - {center})**2 + "
+            "({sigma_g} * {q}**2)**2) + "
+            "{beta} * (1 - {amplitude}) / np.pi * "
+            "({sigma_g} * {q} ** 2 + "
+            "({sigma_i} * {q} ** 2 / (1 + {sigma_i} * {q} ** 2 * {tau}))) "
+            "/ "
+            "((x - {center}) ** 2 + "
+            "({sigma_g} * {q} ** 2 + ({sigma_i} * {q} ** 2 / "
+            "({sigma_i} * {q} ** 2 * {tau})))** 2)",
+            paramGlobals=["sigma_g", "sigma_i", "tau"],
+            **defaults
+        )
 
     return model
 

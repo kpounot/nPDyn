@@ -1,5 +1,0 @@
-QENSType
-========
-
-.. automodule:: qensType
-   :members:

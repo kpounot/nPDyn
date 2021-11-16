@@ -7,19 +7,30 @@ import sys
 from copy import deepcopy
 from inspect import signature
 import ast
+
 import operator
 
 from collections import OrderedDict
 
 import numpy as np
 
-from scipy.optimize import curve_fit, minimize, basinhopping
+from scipy.optimize import (
+    curve_fit,
+    minimize,
+    basinhopping,
+    differential_evolution,
+    shgo,
+)
 from scipy.sparse.linalg import LinearOperator
 from scipy.signal import fftconvolve
+from scipy.special import wofz, spherical_jn, erf, erfc, gamma
 
+from nPDyn.models import Parameters
 from nPDyn.models.presets import (
     conv_lorentzian_lorentzian,
     conv_lorentzian_gaussian,
+    conv_rotations_gaussian,
+    conv_lorentzian_rotations,
     conv_gaussian_gaussian,
     conv_delta,
     conv_linear,
@@ -29,7 +40,7 @@ _PY_VERSION = sys.version_info
 _PY_VERSION = float("%d.%d" % (_PY_VERSION.major, _PY_VERSION.minor))
 
 
-class findParamNames(ast.NodeTransformer):
+class FindParamNames(ast.NodeTransformer):
     """Helper class to parse strings to evaluation for function
     arguments in :class:`Component`.
 
@@ -42,36 +53,30 @@ class findParamNames(ast.NodeTransformer):
 
     """
 
-    def __init__(self, params):
+    def __init__(self, key, params):
         super().__init__()
+        self.key = key
         self.params = params
 
     def visit_Name(self, node):
         """Name visitor."""
         if node.id in self.params.keys():
             if _PY_VERSION <= 3.6:
-                res = ast.Attribute(
-                    value=ast.Subscript(
-                        value=ast.Name(id="params", ctx=node.ctx),
-                        slice=ast.Index(value=ast.Str(s=node.id)),
-                        ctx=node.ctx,
-                    ),
-                    attr="value",
-                    ctx=node.ctx,
-                )
+                sliceVal = ast.Index(value=ast.Str(s=node.id))
             else:
-                res = ast.Attribute(
-                    value=ast.Subscript(
-                        value=ast.Name(id="params", ctx=node.ctx),
-                        slice=ast.Index(ast.Constant(s=node.id)),
-                        ctx=node.ctx,
-                    ),
-                    attr="value",
+                sliceVal = ast.Index(ast.Constant(s=node.id))
+
+            res = ast.Attribute(
+                value=ast.Subscript(
+                    value=ast.Name(id="params", ctx=node.ctx),
+                    slice=sliceVal,
                     ctx=node.ctx,
-                )
+                ),
+                attr="value",
+                ctx=node.ctx,
+            )
             return res
-        else:
-            return node
+        return node
 
 
 class Model:
@@ -115,7 +120,7 @@ class Model:
     }
 
     def __init__(
-        self, params, name="Model", convolutions=None, on_undef_conv="raise"
+        self, params, name="Model", convolutions=None, on_undef_conv="numeric"
     ):
         self.name = name
         self.params = deepcopy(params) if params is not None else {}
@@ -126,6 +131,12 @@ class Model:
             "lorentzian": {
                 "lorentzian": conv_lorentzian_lorentzian,
                 "gaussian": conv_lorentzian_gaussian,
+                "delta": conv_delta,
+                "linear": conv_linear,
+            },
+            "rotations": {
+                "lorentzian": conv_lorentzian_rotations,
+                "gaussian": conv_rotations_gaussian,
                 "delta": conv_delta,
                 "linear": conv_linear,
             },
@@ -154,6 +165,8 @@ class Model:
                 self.convolutions[key].update(val)
 
         self._optParams = None
+        self._fitResult = None
+        self._bic = None
         self._userkws = {}
 
         self._on_undef_conv = on_undef_conv
@@ -163,21 +176,21 @@ class Model:
         """Return the model components."""
         return self._components
 
-    def addComponent(self, comp, operator="+"):
+    def addComponent(self, comp, op="+"):
         """Add a component to the model.
 
         Parameters
         ----------
         comp : :class:`Component`
             An instance of `Component` to be added to the model.
-        operator : {"+", "-", "*", "/"}, optional
+        op : {"+", "-", "*", "/"}, optional
             Operator to be used to combine the new component with the others.
             If this is the first component, the operator is ignored.
             (default "+")
 
         """
         if len(self._components.keys()) > 0:
-            self._operators.append(self._opMap[operator])
+            self._operators.append(self._opMap[op])
         self._components[comp.name] = comp
 
     @property
@@ -193,8 +206,7 @@ class Model:
                 "The attribute 'on_undef_conv' can only be "
                 "'numeric' or 'raise'."
             )
-        else:
-            self._on_undef_conv = val
+        self._on_undef_conv = val
 
     # --------------------------------------------------
     # fitting
@@ -204,19 +216,38 @@ class Model:
         """Return the result of the fit."""
         if self._optParams is not None:
             return self._optParams
-        else:
-            raise ValueError(
-                "No optimal parameters found for this model "
-                "(Model named '{name}' at {address}).\n"
-                "Please use 'fit' method to optimize the parameters".format(
-                    name=self.name, address=hex(id(self))
-                )
+        raise ValueError(
+            "No optimal parameters found for this model "
+            "(Model named '{name}' at {address}).\n"
+            "Please use 'fit' method to optimize the parameters".format(
+                name=self.name, address=hex(id(self))
             )
+        )
+
+    @optParams.setter
+    def optParams(self, params):
+        """Setter for the optimized parameters."""
+        if not isinstance(params, Parameters):
+            raise ValueError(
+                "The 'optParams' attribute should contain an instance "
+                "of a 'Parameters' object."
+            )
+        self._optParams = params
+
+    @property
+    def bic(self):
+        """Return the bayesian information criterion (BIC)."""
+        return self._bic
 
     @property
     def userkws(self):
         """Return the keywords used for the fit."""
         return self._userkws
+
+    @property
+    def fitResult(self):
+        """Return the full result of the fit."""
+        return self._fitResult
 
     def fit(
         self,
@@ -228,11 +259,49 @@ class Model:
         params=None,
         **kwargs
     ):
+        """Fit the experimental data using the provided arguments.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Values for the indenpendent variable.
+        data : np.ndarray
+            Experimental data to be fitted.
+        weights : np.ndarray, optional
+            Weights associated with the experimental data (the
+            experimental errors).
+        fit_method : str, optional
+            The method to be used for fitting.
+            Currently available methods are (from Scipy):
+            - "curve_fit"
+            - "basinhopping"
+            - "differential_evolution"
+            - "shgo"
+            - "minimize"
+        fit_kws : dict, optional
+            Additional keywords to be passed to the fit method.
+        params : :class:`Parameters` class instance, optional
+            Parameters to be used (default None, will use the parameters
+            associated with the model).
+        kwargs : dict, optional
+            Additional keywords arguments to give for the evaluation
+            of the model. Can override parameters too.
+
+        Returns
+        -------
+        A copy of the fitted model instance.
+
+        """
         # process 'x' array and match the shape of data
-        params, bounds = self.params._paramsToList()
+        params, bounds = self.params.paramList
 
         if fit_kws is None:
             fit_kws = {}
+
+        norm = 1 / np.sum(data ** 2 / weights ** 2)
+        func = lambda p: norm * np.sum(
+            (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
+        )
 
         if fit_method == "curve_fit":
             func = lambda x, *p: self.eval(x, p, **kwargs).flatten()
@@ -246,42 +315,86 @@ class Model:
                 bounds=bounds,
                 **fit_kws
             )
-
-            self._optParams = self.params._listToParams(
+            nbrParams = len(fit[0])
+            self.optParams = self.params.listToParams(
                 fit[0], np.sqrt(np.diag(fit[1]))
             )
 
         if fit_method == "basinhopping":
-            func = lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
-            )
             if "minimizer_kwargs" in fit_kws.keys():
                 fit_kws["minimizer_kwargs"].update(bounds=bounds)
             else:
                 fit_kws["minimizer_kwargs"] = {"bounds": bounds}
             fit = basinhopping(func, params, **fit_kws)
 
-            weights = fit.lowest_optimization_result.hess_inv
-            if isinstance(weights, LinearOperator):
-                weights = weights.todense()
-            self._optParams = self.params._listToParams(
-                fit.x, np.sqrt(np.diag(weights))
+            paramErr = fit.lowest_optimization_result.hess_inv
+            if isinstance(paramErr, LinearOperator):
+                paramErr = paramErr.todense()
+            nbrParams = len(fit.x)
+            self.optParams = self.params.listToParams(
+                fit.x, np.sqrt(np.diag(paramErr))
+            )
+
+        if fit_method == "shgo":
+            fit = shgo(func, bounds, **fit_kws)
+
+            paramErr = fit.lowest_optimization_result.hess_inv
+            if isinstance(paramErr, LinearOperator):
+                paramErr = paramErr.todense()
+            nbrParams = len(fit.x)
+            self.optParams = self.params.listToParams(
+                fit.x, np.sqrt(np.diag(paramErr))
             )
 
         if fit_method == "minimize":
-            func = lambda p: np.sum(
-                (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
-            )
             fit = minimize(func, params, bounds=bounds, **fit_kws)
 
-            weights = fit.hess_inv.todense()
-            self._optParams = self.params._listToParams(
-                fit.x, np.sqrt(np.diag(weights))
+            paramErr = fit.hess_inv.todense()
+            nbrParams = len(fit.x)
+            self.optParams = self.params.listToParams(
+                fit.x, np.sqrt(np.diag(paramErr))
             )
 
+        if fit_method == "differential_evolution":
+            maxFloat = np.finfo("float64").max
+            minFloat = np.finfo("float64").min
+            for boundsIdx, boundsTuple in enumerate(bounds):
+                pMin, pMax = boundsTuple
+                if not np.isfinite(pMin):
+                    pMin = minFloat
+                if not np.isfinite(pMax):
+                    pMax = maxFloat
+                bounds[boundsIdx] = (pMin, pMax)
+
+            fit = differential_evolution(func, bounds=bounds, **fit_kws)
+
+            paramErr = fit.lowest_optimization_result.hess_inv
+            if isinstance(paramErr, LinearOperator):
+                paramErr = paramErr.todense()
+            nbrParams = len(fit.x)
+            self.optParams = self.params.listToParams(
+                fit.x, np.sqrt(np.diag(paramErr))
+            )
+
+        # computes the bayesian information criterion
+        self._bic = nbrParams * np.log(x.size) + 2 * np.log(
+            np.exp(
+                -norm
+                * (
+                    (self.eval(x, self.optParams, **kwargs) - data) ** 2
+                    / weights ** 2
+                ).sum()
+            )
+        )
+
         self._userkws["x"] = x
+        self._userkws["data"] = data
+        self._userkws["weights"] = weights
         self._userkws["params"] = params
         self._userkws.update(**kwargs)
+        self._fitResult = fit
+
+        return self.copy()
 
     # --------------------------------------------------
     # accessors
@@ -345,6 +458,8 @@ class Model:
         m._operators = deepcopy(self._operators)
         m._optParams = deepcopy(self._optParams)
         m._userkws = deepcopy(self._userkws)
+        m._fitResult = deepcopy(self._fitResult)
+        m._bic = deepcopy(self._bic)
 
         return m
 
@@ -360,7 +475,7 @@ class Model:
             if isinstance(params, dict):
                 params.update(**params)
             else:  # assumes a list or numpy array
-                params = self.params._listToParams(params)
+                params = self.params.listToParams(params)
 
         # gets the output arrays for each component and sum
         for key, comp in self.components.items():
@@ -439,9 +554,12 @@ class Model:
                 # if no convolution defined, go numerical or raise KeyError
                 if val.func.__name__ not in convDict.keys():
                     if self._on_undef_conv == "numeric":
+                        shift = int(round(x.size / 2)) - np.argmin(np.abs(x))
                         res.append(
                             fftconvolve(
-                                comp.eval(x, params, **kwargs),
+                                np.roll(
+                                    comp.eval(x, params, **kwargs), shift, -1
+                                ),
                                 val.eval(x, convParams, **kwargs),
                                 mode="same",
                                 axes=-1,
@@ -465,9 +583,10 @@ class Model:
         else:
             for key, val in convolve.components.items():
                 if self._on_undef_conv == "numeric":
+                    shift = int(round(x.size / 2)) - np.argmin(np.abs(x))
                     res.append(
                         fftconvolve(
-                            comp.eval(x, params, **kwargs),
+                            np.roll(comp.eval(x, params, **kwargs), shift, -1),
                             val.eval(x, convParams, **kwargs),
                             mode="same",
                             axes=-1,
@@ -576,6 +695,10 @@ class Component:
 
     >>> myComp = Component('lor', lorentzian, scale='scale', width=5)
 
+    Some math functions can be used as well (below the exponential):
+
+    >>> myComp = Component('lor', lorentzian, scale='np.exp(-q**2 * msd)')
+
     """
 
     def __init__(self, name, func, skip_convolve=False, **funcArgs):
@@ -611,21 +734,19 @@ class Component:
 
         """
         params = deepcopy(params)
-
         for key, val in kwargs.items():
-            if isinstance(val, (int, float, list, np.ndarray)):
-                params.set(key, value=val)
-            else:
+            if key in params.keys():
                 params.update(**{key: val})
+            else:
+                params.set(key, value=val, fixed=True)
 
         args = {}
         for key, arg in self.funcArgs.items():
             if isinstance(arg, str):
-                for pKey in params.keys():
-                    arg = ast.parse(arg, mode="eval")
-                    arg = ast.fix_missing_locations(
-                        findParamNames(params).visit(arg)
-                    )
+                arg = ast.parse(arg, mode="eval")
+                arg = ast.fix_missing_locations(
+                    FindParamNames(key, params).visit(arg)
+                )
                 c = compile(arg, "<string>", "eval")
                 args[key] = eval(c)
             else:

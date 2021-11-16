@@ -1,5 +1,0 @@
-baseType
-========
-
-.. automodule:: baseType
-   :members:

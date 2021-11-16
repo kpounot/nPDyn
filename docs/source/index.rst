@@ -56,51 +56,28 @@ or
 
 Getting started
 ---------------
-The nPDyn API is organized around a :py:class:`dataset.Dataset` class.
-This class has a ``Dataset.dataList`` attribute used to store the experimental
-data. Each measurement in ``Dataset.dataList`` consists in a class that
-inherits from :py:class:`baseType.BaseType`.
+The nPDyn API is organized around a :py:class:`sample.Sample` class.
+This class inherits from the NumPy ndarray class with some extra
+features added, such as neutron scattering-specific attributes, binning,
+data correction algorithm, automatic error propagation and data fitting.
 
 In a neutron backscattering experiment, there is not only the measurement of
 samples but also some calibration measurements like vanadium, empty cell
-and solvent signal (often :math:`\rm D_2O`).
-The :py:class:`dataset.Dataset` can handle these in the special attributes
-``Dataset.resData``, ``Dataset.ECData`` and ``Dataset.D2OData``, respectively.
-Each data in ``Dataset.dataList`` can have some calibration data associated
-with it in the ``BaseType.resData``, ``BaseType.ECData``
-and ``BaseType.D2OData`` attributes.
-
-In the current state of nPDyn, only one file can be loaded for empty cell
-and solvent calibration measurements. For the resolution function, the
-``Dataset.resData`` attribute is actually a list that can contain
-several measurements. The reason for this is that the resolution
-function can be obtained by measuring the samples at very low temperature
-instead of using a single vanadium measurement. Hence, each data in
-``Dataset.dataList`` can be associated with a resolution measurement
-in ``Dataset.resData``.
-
-The aforementioned structure of the API is sketched below for two samples,
-measured at temperatures t1 and t2 each,
-with a measurement for the resolution function at 10K for each sample,
-one measurement of empty cell and one of :math:`\rm D_2O` background:
-
-.. image:: ../fig/sketch_structure_01.png
-    :width: 600
+and solvent signal (often :math:`\rm D_2O`). Some methods of the
+:py:class:`sample.Sample` class can be used to perform normalization or
+absorption correction using the dataset corresponding to vanadium
+or empty cell, respectively. These calibration dataset can be used also
+in the `fit` function to automatically add a background or perform
+a convolution with the resolution function.
 
 Details regarding importation of data are available in the :doc:`dataImport`
 section of the documentation.
 
-The :py:class:`baseType.BaseType` base class and its derivatives
-:py:class:`qensType.QENSType` and :py:class:`fwsType.FWSType` contain
-several methods for data processing (see :doc:`dataProcessing`) and
-fitting (see :doc:`dataFitting`).
-In addition the class :py:class:`dataset.Dataset` contains some shortcut
-methods to apply data processing and fitting algorithm quickly on the
-sample and calibration data. It also contains plotting methods to examine
-data and the fitted model and its optimized parameters.
-
 Importantly, nPDyn provides versatile tools for model building and fitting
 to the data. See the section :doc:`dataFitting` for details.
+
+Finally, a :py:meth:`plot.plot` method is provided for easy visualisation
+of the data and the fit results.
 
 
 Documentation

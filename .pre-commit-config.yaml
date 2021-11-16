@@ -2,14 +2,14 @@ exclude: 'versioneer.py|nPDyn/_version.py|docs/source/conf.py|^build/|^dist/|^ht
 
 repos:
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v2.7.4
+    rev: v2.10.0
     hooks:
     -   id: pyupgrade
         # for now don't force to change from %-operator to {}
         args: [--keep-percent-format, --py3-plus]
 
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.3.0
+    rev: v3.4.0
     hooks:
     -   id: check-builtin-literals
     -   id: check-merge-conflict

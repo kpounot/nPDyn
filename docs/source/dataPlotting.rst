@@ -1,12 +1,17 @@
 Plot data
 =========
 
-nPDyn provides some plotting windows for quasi-elastic neutron scattering
+nPDyn provides a plot window for quasi-elastic neutron scattering
 (QENS) and elastic/inelastic fixed-window scans (E/IFWS) data.
+
+It can be used as follows::
+
+    >>> from nPDyn.plot import plot
+    >>> plot(sample)
 
 Using the result of the fitting procedure presented in the :doc:`dataFitting`
 section, the data, the fitted model model and the parameters can be
-examined using the window shown below for QENS:
+examined using the window as shown below:
 
 .. figure:: ../fig/qensPlot_plot.png
     :width: 600
@@ -36,8 +41,6 @@ examined using the window shown below for QENS:
     button. The global parameters (which are unique for all q-values) are
     represented by a single horizontal line.
 
-
-And for E/IFWS data:
 
 .. figure:: ../fig/fwsPlot_plot_with_model.png
     :width: 600

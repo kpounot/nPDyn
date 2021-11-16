@@ -6,53 +6,28 @@ import pytest
 
 import numpy as np
 
-import nPDyn
+from nPDyn.dataParsers import IN16B_FWS, IN16B_QENS, IN16B_BATS
 
 
-def test_import_QENS():
+def test_import_IN16B_QENS():
     dataPath = path + "/sample_data/vanadium/"
-    data = nPDyn.Dataset()
-    data.importRawData(dataPath, "IN16B", "QENS")
-    assert data.dataList[0].data.qVals is not None
+    data = IN16B_QENS(
+        dataPath, detGroup=path + "/sample_data/IN16B_grouping_cycle201.xml"
+    ).process()
+    assert data.shape == (1, 18, 1004)
 
 
-def test_import_FWS():
+def test_import_IN16B_FWS():
     dataPath = path + "/sample_data/lys_part_01/"
-    data = nPDyn.Dataset()
-    data.importRawData(dataPath, "IN16B", "FWS")
-    assert data.dataList[0].data.qVals is not None
+    data = IN16B_FWS(
+        dataPath, detGroup=path + "/sample_data/IN16B_grouping_cycle201.xml"
+    ).process()
+    assert data.shape == (8, 18, 4)
 
 
-def test_import_res():
-    dataPath = path + "/sample_data/vanadium/"
-    data = nPDyn.Dataset()
-    data.importRawData(dataPath, "IN16B", "res")
-    assert data.resData[0].data.qVals is not None
-
-
-def test_import_ec():
-    dataPath = path + "/sample_data/vanadium"
-    data = nPDyn.Dataset()
-    data.importRawData(dataPath, "IN16B", "ec")
-    assert data.ECData.data.qVals is not None
-
-
-def test_import_fec():
-    dataPath = path + "/sample_data/lys_part_01"
-    data = nPDyn.Dataset()
-    data.importRawData(dataPath, "IN16B", "fec")
-    assert data.fECData.data.qVals is not None
-
-
-def test_import_D2O():
-    dataPath = path + "/sample_data/vanadium"
-    data = nPDyn.Dataset()
-    data.importRawData(dataPath, "IN16B", "D2O")
-    assert data.D2OData.data.qVals is not None
-
-
-def test_import_fD2O():
-    dataPath = path + "/sample_data/lys_part_01"
-    data = nPDyn.Dataset()
-    data.importRawData(dataPath, "IN16B", "fD2O")
-    assert data.fD2OData.data.qVals is not None
+def test_import_IN16B_BATS():
+    dataPath = path + "/sample_data/bats_data/316112:316122.nxs"
+    data = IN16B_BATS(
+        dataPath, detGroup=path + "/sample_data/IN16B_grouping_cycle201.xml"
+    ).process()
+    assert data.shape == (1, 19, 817)

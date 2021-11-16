@@ -30,7 +30,7 @@ def test_import_QENS():
             1.8446,
         ]
     )
-    assert np.array_equal(result.qVals, expect)
+    assert np.array_equal(result.q, expect)
 
 
 def test_import_FWS():
@@ -54,4 +54,4 @@ def test_import_FWS():
             1.8446,
         ]
     )
-    assert np.array_equal(result.qVals, expect)
+    assert np.array_equal(result.q, expect)

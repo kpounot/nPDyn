@@ -1,3 +1,20 @@
+v3.0.0
+------
+    Major change for dataset handling, the new class 'Sample' is now used. It is
+    essentially a NumPy array with extra attributes and methods for data correction
+    and fitting.
+    The class 'Dataset' has been removed.
+    Replacing the 'QENSPlot' and 'FWSPlot' windows by only one 'Plot' class.
+    Adding the possibility to use the z-direction on the position-sensitive
+    detectors as an observable.
+    Adding and optimizing data reduction for BATS data recorded on IN16B at the ILL.
+    Adding new built-in models.
+    Adding a 'slidingAverage' capability along the observable.
+    Adding support for diffraction data on IN16B.
+    Adding helper functions for use with molecular dynamics simulation data and
+    for generating Stokes-Einstein curves.
+    Some bug corrections and code quality improvements.
+
 v2.0.1
 ------
     Fixing an issue with lmfit backend, which makes use of the inverse errors

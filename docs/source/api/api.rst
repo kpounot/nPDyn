@@ -4,12 +4,8 @@ API reference
 .. toctree::
     :maxdepth: 2
 
-    dataset
-    fileFormatParser
-    dataManipulation/index
+    sample
     dataParsers/index
-    dataTypes/index
     models/index
     lmfit/index
-    fileFormatParser
     plot/index

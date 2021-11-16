@@ -11,10 +11,14 @@ import numpy as np
 
 from collections import namedtuple
 
-from scipy.signal import find_peaks, savgol_filter
-from scipy.optimize import curve_fit, basinhopping
+from scipy.signal import savgol_filter
+from scipy.optimize import curve_fit
 
 from nPDyn.dataParsers.xml_detector_grouping import IN16B_XML
+from nPDyn.dataParsers.stringParser import parseString
+from nPDyn.dataParsers.instruments.in16b import getDiffDetXAxis
+
+from nPDyn import Sample
 
 
 class IN16B_QENS:
@@ -52,6 +56,11 @@ class IN16B_QENS:
                       are ignored at each extremity of the spectrum.
     :arg observable:  the observable that might be changing over scans.
                       It can be `time` or `temperature`
+    :arg roll:        Amount of shift on the energy axis to be given to
+                      the measured data in case they are not properly aligned
+                      with the monitor.
+    :arg slidingSum:  If not None, the size of the window to perform a
+                      sliding sum over the observables (default None).
 
     """
 
@@ -66,6 +75,8 @@ class IN16B_QENS:
         normalize=True,
         strip=10,
         observable="time",
+        roll=0,
+        slidingSum=None,
     ):
 
         self.data = namedtuple(
@@ -73,19 +84,11 @@ class IN16B_QENS:
             "intensities errors energies "
             "temps times name qVals "
             "qIdx observable "
-            "observable_name norm",
+            "observable_name norm "
+            "diffraction diff_qVals",
         )
 
-        # Process the scanList argument in case a single string is given
-        self.scanList = scanList
-        if isinstance(scanList, str):
-            if os.path.isdir(scanList):
-                if scanList[-1] != "/":
-                    scanList = scanList + "/"
-                fList = os.listdir(scanList)
-                self.scanList = [scanList + val for val in fList]
-            else:
-                self.scanList = [scanList]
+        self.scanList = parseString(scanList)
 
         self.sumScans = sumScans
 
@@ -106,11 +109,17 @@ class IN16B_QENS:
         self.normalize = normalize
         self.observable = observable
         self.strip = strip
+        self.roll = roll
+        self.slidingSum = slidingSum
+
         self.dataList = []
+        self.diffList = []
+        self.diffQList = []
         self.errList = []
         self.energyList = []
         self.qList = []
         self.tempList = []
+        self.qzList = []
 
         self.outTuple = None
 
@@ -120,8 +129,11 @@ class IN16B_QENS:
 
         """
         self.dataList = []
+        self.diffList = []
+        self.diffQList = []
         self.energyList = []
         self.qList = []
+        self.qzList = []
         self.tempList = []
         self.startTimeList = []
         self.monitor = []
@@ -130,19 +142,41 @@ class IN16B_QENS:
             dataset = h5py.File(dataFile, mode="r")
 
             data = dataset["entry0/data/PSD_data"][()]
+            data = np.roll(data, self.roll, axis=-1)
 
-            self.name = dataset["entry0/subtitle"][(0)].astype(str)
+            wavelength = dataset["entry0/wavelength"][()]
 
             monitor = (
                 dataset["entry0/monitor/data"][()].squeeze().astype("float")
             )
-
             self.monitor.append(monitor)
+
+            if "dataDiffDet" in dataset["entry0"].keys():
+                diffraction = dataset["entry0/dataDiffDet/DiffDet_data"][()]
+                self.diffQList = getDiffDetXAxis(wavelength)
+                if self.normalize:
+                    np.place(monitor, monitor <= 0, -np.inf)
+                    diffraction = (
+                        diffraction / monitor[np.newaxis, np.newaxis, :]
+                    )
+                self.diffList.append(diffraction.squeeze().mean(-1))
+
+            self.name = dataset["entry0/subtitle"][(0)].astype(str)
 
             if self.detGroup == "no":
                 self.observable = "$q_z$"
                 nbrDet = data.shape[0]
                 nbrChn = int(data.shape[2] / 2)
+                nbrYPixels = int(data.shape[1])
+                sampleToDec = (
+                    dataset["entry0/instrument/PSD/distance_to_sample"][()]
+                    * 10
+                )
+                tubeHeight = dataset["entry0/instrument/PSD/tubes_size"][()]
+                qZ = np.arange(nbrYPixels) - nbrYPixels / 2
+                qZ *= tubeHeight / nbrYPixels
+                qZ *= 4 * np.pi / (sampleToDec * wavelength)
+                self.qzList = qZ
             else:
                 # Sum along the selected region of the tubes
                 data = self._detGrouping(data)
@@ -154,8 +188,6 @@ class IN16B_QENS:
             ][()]
             energies = 2 * np.arange(nbrChn)
             energies = energies * (maxDeltaE / nbrChn) - maxDeltaE
-
-            wavelength = dataset["entry0/wavelength"][()]
 
             angles = np.array(
                 [
@@ -186,9 +218,13 @@ class IN16B_QENS:
 
             dataset.close()
 
+        if self.slidingSum is not None:
+            self._slidingSum(self.slidingSum)
+
         if self.sumScans:
             self.monitor = [np.sum(np.array(self.monitor), 0)]
             self.dataList = [np.sum(np.array(self.dataList), 0)]
+            self.diffList = np.sum(np.array(self.diffList), 0)
 
         for idx, data in enumerate(self.dataList):
             if self.unmirroring:
@@ -202,20 +238,16 @@ class IN16B_QENS:
 
                 data = self._unmirrorData(data)
                 self.monitor[idx] = self._unmirrorData(
-                    self.monitor[idx].reshape(1, self.monitor[idx].shape[0])
-                )
-                np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
+                    self.monitor[idx]
+                ).squeeze()
 
-                errData = np.sqrt(data)
-
-            else:
-                errData = np.sqrt(data)
+            errData = np.sqrt(data)
 
             if self.normalize:
-                np.place(self.monitor[idx], self.monitor[idx] == 0, np.inf)
+                np.place(self.monitor[idx], self.monitor[idx] <= 0, -np.inf)
 
                 if self.detGroup == "no":
-                    monitor = self.monitor[idx][:, :, np.newaxis]
+                    monitor = self.monitor[idx][:, np.newaxis, np.newaxis]
                 else:
                     monitor = self.monitor[idx]
 
@@ -226,6 +258,22 @@ class IN16B_QENS:
             self.errList.append(errData)
 
         self._convertDataset()
+
+        out = Sample(
+            self.outTuple.intensities,
+            errors=self.outTuple.errors,
+            q=self.outTuple.qVals,
+            name=self.outTuple.name,
+            time=self.outTuple.times,
+            temperature=self.outTuple.temps,
+            energies=self.outTuple.energies,
+            diffraction=self.outTuple.diffraction,
+            qdiff=self.outTuple.diff_qVals,
+            observable=self.outTuple.observable_name,
+            axes=[self.outTuple.observable_name, "q", "energies"],
+        )
+
+        return out
 
     def _getSingleD(self, dataset, data, angles):
         """Determines the number of single detector used and add the data
@@ -301,7 +349,11 @@ class IN16B_QENS:
         elif self.observable == "$q_z$":
             data = data.transpose(3, 1, 2, 0).squeeze()
             errors = errors.transpose(3, 1, 2, 0).squeeze()
-            Y = np.arange(data.shape[0])
+            Y = self.qzList
+            midPos = int(data.shape[0] / 2)
+            data = (data[:midPos][::-1] + data[midPos:]) / 2
+            errors = (errors[:midPos][::-1] + errors[midPos:]) / 2
+            Y = (-Y[:midPos][::-1] + Y[midPos:]) / 2
 
         self.outTuple = self.data(
             data,
@@ -315,6 +367,8 @@ class IN16B_QENS:
             Y,
             self.observable,
             False,
+            np.array(self.diffList),
+            self.diffQList,
         )
 
     def _findPeaks(self, data):
@@ -322,79 +376,90 @@ class IN16B_QENS:
         using the selected method.
 
         """
-        # if detGroup is not, sum over all vertical positions to find
+        data = np.array(data)
+        if data.ndim == 1:
+            data = data[np.newaxis, :]
+        # if detGroup is none, sum over all vertical positions to find
         # peaks more effectively
         if data.ndim == 3:
             data = data.sum(2)
 
         nbrChannels = data.shape[1]
         midChannel = int(nbrChannels / 2)
+        window = (
+            int(midChannel / 2 - nbrChannels / 5),
+            int(midChannel / 2 + nbrChannels / 5),
+            3 * int(midChannel / 2 - nbrChannels / 5),
+            3 * int(midChannel / 2 + nbrChannels / 5),
+        )
 
         if self.peakFindingMask is None:
             mask = np.zeros_like(data)
-            mask[:, int(midChannel / 4) : int(3 * midChannel / 4)] = 1
-            mask[:, int(5 * midChannel / 4) : int(7 * midChannel / 4)] = 1
+            mask[:, window[0] : window[1]] = 1
+            mask[:, window[2] : window[3]] = 1
 
         maskedData = data * mask
 
-        # Finds the peaks using a Savitsky-Golay filter to
-        # smooth the data, followed by extracting the position of the maximum
-        filters = np.array(
-            [
-                savgol_filter(maskedData, 5, 4),
-                savgol_filter(maskedData, 11, 4),
-                savgol_filter(maskedData, 19, 3),
-                savgol_filter(maskedData, 25, 3),
-            ]
-        )
-
-        savGol_leftPeak = np.mean(np.argmax(filters[:, :, :midChannel], 2), 0)
-        savGol_rightPeak = np.mean(np.argmax(filters[:, :, midChannel:], 2), 0)
-
         # Finds the peaks by using a Gaussian function to fit the data
-        Gaussian = lambda x, normF, gauW, shift, bkgd: (
+        Gaussian = lambda x, normF, gauW, shift: (
             normF
             * np.exp(-((x - shift) ** 2) / (2 * gauW ** 2))
             / (gauW * np.sqrt(2 * np.pi))
-            + bkgd
         )
 
         try:
             leftPeaks = []
             rightPeaks = []
-            for qIdx, qData in enumerate(maskedData):
+            for qData in maskedData:
+                # qData = np.convolve(qData, np.ones(12), mode="same")
                 errors = np.sqrt(qData)
                 np.place(errors, errors == 0, np.inf)
 
                 params = curve_fit(
                     Gaussian,
-                    np.arange(midChannel),
+                    np.arange(qData[:midChannel].size),
                     qData[:midChannel],
                     sigma=errors[:midChannel],
-                    p0=[qData[:midChannel].max(), 1, midChannel / 2, 0],
+                    bounds=(0.0, np.inf),
+                    p0=[qData[:midChannel].max(), 1, midChannel / 2],
                 )
                 leftPeaks.append(params[0][2])
 
                 params = curve_fit(
                     Gaussian,
-                    np.arange(midChannel),
+                    np.arange(qData[midChannel:].size),
                     qData[midChannel:],
                     sigma=errors[midChannel:],
-                    p0=[qData[midChannel:].max(), 1, midChannel / 2, 0],
+                    bounds=(0.0, np.inf),
+                    p0=[qData[midChannel:].max(), 1, midChannel / 2],
                 )
                 rightPeaks.append(params[0][2])
 
             gauss_leftPeak = np.array(leftPeaks)
             gauss_rightPeak = np.array(rightPeaks)
 
-            self.leftPeak = (
-                0.85 * gauss_leftPeak + 0.15 * savGol_leftPeak
-            ).astype(int)
-            self.rightPeak = (
-                0.85 * gauss_rightPeak + 0.15 * savGol_rightPeak
-            ).astype(int)
+            self.leftPeak = np.rint(gauss_leftPeak).astype(int)
+            self.rightPeak = np.rint(gauss_rightPeak).astype(int)
 
         except RuntimeError:
+            # Finds the peaks using a Savitsky-Golay filter to
+            # smooth the data, and extract the position of the maximum
+            filters = np.array(
+                [
+                    savgol_filter(maskedData, 5, 4),
+                    savgol_filter(maskedData, 11, 4),
+                    savgol_filter(maskedData, 19, 3),
+                    savgol_filter(maskedData, 25, 3),
+                ]
+            )
+
+            savGol_leftPeak = np.mean(
+                np.argmax(filters[:, :, :midChannel], 2), 0
+            )
+            savGol_rightPeak = np.mean(
+                np.argmax(filters[:, :, midChannel:], 2), 0
+            )
+
             self.leftPeak = savGol_leftPeak.astype(int)
             self.rightPeak = savGol_rightPeak.astype(int)
 
@@ -407,20 +472,21 @@ class IN16B_QENS:
         of the PSD was performed.
 
         """
+        data = np.array(data)
+        if data.ndim == 1:
+            data = data[np.newaxis, :]
+
         nbrChannels = data.shape[1]
         midChannel = int(nbrChannels / 2)
 
-        out = np.zeros_like(data)
-        for qIdx, qOut in enumerate(out):
-            leftPos = midChannel - self.leftPeak[qIdx]
-            rightPos = midChannel - self.rightPeak[qIdx]
+        for qIdx, qData in enumerate(data):
+            data[qIdx] = np.roll(
+                qData, midChannel - self.leftPeak[qIdx]
+            ) + np.roll(
+                qData, midChannel - (midChannel + self.rightPeak[qIdx])
+            )
 
-            qOut[leftPos : leftPos + midChannel] += data[qIdx, :midChannel]
-            qOut[rightPos : rightPos + midChannel] += data[qIdx, midChannel:]
-
-        data = out[:, int(midChannel / 2) : int(midChannel / 2) + midChannel]
-
-        return data
+        return data[:, int(midChannel / 2) : 3 * int(midChannel / 2)]
 
     def _detGrouping(self, data):
         """The method performs a sum along detector tubes using the provided
@@ -474,3 +540,37 @@ class IN16B_QENS:
             out = np.sum(data, 1)
 
         return out.astype("float")
+
+    def _slidingSum(self, size):
+        """Performs a sliding sum over scans.
+
+        Parameters
+        ----------
+        size : int
+            The size of the window to be summed over.
+        data : list
+            The list of datasets/scans.
+        monitor : list
+            The list of monitor data corresponding to each dataset.
+
+        """
+        outData = []
+        outDiff = []
+        outMonitor = []
+        outTemp = []
+
+        data = np.array(self.dataList)
+        diff = np.array(self.diffList)
+        monitor = np.array(self.monitor)
+        temp = np.array(self.tempList)
+        for idx, val in enumerate(data[:-size]):
+            outData.append(np.sum(data[idx : idx + size], 0))
+            outDiff.append(np.sum(diff[idx : idx + size], 0))
+            outMonitor.append(np.sum(monitor[idx : idx + size], 0))
+            outTemp.append(np.mean(temp[idx : idx + size], 0))
+
+        self.dataList = outData
+        self.diffList = outDiff
+        self.monitor = outMonitor
+        self.tempList = outTemp
+        self.startTimeList = self.startTimeList[:-size]
