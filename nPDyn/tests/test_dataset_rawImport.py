@@ -26,7 +26,7 @@ def test_import_IN16B_FWS():
 
 
 def test_import_IN16B_BATS():
-    dataPath = path + "/sample_data/bats_data/"
+    dataPath = path + "/sample_data/bats_data/316112:316122.nxs"
     data = IN16B_BATS(
         dataPath, detGroup=path + "/sample_data/IN16B_grouping_cycle201.xml"
     ).process()

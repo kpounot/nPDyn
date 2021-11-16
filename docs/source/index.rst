@@ -76,7 +76,7 @@ section of the documentation.
 Importantly, nPDyn provides versatile tools for model building and fitting
 to the data. See the section :doc:`dataFitting` for details.
 
-Finally, a :py:method:`plot.plot` method is provided for easy visualisation
+Finally, a :py:meth:`plot.plot` method is provided for easy visualisation
 of the data and the fit results.
 
 

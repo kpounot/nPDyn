@@ -122,7 +122,7 @@ def processNexus(dataFile, FWS=False):
         listErr = listErr.T
         energies = np.array(energies)[:, 0]
         if observable_name == "time":
-            times = listObs
+            times = listObs / 3600
         elif observable_name == "temperature":
             temps = listObs
 

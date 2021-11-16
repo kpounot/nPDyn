@@ -101,7 +101,7 @@ data correction algorithm, automatic error propagation and data fitting.
 
 In a neutron backscattering experiment, there is not only the measurement of
 samples but also some calibration measurements like vanadium, empty cell
-and solvent signal (often :math:`\rm D_2O`). Some methods of the
+and solvent signal (often D2O). Some methods of the
 `Sample` class can be used to perform normalization or
 absorption correction using the dataset corresponding to vanadium
 or empty cell, respectively. These calibration dataset can be used also
