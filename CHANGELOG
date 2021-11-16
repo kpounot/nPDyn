@@ -1,3 +1,7 @@
+v3.0.1
+------
+    Minor bug fixes
+
 v3.0.0
 ------
     Major change for dataset handling, the new class 'Sample' is now used. It is
