@@ -893,7 +893,7 @@ class Sample(np.ndarray):
                     label=label if idx == 0 else None,
                 )
             cb_label = xlabels[self.axes[axis - 1]]
-            ColorbarBase(ax[1], cmap, norm, label=cb_label)
+            ColorbarBase(ax[1], cmap=cmap, norm=norm, label=cb_label)
 
         ax[0].set_yscale(yscale)
         ax[0].set_xlabel(xlabel)
