@@ -42,7 +42,7 @@
 #include <float.h>
 #include <errno.h>
 
-#include <gsl/gsl_integration.h>
+#include "gsl/gsl_integration.h"
 
 #include "absco.h"
 

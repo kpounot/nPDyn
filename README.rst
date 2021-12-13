@@ -48,12 +48,6 @@ model fitting and optimized parameters.
 
 Installation:
 -------------
-Prior to building on Windows, the path to Gnu Scientific Library (GSL) should
-be given in setup.cfg file (required by libabsco)
-
-If not, the package can still be installed but paalman-ping corrections won't
-work.
-
 
 Unix and Windows
 ^^^^^^^^^^^^^^^^
@@ -72,6 +66,12 @@ For installation within your python framework:
     git clone https://github.com/kpounot/nPDyn npdyn
     cd npdyn
     python3 setup.py install
+
+On Windows, the path to the GSL library can be provided using:
+
+.. code:: bash
+    
+    python.exe setup.py install --gsl-path="my/path/to/GSL/root/dir/"
 
 
 Full documentation
