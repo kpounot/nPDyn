@@ -13,3 +13,4 @@ pytest-cov
 rstcheck
 scipy
 Sphinx
+lmfit

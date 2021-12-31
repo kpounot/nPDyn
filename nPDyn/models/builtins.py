@@ -214,17 +214,17 @@ def modelGeneralizedLorentzian(
 
     """
     if qWise:
-        alpha = {"value": np.zeros_like(q) + 1, "bounds": (0.0, 1)}
-        tau = {"value": np.zeros_like(q) + 0.01, "bounds": (0.0, np.inf)}
+        alpha = {"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)}
+        tau = {"value": np.zeros_like(q) + 0.1, "bounds": (0.0, np.inf)}
         tauExpr = "tau"
     else:
-        alpha = {"value": 1, "bounds": (0.0, 1)}
-        tau = {"value": 1, "bounds": (0.0, np.inf)}
+        alpha = {"value": 0.5, "bounds": (0.0, 1)}
+        tau = {"value": 0.1, "bounds": (0.0, np.inf)}
         tauExpr = "(tau * q ** 2)**(-1 / alpha)"
 
     p = Parameters(
         scale={"value": np.zeros_like(q) + 1, "bounds": (0.0, np.inf)},
-        a={"value": np.zeros_like(q) + 0.5, "bounds": (0.0, 1)},
+        a={"value": np.zeros_like(q) + 0.1, "bounds": (0.0, 1)},
         center={"value": 0.0, "fixed": True},
         alpha=alpha,
         tau=tau,

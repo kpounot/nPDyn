@@ -25,7 +25,6 @@ except ImportError:
     class lmModel:
         pass
 
-
 from nPDyn.models import Model, Component, Parameters
 from nPDyn.models.presets import linear, calibratedD2O
 from nPDyn.lmfit.convolvedModel import ConvolvedModel
@@ -58,7 +57,6 @@ def ensure_fit(func):
         return func(*args, **kwargs)
 
     return wrapper
-
 
 class Sample(np.ndarray):
     """Handle the measured data along with metadata.
