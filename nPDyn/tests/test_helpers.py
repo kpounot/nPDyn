@@ -29,4 +29,4 @@ def test_dataset_from_array():
 
 def test_stokes_einstein():
     curves, temps, radii = get_stokes_einstein_curves([3.2e-10], [280])
-    assert radii[0] == 2.834907803372412e-9
+    assert radii[0] == 3.4393501649568154e-10

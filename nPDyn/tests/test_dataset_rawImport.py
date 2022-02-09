@@ -14,7 +14,7 @@ def test_import_IN16B_QENS():
     data = IN16B_QENS(
         dataPath, detGroup=path + "/sample_data/IN16B_grouping_cycle201.xml"
     ).process()
-    assert data.shape == (1, 18, 1004)
+    assert data.shape == (1, 18, 974)
 
 
 def test_import_IN16B_FWS():

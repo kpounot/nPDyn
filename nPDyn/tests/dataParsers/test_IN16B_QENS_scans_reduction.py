@@ -11,14 +11,12 @@ from nPDyn.dataParsers.in16b_qens_scans_reduction import IN16B_QENS
 
 def test_dirImport():
     dataPath = path + "/sample_data/vanadium/"
-    result = IN16B_QENS(dataPath)
-    result.process()
-    assert len(result.qList) == 4
+    result = IN16B_QENS(dataPath).process()
+    assert len(result.q) == 18
 
 
 def test_listImport():
     dataPath = path + "/sample_data/vanadium/"
     dataFiles = glob.glob(dataPath)
-    result = IN16B_QENS(dataPath)
-    result.process()
-    assert len(result.qList) == 4
+    result = IN16B_QENS(dataPath).process()
+    assert len(result.q) == 18

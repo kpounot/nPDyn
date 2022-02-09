@@ -933,7 +933,7 @@ class Sample(NDArrayOperatorsMixin):
             out = self.swapaxes(energies_idx, -1)
             try:
                 ref_dat = ref.fit_best(x=self.energies)
-            except IndexError:
+            except ValueError:
                 ref_dat = ref
             ref_dat = ref_dat.swapaxes(ref_energies_idx, -1)
             energies = ref.energies
@@ -1212,9 +1212,10 @@ class Sample(NDArrayOperatorsMixin):
         elif self.ndim == 2:
             cmap = get_cmap(colormap)
             y = y.T if axis == 0 else y
+            err = err.T if axis == 0 else err
             step = int(np.ceil(y.shape[0] / max_lines))
             y = y[::step]
-            err = y.errors
+            err = err[::step]
             cb_x = getattr(self, self.axes[axis - 1])
             cb_x = cb_x[::step]
             norm = Normalize(cb_x[0], cb_x[-1])

@@ -16,9 +16,6 @@ def test_fitQENS_lmfit(fullQENSDataset):
         val.get_q_range(0.4, 1.8) for val in (qens, res, ec, bkgd)
     )
     q = ec.q[:, np.newaxis]
-    qens, res, bkgd = (
-        val.absorptionCorrection(ec) for val in (qens, res, bkgd)
-    )
     res.fit(pseudo_voigt(q, prefix="vana_"), cleanData="omit")
     bkgd.fit(calibratedD2O(q, 280, prefix="bkgd_"), cleanData="omit")
     qens.fit(
