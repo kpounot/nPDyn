@@ -4,13 +4,14 @@ CythonGSL
 defusedxml
 flake8
 h5py
+lmfit
 matplotlib
 numpy
 pre-commit
 PyQt5
 pytest
 pytest-cov
+qtwidgets
 rstcheck
 scipy
 Sphinx
-lmfit
