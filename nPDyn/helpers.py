@@ -182,17 +182,13 @@ def get_stokes_einstein_curves(
         eta = getViscosityD2O(temperatures)
 
     for idx, val in enumerate(diff_coeffs):
-        radius = (
-            kb
-            * temperatures[idx]
-            / (6 * np.pi * val * getViscosityD2O(eta[idx]))
-        )
+        radius = kb * temperatures[idx] / (6 * np.pi * val * eta[idx])
         radii.append(radius)
 
     curves = []
     temps = np.arange(minT, maxT, (maxT - minT) / npoints)
     for idx, r in enumerate(radii):
-        D = kb * temps / (6 * np.pi * eta * r)
+        D = kb * temps / (6 * np.pi * eta[idx] * r)
         curves.append(D)
 
     return curves, temps, radii

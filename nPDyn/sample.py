@@ -2,6 +2,7 @@
 Handle data associated with a sample.
 
 """
+from copy import copy
 from functools import wraps
 
 import re
@@ -9,6 +10,7 @@ import re
 from collections import OrderedDict
 
 import numpy as np
+from numpy.lib.mixins import NDArrayOperatorsMixin
 
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
@@ -39,7 +41,13 @@ except ImportError:
         "\nAbsorption correction libraries are not available. "
         "Paalman_Pings correction cannot be used.\n"
         "Verify that GSL libraries are available on this computer.\n"
+        "On Windows, it might be necessary to use the following before any"
+        "import of nPDyn:\n"
+        "\t`os.add_dll_directory(<path_to_gsl_dlls>)`"
     )
+
+
+HANDLED_FUNCTIONS = {}
 
 
 # -------------------------------------------------------
@@ -50,7 +58,7 @@ def ensure_fit(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if args[0]._fit is []:
+        if args[0]._fit == []:
             raise ValueError(
                 "Dataset (%s) has no fitted model associated with "
                 "it, please fit a model before using it." % args[0].__repr__()
@@ -60,7 +68,191 @@ def ensure_fit(func):
     return wrapper
 
 
-class Sample(np.ndarray):
+def implements(np_function):
+    "Register an __array_function__ implementation for DiagonalArray objects."
+
+    def decorator(func):
+        HANDLED_FUNCTIONS[np_function] = func
+        return func
+
+    return decorator
+
+
+# -------------------------------------------------------
+# Implementation of NumPy functions
+# -------------------------------------------------------
+@implements(np.sum)
+def sum(arr, axis=None, **kwargs):
+    return arr.__array_ufunc__(np.add, "reduce", arr, axis=axis, **kwargs)
+
+
+@implements(np.cumsum)
+def cumsum(arr, axis=None, **kwargs):
+    return arr.__array_ufunc__(np.add, "accumulate", arr, axis=axis, **kwargs)
+
+
+@implements(np.mean)
+def mean(arr, axis=None, **kwargs):
+    out = arr.__array_ufunc__(np.add, "reduce", arr, axis=axis, **kwargs)
+    out /= arr.shape[axis] if axis is not None else arr.size
+    return out
+
+
+@implements(np.ravel)
+def ravel(arr, order="C"):
+    return arr.ravel(order)
+
+
+@implements(np.transpose)
+def transpose(arr, *axes):
+    return arr.transpose(*axes)
+
+
+@implements(np.swapaxes)
+def swapaxes(arr, axis1, axis2):
+    return arr.swapaxes(axis1, axis2)
+
+
+@implements(np.squeeze)
+def squeeze(arr):
+    return arr.squeeze()
+
+
+@implements(np.take)
+def take(arr, indices, axis=None):
+    return arr.take(indices, axis)
+
+
+@implements(np.roll)
+def roll(arr, shift, axis=None):
+    return arr.roll(shift, axis=axis)
+
+
+@implements(np.concatenate)
+def concatenate(arrays, axis=0, **kwargs):
+    new_arr = np.concatenate([arr._arr for arr in arrays], axis=axis, **kwargs)
+    new_err = np.concatenate(
+        [arr.errors for arr in arrays], axis=axis, **kwargs
+    )
+    new_ax = np.concatenate(
+        [getattr(arr, arr.axes[axis]) for arr in arrays],
+    )
+    arr = Sample(
+        new_arr,
+        errors=new_err,
+        **{
+            key: val
+            for key, val in arrays[0].__dict__.items()
+            if key not in ("_arr", "errors")
+        },
+    )
+    setattr(arr, arr.axes[axis], new_ax)
+
+    return arr
+
+
+@implements(np.std)
+def std(arr, **kwargs):
+    return np.std(arr._arr, **kwargs)
+
+
+@implements(np.convolve)
+def convolve(arr, v, mode="full"):
+    new_arr = np.convolve(np.asarray(arr), v, mode) / v.size
+    err_v = v.errors if isinstance(v, Sample) else np.zeros_like(v)
+    new_err = np.sqrt(
+        np.convolve(arr.errors ** 2, v ** 2, mode) / v.size
+        + np.convolve(err_v ** 2, np.asarray(arr) ** 2) / v.size
+    )
+    out = Sample(
+        new_arr,
+        errors=new_err,
+        **{
+            key: val
+            for key, val in arr.__dict__.items()
+            if key not in ("_arr", "errors")
+        },
+    )
+
+    return out
+
+
+@implements(np.zeros_like)
+def zeros_like(arr, **kwargs):
+    return np.zeros_like(arr._arr, **kwargs)
+
+
+@implements(np.ones_like)
+def ones_like(arr, **kwargs):
+    return np.ones_like(arr._arr, **kwargs)
+
+
+@implements(np.max)
+def max(arr, axis=None, **kwargs):
+    return np.max(arr._arr, axis=axis, **kwargs)
+
+
+@implements(np.min)
+def min(arr, axis=None, **kwargs):
+    return np.min(arr._arr, axis=axis, **kwargs)
+
+
+@implements(np.argmax)
+def argmax(arr, axis=None, **kwargs):
+    return np.argmax(arr._arr, axis=axis, **kwargs)
+
+
+@implements(np.argmin)
+def argmin(arr, axis=None, **kwargs):
+    return np.argmin(arr._arr, axis=axis, **kwargs)
+
+
+@implements(np.stack)
+def stack(arrays, axis=0):
+    ax_name = "_dummy"
+    if isinstance(axis, str):
+        ax_name = axis
+        axis = 0
+
+    new_arr = np.stack(
+        [arr._arr for arr in arrays],
+        axis=axis,
+    )
+    new_err = np.stack(
+        [arr.errors for arr in arrays],
+        axis=axis,
+    )
+    arr = Sample(
+        new_arr,
+        errors=new_err,
+        **{
+            key: val
+            for key, val in arrays[0].__dict__.items()
+            if key not in ("_arr", "errors", "axes")
+        },
+    )
+    arr.axes = copy(arrays[0].axes)
+    arr.axes.insert(0, ax_name)
+    if ax_name is not None:
+        new_ax = np.array([getattr(a, ax_name) for a in arrays])
+        new_ax = new_ax if new_ax.ndim == 1 else np.concatenate(new_ax)
+        setattr(arr, arr.axes[axis], new_ax)
+
+    return arr
+
+
+@implements(np.place)
+def place(arr, mask, vals):
+    new_arr = np.asarray(arr)
+    new_err = arr.errors
+    mask = np.asarray(mask)
+    np.place(new_arr, mask, vals)
+    np.place(new_err, mask, np.inf)
+    arr._arr = new_arr
+    arr.errors = new_err
+
+
+class Sample(NDArrayOperatorsMixin):
     """Handle the measured data along with metadata.
 
     This class is a subclass of the numpy.ndarray class with additional
@@ -155,75 +347,78 @@ class Sample(np.ndarray):
 
     """
 
-    def __new__(cls, input_arr, **kwargs):
-        if not isinstance(input_arr, Sample):
-            obj = np.asarray(
-                input_arr,
-                **{
-                    key: val
-                    for key, val in kwargs.items()
-                    if key in ("dtype", "order")
-                },
-            ).view(cls)
-        else:
-            obj = input_arr
+    def __init__(self, arr, errors=None, **kwargs):
+        self._arr = np.asarray(arr)
 
+        if errors is None:
+            errors = np.zeros_like(self._arr)
+        self.errors = errors
+
+        self._model = None
+        self._fit = []
         for key, val in kwargs.items():
-            if key not in ("dtype", "order"):
-                setattr(obj, key, val)
+            setattr(self, key, val)
 
-        return obj
+        if "name" not in kwargs:
+            self.name = "New sample"
 
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
+        if "observable" not in kwargs:
+            self.observable = "time"
 
-        self.errors = getattr(obj, "errors", 0)
-        self.time = getattr(obj, "time", 0)
-        self.energies = getattr(obj, "energies", 0)
-        self.wavelength = getattr(obj, "wavelength", 0)
-        self.filename = getattr(obj, "filename", 0)
-        self.name = getattr(obj, "name", 0)
-        self.temperature = getattr(obj, "temperature", 0)
-        self.concentration = getattr(obj, "concentration", 0)
-        self.pressure = getattr(obj, "pressure", 0)
-        self.buffer = getattr(obj, "buffer", 0)
-        self.q = getattr(obj, "q", 0)
-        self.detectors = getattr(obj, "detectors", 0)
-        self.beamline = getattr(obj, "beamline", 0)
-        self.diffraction = getattr(obj, "diffraction", 0)
-        self.qdiff = getattr(obj, "qdiff", 0)
-        self.observable = getattr(obj, "observable", "time")
-        self.axes = getattr(obj, "axes", [self.observable, "q", "energies"])
-        self._dummy = getattr(obj, "_dummy", np.array([0]))
-        self._model = getattr(obj, "_model", None)
-        self._fit = getattr(obj, "_fit", [])
+        if "axes" not in kwargs:
+            self.axes = []
+
+        self._dummy = np.array([0])
+
+    def __array__(self, dtype=None):
+        return self._arr
+
+    def __len__(self):
+        return self._arr.size
+
+    def __repr__(self):
+        out = ("Sample\n------\n" "Name:\n\t%s\n" "Axes:\n") % self.name
+        for idx, val in enumerate(self.axes):
+            if self._arr.ndim == len(self.axes):
+                out += "\t%i - %-15s: %i %s\n" % (
+                    idx,
+                    val,
+                    self._arr.shape[idx],
+                    "entry" if self._arr.shape[idx] == 1 else "entries",
+                )
+            else:
+                out += "\tSample array has been modified such that "
+                out += "axes do not correspond to it anymore.\n"
+                out += "\tPlease make sure this was an intended result.\n"
+                break
+        out += "Data:\n"
+        out += self._arr.__repr__()
+
+        return out
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        inp_cast = []
         out_cast = []
-        for inp in inputs:
-            if isinstance(inp, Sample):
-                inp_cast.append(inp.view(np.ndarray))
-            else:
-                inp_cast.append(inp)
+        inp_cast = [
+            np.asarray(val) if isinstance(val, Sample) else val
+            for val in inputs
+        ]
 
         if "out" in kwargs.keys():
             for out in kwargs["out"]:
                 if isinstance(out, Sample):
-                    out_cast.append(out.view(np.ndarray))
+                    out_cast.append(np.asarray(out))
                 else:
                     out_cast.append(out)
             kwargs["out"] = tuple(out_cast)
 
-        obj = super().__array_ufunc__(ufunc, method, *inp_cast, **kwargs)
+        obj = np.asarray(self).__array_ufunc__(
+            ufunc, method, *inp_cast, **kwargs
+        )
         if obj is NotImplemented:
             return NotImplemented
 
         if ufunc.nout == 1:
-            obj = [
-                obj,
-            ]
+            obj = [obj]
 
         obj[0] = self._process_attributes(
             obj[0], ufunc, method, *inputs, **kwargs
@@ -235,16 +430,18 @@ class Sample(np.ndarray):
         if "out" in kwargs.keys():
             kwargs["out"] = (None,) * ufunc.nout
 
-        errors = [Sample(inp).errors for inp in inputs]
-        inp_cast = []
-        inp_dict = []
-        for idx, inp in enumerate(inputs):
-            if isinstance(inp, Sample):
-                inp_dict.append(inp.__dict__)
-            inp_cast.append(np.asarray(inp))
+        obj = Sample(
+            obj,
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
 
-        obj = np.asarray(obj).view(Sample)
-        obj.__dict__.update(inp_dict[0])
+        errors = [
+            Sample(inp).errors if not isinstance(inp, Sample) else inp.errors
+            for inp in inputs
+        ]
+        inputs = [np.asarray(inp) for inp in inputs]
 
         if ufunc == np.add or ufunc == np.subtract:
             if method == "__call__":
@@ -255,6 +452,7 @@ class Sample(np.ndarray):
                         **kwargs,
                     ),
                 )
+
             elif method == "reduce":
                 obj.errors = np.sqrt(
                     np.add.reduce(np.power(errors[0], 2), **kwargs),
@@ -262,34 +460,43 @@ class Sample(np.ndarray):
                 if kwargs["axis"] is None:
                     obj.axes = []
                 else:
+                    ax = kwargs["axis"]
+                    ax_vals = getattr(obj, obj.axes[ax])
+                    ax_vals = np.asarray([np.sum(ax_vals)])
+                    setattr(obj, obj.axes[ax], ax_vals)
                     obj.axes = [
-                        val
-                        for i, val in enumerate(obj.axes)
-                        if kwargs["axis"] != i
+                        val for i, val in enumerate(obj.axes) if ax != i
                     ]
+
+            elif method == "accumulate":
+                obj.errors = np.sqrt(
+                    np.add.accumulate(np.power(errors[0], 2), **kwargs),
+                )
 
         elif ufunc == np.multiply:
             if method == "__call__":
                 obj.errors = np.sqrt(
                     np.add(
-                        np.power(inp_cast[1] * errors[0], 2),
-                        np.power(inp_cast[0] * errors[1], 2),
+                        np.power(inputs[1] * errors[0], 2),
+                        np.power(inputs[0] * errors[1], 2),
                         **kwargs,
                     ),
                 )
             elif method == "reduce":
                 obj.errors = np.sqrt(
                     np.multiply.reduce(
-                        np.power(inp_cast[0] * errors[0], 2), **kwargs
+                        np.power(inputs[0] * errors[0], 2), **kwargs
                     ),
                 )
                 if kwargs["axis"] is None:
                     obj.axes = []
                 else:
+                    ax = kwargs["axis"]
+                    ax_vals = getattr(obj, obj.axes[ax])
+                    ax_vals = np.asarray([np.multiply.reduce(ax_vals)])
+                    setattr(obj, obj.axes[ax], ax_vals)
                     obj.axes = [
-                        val
-                        for i, val in enumerate(obj.axes)
-                        if kwargs["axis"] != i
+                        val for i, val in enumerate(obj.axes) if ax != i
                     ]
 
         elif ufunc in (
@@ -303,9 +510,9 @@ class Sample(np.ndarray):
         ):
             obj.errors = np.sqrt(
                 np.add(
-                    np.power(errors[0] / inp_cast[1], 2),
+                    np.power(errors[0] / inputs[1], 2),
                     np.power(
-                        inp_cast[0] / np.power(inp_cast[1], 2) * errors[1], 2
+                        inputs[0] / np.power(inputs[1], 2) * errors[1], 2
                     ),
                     **kwargs,
                 ),
@@ -315,13 +522,11 @@ class Sample(np.ndarray):
             obj.errors = np.sqrt(
                 np.add(
                     np.power(
-                        inp_cast[1]
-                        * inp_cast[0] ** (inp_cast[1] - 1)
-                        * errors[0],
+                        inputs[1] * inputs[0] ** (inputs[1] - 1) * errors[0],
                         2,
                     ),
                     np.power(
-                        np.exp(inp_cast[1]) * np.log(inp_cast[0]) * errors[1],
+                        np.exp(inputs[1]) * np.log(inputs[0]) * errors[1],
                         2,
                     ),
                     **kwargs,
@@ -329,26 +534,24 @@ class Sample(np.ndarray):
             )
         elif ufunc == np.exp:
             obj.errors = np.sqrt(
-                np.power(np.exp(inp_cast[0]) * errors[0], 2, **kwargs),
+                np.power(np.exp(inputs[0]) * errors[0], 2, **kwargs),
             )
         elif ufunc == np.log:
             obj.errors = np.sqrt(
-                np.power(1 / inp_cast[0] * errors[0], 2, **kwargs)
+                np.power(1 / inputs[0] * errors[0], 2, **kwargs)
             )
         elif ufunc == np.sqrt:
             obj.errors = np.sqrt(
-                np.power(
-                    1 / (2 * np.sqrt(inp_cast[0])) * errors[0], 2, **kwargs
-                )
+                np.power(1 / (2 * np.sqrt(inputs[0])) * errors[0], 2, **kwargs)
             )
         elif ufunc == np.square:
             obj.errors = np.sqrt(
-                np.power(2 * inp_cast[0] * errors[0], 2, **kwargs)
+                np.power(2 * inputs[0] * errors[0], 2, **kwargs)
             )
         elif ufunc == np.cbrt:
             obj.errors = np.sqrt(
                 np.power(
-                    1 / (3 * inp_cast[0] ** (2 / 3)) * errors[0], 2, **kwargs
+                    1 / (3 * inputs[0] ** (2 / 3)) * errors[0], 2, **kwargs
                 )
             )
         else:
@@ -356,48 +559,56 @@ class Sample(np.ndarray):
 
         return obj
 
-    def __getitem__(self, key):
-        arr = Sample(np.asarray(self)[key])
-        arr.__dict__.update(self.__dict__)
-        if np.asarray(self.errors).shape == self.shape:
-            arr.errors = np.asarray(self.errors)[key]
+    def __array_function__(self, func, types, args, kwargs):
+        if func not in HANDLED_FUNCTIONS:
+            return NotImplemented
 
-        obs = getattr(self, self.observable)
-        obs = np.asarray(obs)
+        if not all(issubclass(t, self.__class__) for t in types):
+            return NotImplemented
 
-        def process_axis(axis, key):
-            try:
-                if key is not None:
-                    ax = getattr(self, self.axes[axis])[key]
-                    setattr(arr, arr.axes[axis], ax)
-                else:
-                    ax = getattr(self, "axes").copy()
-                    ax.insert(axis, "_dummy")
-                    setattr(arr, "axes", ax)
-            except IndexError:
-                pass
+        return HANDLED_FUNCTIONS[func](*args, **kwargs)
 
-        if key is None or isinstance(key, (int, slice, list, np.ndarray)):
-            process_axis(0, key)
-            if isinstance(key, int):
-                new_ax = arr.axes.copy()
-                new_ax.pop(0)
-                setattr(arr, "axes", new_ax)
-        else:
-            del_ax = []
-            for idx, val in enumerate(key):
-                process_axis(idx, val)
-                if isinstance(val, int):
-                    del_ax.append(idx)
-            new_ax = [ax for i, ax in enumerate(arr.axes) if i not in del_ax]
-            setattr(arr, "axes", new_ax)
+    def sum(self, axis=None, **kwargs):
+        return np.sum(self, axis=axis, **kwargs)
+
+    def cumsum(self, axis=None, **kwargs):
+        return np.cumsum(self, axis=axis, **kwargs)
+
+    def mean(self, axis=None, **kwargs):
+        return np.mean(self, axis=axis, **kwargs)
+
+    def max(self, axis=None, **kwargs):
+        return np.max(self, axis=axis, **kwargs)
+
+    def min(self, axis=None, **kwargs):
+        return np.min(self, axis=axis, **kwargs)
+
+    def argmax(self, axis=None, **kwargs):
+        return np.argmax(self, axis=axis, **kwargs)
+
+    def argmin(self, axis=None, **kwargs):
+        return np.argmin(self, axis=axis, **kwargs)
+
+    def ravel(self, order="C"):
+        arr = Sample(
+            self._arr.ravel(order),
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
+        arr.errors = arr.errors.ravel(order)
+        arr.axes = []
 
         return arr
 
     def squeeze(self, axis=None):
         """Override the corresponding NumPy function to process axes too."""
-        arr = np.asarray(self).squeeze(axis).view(Sample)
-        arr.__dict__.update(self.__dict__)
+        arr = Sample(
+            self._arr.squeeze(axis),
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
         arr.errors = self.errors.squeeze(axis)
 
         axes = self.axes.copy()
@@ -412,8 +623,12 @@ class Sample(np.ndarray):
 
     def transpose(self, *axes):
         """Override the corresponding NumPy function to process axes too."""
-        arr = np.asarray(self).transpose(*axes).view(Sample)
-        arr.__dict__.update(self.__dict__)
+        arr = Sample(
+            self._arr.transpose(*axes),
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
         arr.errors = self.errors.transpose(*axes)
 
         if len(axes) > 0:
@@ -430,8 +645,12 @@ class Sample(np.ndarray):
 
     def swapaxes(self, axis1, axis2):
         """Override the corresponding NumPy function to process axes too."""
-        arr = np.asarray(self).swapaxes(axis1, axis2).view(Sample)
-        arr.__dict__.update(self.__dict__)
+        arr = Sample(
+            self._arr.swapaxes(axis1, axis2),
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
         arr.errors = self.errors.swapaxes(axis1, axis2)
 
         tmpAxes = arr.axes.copy()
@@ -442,11 +661,15 @@ class Sample(np.ndarray):
 
         return arr
 
-    def take(self, indices, axis=None, out=None, mode="raise"):
+    def take(self, indices, axis=None):
         """Override the corresponding NumPy function to process axes too."""
-        arr = np.asarray(self).take(indices, axis, out, mode).view(Sample)
-        arr.__dict__.update(self.__dict__)
-        arr.errors = arr.errors.take(indices, axis, out, mode)
+        arr = Sample(
+            self._arr.take(indices, axis),
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
+        arr.errors = arr.errors.take(indices, axis)
         if axis is not None:
             attr = getattr(self, self.axes[axis])
             attr = attr.take(indices)
@@ -459,6 +682,130 @@ class Sample(np.ndarray):
             setattr(arr, "axes", [])
 
         return arr
+
+    def roll(self, shift, axis=None, roll_attr=False):
+        arr = Sample(
+            np.roll(self._arr, shift, axis),
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
+        arr.errors = np.roll(arr.errors, shift, axis)
+        if axis is not None and roll_attr:
+            attr = getattr(self, self.axes[axis])
+            attr = np.roll(attr, shift)
+            setattr(arr, self.axes[axis], attr)
+
+        return arr
+
+    @property
+    def shape(self):
+        return np.asarray(self).shape
+
+    @property
+    def size(self):
+        return np.asarray(self).size
+
+    @property
+    def ndim(self):
+        return np.asarray(self).ndim
+
+    def copy(self):
+        out = Sample(
+            np.asarray(self),
+            np.copy(self.errors),
+            **{
+                key: val
+                for key, val in self.__dict__.items()
+                if key not in ("_arr", "errors")
+            },
+        )
+        return out
+
+    def __getitem__(self, key):
+        arr = Sample(
+            self._arr[key],
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
+        if np.asarray(self.errors).shape == self.shape:
+            arr.errors = np.asarray(self.errors)[key]
+
+        obs = getattr(self, self.observable)
+        obs = np.asarray(obs)
+
+        def process_meta(idx, key):
+            try:
+                ax = getattr(arr, arr.axes[idx])[key]
+                setattr(arr, arr.axes[idx], ax)
+            except IndexError:
+                pass
+
+        if key is None or isinstance(
+            key, (int, slice, list, np.ndarray, Sample)
+        ):
+            process_meta(0, key)
+            if isinstance(key, int):
+                new_ax = arr.axes.copy()
+                new_ax.pop(0)
+                setattr(arr, "axes", new_ax)
+        else:
+            new_ax = []
+            noneCount = 0
+            toRemove = []
+            for idx, val in enumerate(key):
+                if val is None:
+                    noneCount += 1
+                corrId = idx - noneCount
+                if any([val is Ellipsis for val in key]):
+                    ellPos = key.index(Ellipsis)
+                    if idx > ellPos:
+                        corrId = idx - len(key)
+                    if val is Ellipsis:
+                        ellRangeMax = len(arr.axes) - (len(key) - ellPos)
+                        ellRangeMax += noneCount
+                        for i in range(corrId, ellRangeMax):
+                            new_ax.append(arr.axes[i])
+                            toRemove.append(arr.axes[i])
+                        continue
+
+                if not isinstance(val, int):
+                    new_ax.append(
+                        arr.axes[corrId] if val is not None else "_dummy"
+                    )
+
+                if val is not None:
+                    toRemove.append(arr.axes[corrId])
+                    process_meta(corrId, val)
+
+            if len(new_ax) < arr.ndim:
+                new_ax += [val for val in arr.axes if val not in toRemove]
+
+            setattr(arr, "axes", new_ax)
+
+        return arr
+
+    def __setitem__(self, key, value):
+        self._arr[key] = np.asarray(value)
+        if isinstance(value, Sample):
+            self.errors[key] = value.errors
+
+    def discardData(self, indices, axis=0):
+        """Discard data at given indices along the given axis.
+
+        Parameters
+        ----------
+        indices : int, list
+            The indices of the data to be discarded.
+        axis : int
+            The index of the axis along which the data are discarded.
+
+        """
+        mask = np.zeros(self.shape[axis]).astype(bool)
+        mask[indices] = 1
+
+        return self.take(np.argwhere(~mask)[:, 0], axis)
 
     def bin(self, bin_size, axis=-1):
         """Bin data with the given bin size along specified axis.
@@ -479,42 +826,39 @@ class Sample(np.ndarray):
             values, which are binned as well.
 
         """
-        shape = list(self.shape)
-        axis_size = self.shape[axis]
-        nbr_iter = int(axis_size / bin_size)
-
-        shape[axis] = nbr_iter
-
         ax_vals = getattr(self, self.axes[axis])
+        max_idx = self.shape[axis] - self.shape[axis] % bin_size
 
-        new_arr = np.zeros(shape).swapaxes(0, axis)
-        new_err = np.zeros(shape).swapaxes(0, axis)
-        new_ax = np.zeros(nbr_iter)
-        for idx in range(nbr_iter):
-            arr = (
-                self.take(
-                    np.arange(bin_size * idx, bin_size * idx + bin_size), axis
-                )
-                .swapaxes(0, axis)
-                .mean(0)
-            )
-            err = (
-                self.errors.take(
-                    np.arange(bin_size * idx, bin_size * idx + bin_size), axis
-                )
-                .swapaxes(0, axis)
-                .mean(0)
-            )
-            ax = ax_vals[bin_size * idx : bin_size * idx + bin_size].mean()
-            new_arr[idx] = arr
-            new_err[idx] = err
-            new_ax[idx] = ax
+        new_arr = np.stack(
+            [
+                np.asarray(self).take(np.arange(idx, max_idx, bin_size), axis)
+                for idx in range(bin_size)
+            ]
+        ).mean(0)
 
-        new_arr = new_arr.swapaxes(0, axis)
-        new_err = new_err.swapaxes(0, axis)
+        new_err = np.sqrt(
+            np.stack(
+                [
+                    self.errors.take(np.arange(idx, max_idx, bin_size), axis)
+                    ** 2
+                    for idx in range(bin_size)
+                ]
+            ).sum(0)
+        )
 
-        out_arr = Sample(new_arr)
-        out_arr.__dict__.update(self.__dict__)
+        new_ax = np.stack(
+            [
+                ax_vals.take(np.arange(idx, max_idx, bin_size))
+                for idx in range(bin_size)
+            ]
+        ).mean(0)
+
+        out_arr = Sample(
+            new_arr,
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
         out_arr.errors = np.array(new_err)
         setattr(out_arr, self.axes[axis], new_ax)
 
@@ -539,38 +883,25 @@ class Sample(np.ndarray):
             which are processed as well.
 
         """
-        shape = list(self.shape)
-        axis_size = self.shape[axis]
-        last_idx = int(axis_size - win_size)
-
-        shape[axis] = last_idx
-
         ax_vals = getattr(self, self.axes[axis])
 
-        new_arr = np.zeros(shape).swapaxes(0, axis)
-        new_err = np.zeros(shape).swapaxes(0, axis)
-        new_ax = np.zeros(last_idx)
-        for idx in range(last_idx):
-            arr = (
-                self.take(np.arange(idx, idx + win_size), axis)
-                .swapaxes(0, axis)
-                .mean(0)
+        def kernel(array, w, axis):
+            arr = np.cumsum(array, axis)
+            arr = arr.take(np.arange(w, arr.shape[axis]), axis) - arr.take(
+                np.arange(0, arr.shape[axis] - w), axis
             )
-            err = (
-                self.errors.take(np.arange(idx, idx + win_size), axis)
-                .swapaxes(0, axis)
-                .mean(0)
-            )
-            ax = ax_vals[idx : idx + win_size].mean()
-            new_arr[idx] = arr
-            new_err[idx] = err
-            new_ax[idx] = ax
+            return arr.take(np.arange(w - 1, arr.shape[axis]), axis) / w
 
-        new_arr = new_arr.swapaxes(0, axis)
-        new_err = new_err.swapaxes(0, axis)
+        new_arr = kernel(np.asarray(self), win_size, axis)
+        new_err = np.sqrt(kernel(self.errors ** 2, win_size, axis))
+        new_ax = kernel(ax_vals, win_size, 0)
 
-        out_arr = Sample(new_arr)
-        out_arr.__dict__.update(self.__dict__)
+        out_arr = Sample(
+            new_arr,
+            **{
+                key: val for key, val in self.__dict__.items() if key != "_arr"
+            },
+        )
         out_arr.errors = np.array(new_err)
         setattr(out_arr, self.axes[axis], new_ax)
 
@@ -858,17 +1189,20 @@ class Sample(np.ndarray):
         xlabels = {
             "energies": "$\\rm \\hbar \\omega ~ [\\mu eV]$",
             "q": "q [$\\rm \\AA^{-1}$]",
+            "qz": "$q_z ~ [\\rm \\AA^{-1}$]",
             "time": "time [h]",
             "temperature": "temperature [K]",
+            "pressure": "pressure [Pa]",
         }
 
         if xlabel is None:
-            xlabel = xlabels[self.axes[axis]]
+            ax_name = self.axes[axis]
+            xlabel = xlabels[ax_name] if ax_name in xlabels else ax_name
 
         if label is None:
             label = self.name
 
-        y = self
+        y = np.asarray(self)
         err = self.errors
         if plot_errors is False:
             err *= 0
@@ -912,7 +1246,6 @@ class Sample(np.ndarray):
         ylabel=None,
         zlabel="$\\rm S(q, \\hbar \\omega)$",
         zscale="log",
-        new_fig=False,
         colormap="winter",
     ):
         """Helper function for quick plotting.
@@ -959,8 +1292,10 @@ class Sample(np.ndarray):
         labels = {
             "energies": "$\\rm \\hbar \\omega ~ [\\mu eV]$",
             "q": "q [$\\rm \\AA^{-1}$]",
+            "qz": "$q_z ~ [\\rm \\AA^{-1}$]",
             "time": "time [h]",
             "temperature": "temperature [K]",
+            "pressure": "pressure [Pa]",
         }
 
         if axis == "observable":
@@ -971,6 +1306,7 @@ class Sample(np.ndarray):
         xlabel = labels[z.axes[1]] if xlabel is None else xlabel
         y = getattr(z, z.axes[1])
         ylabel = labels[z.axes[0]] if ylabel is None else ylabel
+        z = np.asarray(z)
 
         def log_tick_formatter(val, pos=None):
             return f"$10^{{{int(val)}}}$"
@@ -990,8 +1326,8 @@ class Sample(np.ndarray):
             xx,
             yy,
             z,
-            rcount=min((20, x.size)),
-            ccount=min((20, y.size)),
+            rcount=np.min((20, x.size)),
+            ccount=np.min((20, y.size)),
             facecolors=colors,
             shade=False,
         )

@@ -11,7 +11,7 @@ from distutils.dist import Distribution
 try:
     from Cython.Build import cythonize
     import cython_gsl
-except ImportError or ModuleNotFoundError:
+except ImportError:
     os.system("python3 -m pip install Cython")
     os.system("python3 -m pip install CythonGSL")
     from Cython.Build import cythonize
@@ -41,10 +41,8 @@ packagesList = [
 ]
 
 
-class CommandMixin(object):
-    user_options = [
-        ('gsl-path=', None, 'path to GSL include directory.')
-    ]
+class CommandMixin:
+    user_options = [("gsl-path=", None, "path to GSL include directory.")]
 
     def initialize_options(self):
         super().initialize_options()
@@ -69,9 +67,9 @@ class CommandMixin(object):
 class BuildExtCommand(build_ext):
     def build_extensions(self):
         for e in self.extensions:
-            e.include_dirs.append(gsl_path.rstrip('/') + '/include')
-            e.library_dirs.append(gsl_path.rstrip('/') + '/lib/Release')
-        if 'win32' in sys.platform:
+            e.include_dirs.append(gsl_path.rstrip("/") + "/include")
+            e.library_dirs.append(gsl_path.rstrip("/") + "/lib/Release")
+        if "win32" in sys.platform:
             if gsl_path != "":
                 build_ext.build_extensions(self)
         else:
@@ -79,11 +77,15 @@ class BuildExtCommand(build_ext):
 
 
 class InstallCommand(CommandMixin, install):
-    user_options = getattr(install, 'user_options', []) + CommandMixin.user_options
+    user_options = (
+        getattr(install, "user_options", []) + CommandMixin.user_options
+    )
 
 
 class DevelopCommand(CommandMixin, develop):
-    user_options = getattr(develop, 'user_options', []) + CommandMixin.user_options
+    user_options = (
+        getattr(develop, "user_options", []) + CommandMixin.user_options
+    )
 
 
 try:
@@ -97,9 +99,10 @@ try:
         library_dirs=[cython_gsl.get_library_dir()],
         include_dirs=[
             cython_gsl.get_cython_include_dir(),
+            cython_gsl.get_include(),
             dirPath + "/nPDyn/lib/src",
         ],
-        language='c++',
+        language="c++",
     )
     extMod = pyabsco_ext
 except IndexError:

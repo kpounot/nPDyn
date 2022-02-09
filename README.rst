@@ -70,8 +70,15 @@ For installation within your python framework:
 On Windows, the path to the GSL library can be provided using:
 
 .. code:: bash
-    
+
     python.exe setup.py install --gsl-path="my/path/to/GSL/root/dir/"
+
+It might be needed to add the dll path manually for usage:
+
+.. code:: python
+
+    import os
+    os.add_dll_directory(<'path to GSL .dll files'>)
 
 
 Full documentation

@@ -1,6 +1,19 @@
+v3.1.0
+------
+    Using array dipsatch mechanism from NumPy instead of array subclassing for
+    Sample class.
+    Adding a process_functions.py file in `dataParsers` to facilitate processing
+    of raw data. Now, the `IN16B_nexus` class is used to extract the data into
+    a `Sample` instance. Then the `IN16B_QENS`, `IN16B_FWS` and `IN16B_BATS`
+    classes handle the daat processing. These changes are transparent to the user
+    though as the same method can be used to process raw data (some function
+    arguments might not work anymore).
+
 v3.0.1
 ------
-    Minor bug fixes
+    Minor bug fixes in plot and helper functions.
+    Improving handling of GSL library on Windows platform
+    (still not perfect though).
 
 v3.0.0
 ------

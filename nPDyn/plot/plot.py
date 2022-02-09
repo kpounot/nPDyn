@@ -62,8 +62,11 @@ class Plot(QWidget):
         super().__init__()
 
         self.dataset = dataset
-        self.fit_bests = [val.fit_best() for val in dataset]
-        self.fit_comps = [val.fit_components() for val in dataset]
+        try:
+            self.fit_bests = [val.fit_best() for val in dataset]
+            self.fit_comps = [val.fit_components() for val in dataset]
+        except ValueError:
+            pass
 
         self.noFit = False
         self.initChecks()
@@ -475,10 +478,10 @@ class Plot(QWidget):
                             alpha=0.5,
                         )
 
-            if self.legendBox.isChecked():
-                ax[idx].set_title(data.name, fontsize=10)
-                leg = ax[idx].legend()
-                leg.set_draggable(True)
+                if self.legendBox.isChecked():
+                    ax[idx].set_title(data.name, fontsize=10)
+                    leg = ax[idx].legend()
+                    leg.set_draggable(True)
 
         self.canvas.draw()
 
@@ -651,7 +654,10 @@ class Plot(QWidget):
 
     def updatePlot(self):
         """Redraw the current plot based on the selected parameters."""
-        return self.currPlot()
+        try:
+            return self.currPlot()
+        except Exception:
+            pass
 
     def initChecks(self):
         """This methods is used to perform some checks before

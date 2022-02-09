@@ -12,6 +12,7 @@ the fit results.
 
 """
 from nPDyn.sample import Sample
+from nPDyn.plot import plot
 
 from ._version import get_versions
 
