@@ -836,14 +836,20 @@ class Sample(NDArrayOperatorsMixin):
             ]
         ).mean(0)
 
-        new_err = np.sqrt(
-            np.stack(
-                [
-                    self.errors.take(np.arange(idx, max_idx, bin_size), axis)
-                    ** 2
-                    for idx in range(bin_size)
-                ]
-            ).sum(0)
+        new_err = (
+            1
+            / bin_size
+            * np.sqrt(
+                np.stack(
+                    [
+                        self.errors.take(
+                            np.arange(idx, max_idx, bin_size), axis
+                        )
+                        ** 2
+                        for idx in range(bin_size)
+                    ]
+                ).sum(0)
+            )
         )
 
         new_ax = np.stack(
@@ -1667,6 +1673,7 @@ class Sample(NDArrayOperatorsMixin):
         if processType == "replace":
             np.place(errors, data <= 0.0, np.inf)
             np.place(errors, data == np.inf, np.inf)
+            np.place(errors, errors == 0.0, np.inf)
 
         return data, errors, x
 

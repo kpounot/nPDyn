@@ -665,7 +665,7 @@ class Plot(QWidget):
 
         """
 
-        if np.any(np.array(self.dataset) is None):
+        if np.any(self.dataset is None):
             raise ValueError(
                 "No data were loaded.\n"
                 "Please import data before using this method."
