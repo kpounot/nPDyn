@@ -55,6 +55,7 @@ class IN16B_QENS:
         normalize=True,
         strip=25,
         observable="time",
+        slidingSum=None,
     ):
         self.scanList = scanList
         self.sumScans = sumScans
@@ -64,6 +65,7 @@ class IN16B_QENS:
         self.normalize = normalize
         self.observable = observable
         self.strip = strip
+        self.slidingSum = slidingSum
 
     def process(self):
         """Extract data from the provided files and
@@ -98,6 +100,11 @@ class IN16B_QENS:
 
         if self.sumScans:
             dataset = proc.sumAlongObservable(dataset)
+        elif self.slidingSum is not None:
+            dataset = dataset.sliding_average(self.slidingSum)
+            dataset.monitor = np.mean(dataset.monitor, 0)
+        else:
+            dataset.monitor = np.mean(dataset.monitor, 0)
 
         if self.normalize:
             dataset = proc.normalizeToMonitor(dataset)

@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
 from matplotlib.colorbar import ColorbarBase
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.ticker import MaxNLocator, FuncFormatter
 import matplotlib
 
@@ -29,10 +28,7 @@ except ImportError:
 
 
 from nPDyn.models import Model, Component, Parameters
-from nPDyn.models.presets import linear, calibratedD2O
 from nPDyn.lmfit.convolvedModel import ConvolvedModel
-from nPDyn.lmfit.lmfit_presets import hline
-from nPDyn.lmfit.lmfit_presets import calibratedD2O as lmCalibratedD2O
 
 try:
     from nPDyn.lib.pyabsco import py_absco_slab, py_absco_tube
@@ -892,11 +888,13 @@ class Sample(NDArrayOperatorsMixin):
         ax_vals = getattr(self, self.axes[axis])
 
         def kernel(array, w, axis):
-            arr = np.cumsum(array, axis)
-            arr = arr.take(np.arange(w, arr.shape[axis]), axis) - arr.take(
-                np.arange(0, arr.shape[axis] - w), axis
-            )
-            return arr.take(np.arange(w - 1, arr.shape[axis]), axis) / w
+            arr = np.swapaxes(array, 0, axis)
+            new_arr = []
+            for start, _ in enumerate(arr[:-w]):
+                new_arr.append(arr[start : start + w].mean(0))
+            new_arr = np.array(new_arr)
+
+            return np.swapaxes(new_arr, 0, axis)
 
         new_arr = kernel(np.asarray(self), win_size, axis)
         new_err = np.sqrt(kernel(self.errors ** 2, win_size, axis))

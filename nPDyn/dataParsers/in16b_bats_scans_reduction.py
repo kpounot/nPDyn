@@ -64,6 +64,7 @@ class IN16B_BATS:
         tElastic=None,
         monitorCutoff=0.80,
         pulseChopper="C34",
+        slidingSum=None,
     ):
         self.scanList = scanList
         self.sumScans = sumScans
@@ -75,6 +76,7 @@ class IN16B_BATS:
         self.monitorCutoff = monitorCutoff
         self.pulseChopper = pulseChopper
         self._refDist = {"C12": 34.300, "C34": 33.388}
+        self.slidingSum = slidingSum
 
     def process(self, center=None, peaks=None, monPeaks=None):
         """Extract data from the provided files and
@@ -99,13 +101,14 @@ class IN16B_BATS:
             center = int(np.mean([val[1] for val in aligned]))
 
         dataset = [proc.detGrouping(val, self.detGroup) for val in dataset]
-
         dataset = [proc.alignTo(val, center, peaks) for val in dataset]
-
         dataset = proc.mergeDataset(dataset, self.observable)
 
         if self.sumScans:
             dataset = proc.sumAlongObservable(dataset)
+        elif self.slidingSum is not None:
+            dataset = dataset.sliding_average(self.slidingSum)
+            dataset.monitor = np.mean(dataset.monitor, 0)
         else:
             dataset.monitor = np.mean(dataset.monitor, 0)
 
