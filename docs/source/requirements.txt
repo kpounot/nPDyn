@@ -5,6 +5,7 @@ lmfit
 matplotlib
 numpy
 PyQt5==5.14
+qtwidgets
 scipy
 sphinx_rtd_theme
 sphinxcontrib-napoleon
