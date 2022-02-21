@@ -1483,13 +1483,14 @@ class Sample(NDArrayOperatorsMixin):
             errors = self.errors
         else:
             errors = kwargs["errors"]
-        if isinstance(self.model, lmModel):
-            errors = 1 / errors
 
         x = np.copy(self.energies)
 
         if cleanData in ["replace", "omit"]:
             data, errors, x = self._cleanData(data, errors, x, cleanData)
+
+        if isinstance(self.model, lmModel):
+            errors = 1 / errors
 
         if isinstance(self.model, Model):
             kwParams = self.model.params._paramsToList()

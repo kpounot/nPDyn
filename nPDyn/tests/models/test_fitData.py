@@ -22,7 +22,7 @@ def test_save_loadParams(fullQENSDataset):
     p = Parameters()
     p.loadParams("fitted_params.json")
     for key, val in res.params[0].items():
-        assert p[key].value == val.value
+        assert np.all(p[key].value == val.value)
 
 
 def test_fitD2O_Builtin(fullQENSDataset):
