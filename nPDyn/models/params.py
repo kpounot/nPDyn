@@ -8,6 +8,8 @@ from collections import OrderedDict, namedtuple
 
 import numpy as np
 
+import json
+
 
 _INT_FLOAT_32_64 = (int, float, np.int32, np.int64, np.float32, np.float64)
 
@@ -239,6 +241,33 @@ class Parameters(OrderedDict):
                     params.set(key, value=pList.pop(0), error=errList.pop(0))
 
         return params
+
+    def writeParams(self, fileName):
+        """Write parameters to given file in JSON format."""
+
+        class NumpyArrayEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return json.JSONEncoder.default(self, obj)
+
+        out = {key: val._asdict() for key, val in self.items()}
+
+        with open(fileName, "w") as outFile:
+            json.dump(out, outFile, cls=NumpyArrayEncoder)
+
+    def loadParams(self, fileName):
+        """Load parameters from a file in JSON format."""
+
+        def list_hook(obj):
+            for key, val in obj.items():
+                if isinstance(val, list) and key != "bounds":
+                    obj[key] = np.asarray(val).astype(float)
+            return obj
+
+        with open(fileName) as inFile:
+            newParams = json.load(inFile, object_hook=list_hook)
+            self.update(**newParams)
 
     def __repr__(self):
         """Fancy representation for the class."""

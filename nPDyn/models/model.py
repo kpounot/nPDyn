@@ -292,7 +292,15 @@ class Model:
         A copy of the fitted model instance.
 
         """
-        # process 'x' array and match the shape of data
+        overridenParams = {
+            key: val
+            for key, val in kwargs.items()
+            if key in self.params.keys()
+        }
+        self.params.update(**overridenParams)
+        for key in overridenParams:
+            kwargs.pop(key)
+
         params, bounds = self.params.paramList
 
         if fit_kws is None:
@@ -302,16 +310,27 @@ class Model:
         func = lambda p: norm * np.sum(
             (self.eval(x, p, **kwargs) - data) ** 2 / weights ** 2
         )
-
         if fit_method == "curve_fit":
+            if "absolute_sigma" in fit_kws.keys():
+                fit_kws["absolute_sigma"].update(bounds=bounds)
+            else:
+                fit_kws["absolute_sigma"] = True
+
+            p0 = fit_kws.pop("p0") if "p0" in fit_kws.keys() else params
+            sigma = (
+                fit_kws.pop("sigma")
+                if "sigma" in fit_kws.keys()
+                else weights.flatten()
+            )
+
             func = lambda x, *p: self.eval(x, p, **kwargs).flatten()
             bounds = ([val[0] for val in bounds], [val[1] for val in bounds])
             fit = curve_fit(
                 func,
                 x,
                 data.flatten(),
-                params,
-                weights.flatten(),
+                p0=p0,
+                sigma=sigma,
                 bounds=bounds,
                 **fit_kws
             )

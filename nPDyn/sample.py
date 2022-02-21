@@ -1478,6 +1478,7 @@ class Sample(NDArrayOperatorsMixin):
             data = np.asarray(self)
         else:
             data = kwargs["data"]
+
         if "errors" not in kwargs.keys():
             errors = self.errors
         else:
@@ -1659,7 +1660,9 @@ class Sample(NDArrayOperatorsMixin):
 
         """
         if processType == "omit":
-            mask = ~(data <= 0.0) & ~(data == np.inf) & ~(errors == np.inf)
+            mask = (
+                ~(data <= 0.0) & ~(np.isfinite(data)) & ~(np.isfinite(errors))
+            )
             for obs in mask:
                 for q in obs:
                     mask[0, 0] = mask[0, 0] & q
@@ -1670,8 +1673,8 @@ class Sample(NDArrayOperatorsMixin):
 
         if processType == "replace":
             np.place(errors, data <= 0.0, np.inf)
-            np.place(errors, data == np.inf, np.inf)
-            np.place(errors, errors == 0.0, np.inf)
+            np.place(errors, ~(np.isfinite(data)), np.inf)
+            np.place(errors, ~(np.isfinite(errors)) & (errors == 0.0), np.inf)
 
         return data, errors, x
 

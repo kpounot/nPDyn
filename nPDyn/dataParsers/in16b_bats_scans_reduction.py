@@ -105,7 +105,7 @@ class IN16B_BATS:
         dataset = proc.mergeDataset(dataset, self.observable)
 
         if self.sumScans:
-            dataset = proc.sumAlongObservable(dataset)
+            dataset = proc.avgAlongObservable(dataset)
         elif self.slidingSum is not None:
             dataset = dataset.sliding_average(self.slidingSum)
             dataset.monitor = np.mean(dataset.monitor, 0)

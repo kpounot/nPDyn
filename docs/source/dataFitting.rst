@@ -211,6 +211,15 @@ containing the momentum transfer q values::
     ...     x=efws.q[:, None]
     ... )
 
+The fitted parameters can be saved in JSON format using
+(for the first observable)::
+
+    >>> qens.params[0].writeParams(<'file_name'>)
+
+Subsequently, the parameters can be imported using::
+
+    >>> qens.params[0].loadParams(<'file_name'>)
+
 
 Using *lmfit* backend
 ---------------------

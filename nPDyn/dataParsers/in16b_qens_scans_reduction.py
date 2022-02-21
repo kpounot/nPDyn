@@ -21,6 +21,10 @@ class IN16B_QENS:
                       using the data provided with this argument.
                       If it is None, then the peaks positions are
                       identified using the data in scanList.
+    :arg refPeaks: if :arg unmirroring: is True, and :arg vanadiumRef:
+                      is False, then the given peak positions are used.
+                      If it is None, then the peaks positions are
+                      identified using the data in scanList.
     :arg detGroup:    detector grouping, i.e. the channels that
                       are summed over along the position-sensitive
                       detector tubes. It can be an integer, then the
@@ -51,6 +55,7 @@ class IN16B_QENS:
         sumScans=True,
         unmirroring=True,
         vanadiumRef=None,
+        refPeaks=None,
         detGroup=None,
         normalize=True,
         strip=25,
@@ -61,6 +66,7 @@ class IN16B_QENS:
         self.sumScans = sumScans
         self.unmirroring = unmirroring
         self.vanadiumRef = vanadiumRef
+        self.refPeaks = refPeaks
         self.detGroup = detGroup
         self.normalize = normalize
         self.observable = observable
@@ -77,8 +83,7 @@ class IN16B_QENS:
         dataset = [proc.detGrouping(data, self.detGroup) for data in dataset]
 
         if self.unmirroring:
-            refPeaks = None
-            if self.vanadiumRef:
+            if self.vanadiumRef and self.refPeaks is None:
                 leftPeaks = None
                 rightPeaks = None
                 vana = IN16B_nexus(self.vanadiumRef, self.observable).process()
@@ -91,23 +96,23 @@ class IN16B_QENS:
                 rightPeaks = proc.findPeaks(
                     vana[:, :, int(vana.shape[2] / 2) :]
                 )
-                refPeaks = np.column_stack([leftPeaks, rightPeaks])
-            dataset = [proc.unmirror(val, refPeaks) for val in dataset]
+                self.refPeaks = np.column_stack([leftPeaks, rightPeaks])
+            dataset = [proc.unmirror(val, self.refPeaks) for val in dataset]
+
+        if self.normalize:
+            dataset = [proc.normalizeToMonitor(val) for val in dataset]
 
         dataset = proc.mergeDataset(dataset, self.observable)
 
         dataset = proc.convertChannelsToEnergy(dataset, "qens")
 
         if self.sumScans:
-            dataset = proc.sumAlongObservable(dataset)
+            dataset = proc.avgAlongObservable(dataset)
         elif self.slidingSum is not None:
             dataset = dataset.sliding_average(self.slidingSum)
             dataset.monitor = np.mean(dataset.monitor, 0)
         else:
             dataset.monitor = np.mean(dataset.monitor, 0)
-
-        if self.normalize:
-            dataset = proc.normalizeToMonitor(dataset)
 
         dataset = dataset.take(
             np.arange(self.strip, dataset.energies.size - self.strip),
@@ -115,3 +120,17 @@ class IN16B_QENS:
         )
 
         return dataset
+
+    def getReference(self):
+        """Process files to obtain reference values for elastic signal."""
+        leftPeaks = None
+        rightPeaks = None
+        ref = IN16B_nexus(self.scanList, self.observable).process()
+        ref = [proc.detGrouping(data, self.detGroup) for data in ref]
+        ref = proc.mergeDataset(ref)
+        ref = proc.sumAlongObservable(ref)
+        leftPeaks = proc.findPeaks(ref[:, :, : int(ref.shape[2] / 2)])
+        rightPeaks = proc.findPeaks(ref[:, :, int(ref.shape[2] / 2) :])
+        refPeaks = np.column_stack([leftPeaks, rightPeaks])
+
+        return refPeaks

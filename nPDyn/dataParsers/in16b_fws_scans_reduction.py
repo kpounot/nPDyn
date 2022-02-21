@@ -90,6 +90,6 @@ class IN16B_FWS:
         dataset = proc.mergeDataset(dataset, self.observable)
 
         if self.sumScans:
-            dataset = dataset.sum(0)[None]
+            dataset = dataset.mean(0)[None]
 
         return dataset

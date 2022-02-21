@@ -368,8 +368,10 @@ def unmirror(data, refPeaks=None):
         )
     newData = np.stack(newData, "q")
 
-    newMonitor = np.roll(data.monitor, midChannel - leftPeaks[qIdx]) + np.roll(
-        data.monitor, midChannel - (midChannel + rightPeaks[qIdx])
+    leftPeak = int(np.mean(leftPeaks))
+    rightPeak = int(np.mean(rightPeaks))
+    newMonitor = np.roll(data.monitor, midChannel - leftPeak) + np.roll(
+        data.monitor, midChannel - (midChannel + rightPeak)
     )
     newData.monitor = newMonitor[int(midChannel / 2) : 3 * int(midChannel / 2)]
 
@@ -547,6 +549,27 @@ def sumAlongObservable(data):
     data = np.sum(data, data.axes.index(data.observable))[None, :]
     data.monitor = (
         np.sum(data.monitor, 0) if data.monitor.ndim > 1 else data.monitor
+    )
+    data.axes[0] = data.observable
+
+    return data
+
+
+def avgAlongObservable(data):
+    """Average a single dataset along with monitor over the observable.
+
+    Parameters
+    ----------
+    data : :py:class:`sample.Sample`
+        Instance of :py:class:`sample.Sample`.
+    peaks : np.ndarray (optional)
+        Array of peak positions for each momentum transfer q value.
+        (default, None - will be determined automatically)
+
+    """
+    data = np.mean(data, data.axes.index(data.observable))[None, :]
+    data.monitor = (
+        np.mean(data.monitor, 0) if data.monitor.ndim > 1 else data.monitor
     )
     data.axes[0] = data.observable
 
