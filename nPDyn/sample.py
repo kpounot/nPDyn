@@ -12,6 +12,8 @@ from collections import OrderedDict
 import numpy as np
 from numpy.lib.mixins import NDArrayOperatorsMixin
 
+from scipy.sparse import bsr_array
+
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
@@ -364,6 +366,7 @@ class Sample(NDArrayOperatorsMixin):
         if "axes" not in kwargs:
             self.axes = []
 
+        self.sparse = False
         self._dummy = np.array([0])
 
     def __array__(self, dtype=None):
@@ -633,6 +636,45 @@ class Sample(NDArrayOperatorsMixin):
             setattr(arr, "axes", list(np.array(arr.axes)[::-1]))
 
         return arr
+
+    def toarray(self):
+        """Implements `toarray` function for sparse arrays."""
+        if self.sparse:
+            sparse = np.asarray(self)
+            sparse_err = np.asarray(self.errors)
+            arr = np.array([val.toarray() for val in sparse])
+            err = np.array([val.toarray() for val in sparse_err])
+
+            out = Sample(
+                arr,
+                **{
+                    key: val for key, val in self.__dict__.items() if key != "_arr"
+                },
+            )
+            out.errors = err
+            out.sparse = False
+            return out
+        else:
+            return self
+
+    def bsr_array(self):
+        """Implements `bsr_array` function on Sample data and errors."""
+        if not self.sparse:
+            arr = np.asarray(self)
+            sparse = [bsr_array(val) for val in arr]
+            err = np.sqrt(sparse)
+
+            out = Sample(
+                sparse,
+                **{
+                    key: val for key, val in self.__dict__.items() if key != "_arr"
+                },
+            )
+            out.errors = err
+            out.sparse = True
+            return out
+        else:
+            return self
 
     @property
     def T(self):
@@ -1676,6 +1718,9 @@ class Sample(NDArrayOperatorsMixin):
             np.place(errors, data <= 0.0, np.inf)
             np.place(errors, ~(np.isfinite(data)), np.inf)
             np.place(errors, ~(np.isfinite(errors)) & (errors == 0.0), np.inf)
+
+        print(np.all(np.isfinite(errors)))
+        print(np.all(np.isfinite(data)))
 
         return data, errors, x
 

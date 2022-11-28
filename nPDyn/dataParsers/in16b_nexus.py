@@ -11,6 +11,7 @@ from collections import namedtuple
 
 from scipy.signal import find_peaks
 from scipy.interpolate import interp1d
+from scipy.sparse import bsr_array
 
 from nPDyn.dataParsers.stringParser import parseString
 from nPDyn.dataParsers.instruments.in16b import getDiffDetXAxis
@@ -90,7 +91,7 @@ class IN16B_nexus:
             dataset = h5py.File(dataFile, mode="r")
             self.name = dataset["entry0/subtitle"][(0)].astype(str)
 
-            data = dataset["entry0/data/PSD_data"][()]
+            data = dataset["entry0/data/PSD_data"][()].astype('int32')
 
             maxDeltaE = dataset[
                 "entry0/instrument/Doppler/maximum_delta_energy"
@@ -101,7 +102,7 @@ class IN16B_nexus:
 
             # Gets the monitor data
             monitor = (
-                dataset["entry0/monitor/data"][()].squeeze().astype("float")
+                dataset["entry0/monitor/data"][()].squeeze()
             )
             self.monitor.append(np.copy(monitor))
 
@@ -182,7 +183,7 @@ class IN16B_nexus:
                     nbr_single_dec=nbrSD,
                     tof=tof,
                     monTof=tof,
-                )
+                ).bsr_array()
             )
 
         return out

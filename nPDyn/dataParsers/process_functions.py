@@ -214,6 +214,7 @@ def detGrouping(data, detGroup=None):
         file and the provided values are used to define the range.
 
     """
+    data = data.toarray()
     axis = data.axes.index("qz")
     data.swapaxes(0, data.axes.index("q"))
     data_SD = np.sum(data[: data.nbr_single_dec], axis)
@@ -290,6 +291,7 @@ def alignGroups(data, position=None):
         peak.
 
     """
+    data = data.toarray()
     modData = np.asarray(data[data.nbr_single_dec :].sum(0))
     modData = np.array(
         [np.convolve(val, np.ones(20), mode="same") for val in modData]
@@ -329,7 +331,7 @@ def alignGroups(data, position=None):
                 [np.roll(val, shifts[idx]) for idx, val in enumerate(qData.T)]
             ).T
 
-    return data, center
+    return data.bsr_array(), center
 
 
 def unmirror(data, refPeaks=None):
